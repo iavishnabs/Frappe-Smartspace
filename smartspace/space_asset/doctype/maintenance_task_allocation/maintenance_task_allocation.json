@@ -1,0 +1,97 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "MTA-.YYYY.-.#####",
+ "creation": "2026-06-15 17:23:57.932348",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "asset_maintenance_request",
+  "technician",
+  "priority",
+  "column_break_gnee",
+  "status",
+  "assigned_on",
+  "completed_on",
+  "section_break_jtii",
+  "task_description"
+ ],
+ "fields": [
+  {
+   "fieldname": "asset_maintenance_request",
+   "fieldtype": "Link",
+   "label": "Asset Maintenance Request",
+   "options": "Asset Maintenance"
+  },
+  {
+   "fieldname": "technician",
+   "fieldtype": "Link",
+   "label": "Technician",
+   "options": "Staff"
+  },
+  {
+   "fieldname": "priority",
+   "fieldtype": "Select",
+   "label": "Priority",
+   "options": "Low\nMedium\nHigh"
+  },
+  {
+   "fieldname": "column_break_gnee",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Open",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "\nOpen\nIn Progress\nOverdue\nCompleted"
+  },
+  {
+   "fieldname": "assigned_on",
+   "fieldtype": "Datetime",
+   "label": "Assigned On"
+  },
+  {
+   "fieldname": "completed_on",
+   "fieldtype": "Date",
+   "label": "Completed On"
+  },
+  {
+   "fieldname": "section_break_jtii",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "task_description",
+   "fieldtype": "Small Text",
+   "label": "Task Description"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-06-15 17:30:56.125982",
+ "modified_by": "Administrator",
+ "module": "Space Asset",
+ "name": "Maintenance Task Allocation",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

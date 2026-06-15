@@ -1,0 +1,51 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-06-15 12:50:12.730287",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "enable_notifications",
+  "auto_create_expense_on_asset_purchase"
+ ],
+ "fields": [
+  {
+   "default": "0",
+   "fieldname": "enable_notifications",
+   "fieldtype": "Check",
+   "label": "Enable Notifications"
+  },
+  {
+   "default": "0",
+   "fieldname": "auto_create_expense_on_asset_purchase",
+   "fieldtype": "Check",
+   "label": "Auto Create Expense on Asset Purchase"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-06-15 17:38:55.359148",
+ "modified_by": "Administrator",
+ "module": "smartspace",
+ "name": "App Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

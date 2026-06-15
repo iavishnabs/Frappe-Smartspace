@@ -1,0 +1,97 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "STF-.DD.-.####",
+ "creation": "2026-06-13 19:51:05.733277",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "active",
+  "app_user",
+  "full_name",
+  "phone",
+  "date_of_birth",
+  "column_break_jalg",
+  "staff_type",
+  "email",
+  "date_of_join"
+ ],
+ "fields": [
+  {
+   "fieldname": "app_user",
+   "fieldtype": "Link",
+   "label": "App User",
+   "options": "App User"
+  },
+  {
+   "fetch_from": "app_user.full_name",
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "label": "Full Name"
+  },
+  {
+   "fieldname": "column_break_jalg",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "staff_type",
+   "fieldtype": "Select",
+   "label": "Staff Type"
+  },
+  {
+   "fetch_from": "app_user.user",
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email"
+  },
+  {
+   "default": "1",
+   "fieldname": "active",
+   "fieldtype": "Check",
+   "label": "Active"
+  },
+  {
+   "fieldname": "phone",
+   "fieldtype": "Data",
+   "label": "Phone"
+  },
+  {
+   "fieldname": "date_of_join",
+   "fieldtype": "Date",
+   "label": "Date of Join"
+  },
+  {
+   "fieldname": "date_of_birth",
+   "fieldtype": "Date",
+   "label": "Date of Birth"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-06-13 19:58:55.398521",
+ "modified_by": "Administrator",
+ "module": "smartspace",
+ "name": "Staff",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
