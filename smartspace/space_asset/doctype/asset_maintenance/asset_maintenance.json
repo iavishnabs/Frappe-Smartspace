@@ -37,11 +37,11 @@
    "label": "Reported Date"
   },
   {
-   "default": "Open",
+   "default": "Scheduled",
    "fieldname": "maintenance_status",
    "fieldtype": "Select",
    "label": "Maintenance Status",
-   "options": "\nOpen\nIn Progress\nCompleted"
+   "options": "\nScheduled\nIn Progress\nFlagged\nCompleted"
   },
   {
    "fieldname": "section_break_glbz",
@@ -55,8 +55,13 @@
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
- "links": [],
- "modified": "2026-06-15 17:31:07.495077",
+ "links": [
+  {
+   "link_doctype": "Maintenance Task Allocation",
+   "link_fieldname": "asset_maintenance_request"
+  }
+ ],
+ "modified": "2026-07-26 19:59:17.718093",
  "modified_by": "Administrator",
  "module": "Space Asset",
  "name": "Asset Maintenance",

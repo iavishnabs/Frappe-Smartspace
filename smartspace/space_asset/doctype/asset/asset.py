@@ -6,4 +6,7 @@ from frappe.model.document import Document
 
 
 class Asset(Document):
-	pass
+	def validate(self):
+		if not self.serial_number and self.name:
+			self.serial_number = f"SN-{self.name}"
+			

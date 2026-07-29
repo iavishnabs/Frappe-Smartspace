@@ -6,7 +6,10 @@
  "engine": "InnoDB",
  "field_order": [
   "enable_notifications",
-  "auto_create_expense_on_asset_purchase"
+  "auto_create_expense_on_asset_purchase",
+  "office_hours_section",
+  "office_start_time",
+  "office_end_time"
  ],
  "fields": [
   {
@@ -20,6 +23,23 @@
    "fieldname": "auto_create_expense_on_asset_purchase",
    "fieldtype": "Check",
    "label": "Auto Create Expense on Asset Purchase"
+  },
+  {
+   "fieldname": "office_hours_section",
+   "fieldtype": "Section Break",
+   "label": "Office Hours"
+  },
+  {
+   "default": "09:00:00",
+   "fieldname": "office_start_time",
+   "fieldtype": "Time",
+   "label": "Office Start Time"
+  },
+  {
+   "default": "18:00:00",
+   "fieldname": "office_end_time",
+   "fieldtype": "Time",
+   "label": "Office End Time"
   }
  ],
  "grid_page_length": 50,

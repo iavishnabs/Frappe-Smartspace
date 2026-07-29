@@ -1,0 +1,116 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "PARK-.YYYY.-.#####",
+ "creation": "2026-06-15 15:05:42.834055",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "parking_slot",
+  "vehicle_number",
+  "member",
+  "app_user",
+  "column_break_vpkd",
+  "allocation_date",
+  "allocated_from",
+  "allocated_to",
+  "allocation_status"
+ ],
+ "fields": [
+  {
+   "fieldname": "parking_slot",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Parking Slot",
+   "options": "Parking Slot",
+   "reqd": 1
+  },
+  {
+   "fieldname": "allocated_from",
+   "fieldtype": "Datetime",
+   "label": "Allocated From",
+   "read_only": 1
+  },
+  {
+   "fieldname": "allocated_to",
+   "fieldtype": "Datetime",
+   "label": "Allocated To",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_vpkd",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Active",
+   "fieldname": "allocation_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Allocation Status",
+   "options": "\nActive\nCompleted",
+   "read_only": 1
+  },
+  {
+   "fieldname": "member",
+   "fieldtype": "Link",
+   "label": "Member",
+   "options": "Member"
+  },
+  {
+   "fieldname": "vehicle_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Vehicle Number",
+   "reqd": 1
+  },
+  {
+   "fieldname": "app_user",
+   "fieldtype": "Link",
+   "label": "App User",
+   "options": "App User"
+  },
+  {
+   "fieldname": "allocation_date",
+   "fieldtype": "Date",
+   "label": "Allocation Date",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-06-15 15:13:06.137194",
+ "modified_by": "Administrator",
+ "module": "Space Parking",
+ "name": "Parking Allocation",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "App User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

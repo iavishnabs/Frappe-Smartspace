@@ -5,6 +5,7 @@ app_description = "Smart Co working Management System"
 app_email = "avishnazenha333@gmail.com"
 app_license = "mit"
 
+
 # Apps
 # ------------------
 
@@ -148,23 +149,12 @@ app_license = "mit"
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"smartspace.tasks.all"
-# 	],
-# 	"daily": [
-# 		"smartspace.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"smartspace.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"smartspace.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"smartspace.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	"daily": [
+		"smartspace.space_booking.doctype.reservation.reservation.expire_bookings",
+		"smartspace.space_event.doctype.space_event.space_event.close_expired_events"
+	]
+}
 
 # Testing
 # -------
@@ -247,3 +237,9 @@ app_license = "mit"
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
 
+# Fixtures
+# --------
+
+fixtures = [
+    {"dt": "Expense Category", "filters": [["enabled", "=", 1]]}
+]

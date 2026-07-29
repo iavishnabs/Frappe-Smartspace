@@ -1,0 +1,38 @@
+[
+ {
+  "category_name": "Travel",
+  "description": null,
+  "docstatus": 0,
+  "doctype": "Expense Category",
+  "enabled": 1,
+  "modified": "2026-06-16 11:46:18.562469",
+  "name": "Travel"
+ },
+ {
+  "category_name": "Other",
+  "description": null,
+  "docstatus": 0,
+  "doctype": "Expense Category",
+  "enabled": 1,
+  "modified": "2026-06-16 11:47:07.413639",
+  "name": "Other"
+ },
+ {
+  "category_name": "Food",
+  "description": null,
+  "docstatus": 0,
+  "doctype": "Expense Category",
+  "enabled": 1,
+  "modified": "2026-06-16 11:46:35.379208",
+  "name": "Food"
+ },
+ {
+  "category_name": "Office Expense",
+  "description": null,
+  "docstatus": 0,
+  "doctype": "Expense Category",
+  "enabled": 1,
+  "modified": "2026-06-16 11:47:00.456925",
+  "name": "Office Expense"
+ }
+]

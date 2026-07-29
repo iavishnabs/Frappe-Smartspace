@@ -6,24 +6,19 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "asset",
   "location",
   "floor",
   "space",
   "column_break_ckdz",
-  "allocated_date",
+  "posting_date",
+  "allocated_from",
+  "allocated_to",
   "allocation_status",
-  "quantity",
   "section_break_uhxa",
-  "remarks"
+  "assets",
+  "amended_from"
  ],
  "fields": [
-  {
-   "fieldname": "asset",
-   "fieldtype": "Link",
-   "label": "Asset",
-   "options": "Asset"
-  },
   {
    "fieldname": "location",
    "fieldtype": "Link",
@@ -47,14 +42,9 @@
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "allocated_date",
+   "fieldname": "allocated_to",
    "fieldtype": "Date",
-   "label": "Allocated Date"
-  },
-  {
-   "fieldname": "quantity",
-   "fieldtype": "Int",
-   "label": "Quantity"
+   "label": "Allocated To"
   },
   {
    "default": "Active",
@@ -68,15 +58,40 @@
    "fieldtype": "Section Break"
   },
   {
-   "fieldname": "remarks",
-   "fieldtype": "Small Text",
-   "label": "Remarks"
+   "fieldname": "assets",
+   "fieldtype": "Table",
+   "label": "Assets",
+   "options": "Asset Allocation Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Asset Allocation",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "default": "Today",
+   "fieldname": "posting_date",
+   "fieldtype": "Date",
+   "label": "Posting Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "allocated_from",
+   "fieldtype": "Date",
+   "label": "Allocated From"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
+ "is_submittable": 1,
  "links": [],
- "modified": "2026-06-15 17:13:45.434632",
+ "modified": "2026-07-28 23:03:23.212778",
  "modified_by": "Administrator",
  "module": "Space Asset",
  "name": "Asset Allocation",

@@ -17,6 +17,7 @@
   "membership_information_section",
   "active",
   "member_type",
+  "location",
   "column_break_dzay",
   "join_date",
   "expiry_date",
@@ -87,7 +88,7 @@
    "fieldname": "member_type",
    "fieldtype": "Select",
    "label": "Member Type",
-   "options": "\nFlex Member\nRegular Member"
+   "options": "\nFlex\nRegular"
   },
   {
    "fieldname": "column_break_dzay",
@@ -137,12 +138,19 @@
    "fieldname": "pincode",
    "fieldtype": "Data",
    "label": "Pincode"
+  },
+  {
+   "fetch_from": "app_user.location",
+   "fieldname": "location",
+   "fieldtype": "Link",
+   "label": "Location",
+   "options": "Location"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-15 13:03:18.061566",
+ "modified": "2026-07-24 13:14:24.090567",
  "modified_by": "Administrator",
  "module": "smartspace",
  "name": "Member",

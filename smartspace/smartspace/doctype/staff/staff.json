@@ -14,19 +14,22 @@
   "column_break_jalg",
   "staff_type",
   "email",
-  "date_of_join"
+  "date_of_join",
+  "location"
  ],
  "fields": [
   {
    "fieldname": "app_user",
    "fieldtype": "Link",
    "label": "App User",
+   "link_filters": "[[\"App User\",\"role\",\"!=\",\"App Admin\"]]",
    "options": "App User"
   },
   {
    "fetch_from": "app_user.full_name",
    "fieldname": "full_name",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Full Name"
   },
   {
@@ -36,7 +39,9 @@
   {
    "fieldname": "staff_type",
    "fieldtype": "Select",
-   "label": "Staff Type"
+   "in_list_view": 1,
+   "label": "Staff Type",
+   "options": "\nSecurity\nSupervisor\nTechnician"
   },
   {
    "fetch_from": "app_user.user",
@@ -64,12 +69,21 @@
    "fieldname": "date_of_birth",
    "fieldtype": "Date",
    "label": "Date of Birth"
+  },
+  {
+   "fetch_from": "app_user.location",
+   "fieldname": "location",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Location",
+   "options": "Location",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-13 19:58:55.398521",
+ "modified": "2026-06-18 17:00:36.261560",
  "modified_by": "Administrator",
  "module": "smartspace",
  "name": "Staff",

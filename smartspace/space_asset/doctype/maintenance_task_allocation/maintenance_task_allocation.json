@@ -27,6 +27,7 @@
    "fieldname": "technician",
    "fieldtype": "Link",
    "label": "Technician",
+   "link_filters": "[[\"Staff\",\"staff_type\",\"=\",\"Technician\"],[\"Staff\",\"active\",\"=\",1]]",
    "options": "Staff"
   },
   {
@@ -44,7 +45,7 @@
    "fieldname": "status",
    "fieldtype": "Select",
    "label": "Status",
-   "options": "\nOpen\nIn Progress\nOverdue\nCompleted"
+   "options": "\nOpen\nIn Progress\nFlagged\nOverdue\nCompleted"
   },
   {
    "fieldname": "assigned_on",
@@ -69,7 +70,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-15 17:30:56.125982",
+ "modified": "2026-07-26 20:08:32.380486",
  "modified_by": "Administrator",
  "module": "Space Asset",
  "name": "Maintenance Task Allocation",

@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "field:user",
+ "autoname": "field:email",
  "creation": "2026-06-13 13:19:40.285662",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -10,7 +10,9 @@
   "first_name",
   "last_name",
   "full_name",
+  "location",
   "column_break_obzt",
+  "email",
   "password",
   "role",
   "user"
@@ -60,13 +62,27 @@
    "fieldtype": "Link",
    "label": "User",
    "options": "User",
+   "read_only": 1,
    "unique": 1
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email",
+   "unique": 1
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Link",
+   "label": "Location",
+   "mandatory_depends_on": "eval:doc.role != \"App Admin\"",
+   "options": "Location"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-13 19:49:48.354072",
+ "modified": "2026-06-18 16:56:34.007799",
  "modified_by": "Administrator",
  "module": "smartspace",
  "name": "App User",

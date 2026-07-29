@@ -1,33 +1,23 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "AST-.category_code.-.#####",
+ "autoname": "AST-.#####",
  "creation": "2026-06-15 16:01:53.524245",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "asset_name",
-  "asset_category",
-  "category_code",
+  "serial_number",
+  "asset_item",
+  "status",
   "column_break_voka",
   "enabled",
   "unit_cost",
   "location",
+  "asset_purchase",
   "section_break_frrc",
   "description"
  ],
  "fields": [
-  {
-   "fieldname": "asset_name",
-   "fieldtype": "Data",
-   "label": "Asset Name"
-  },
-  {
-   "fieldname": "asset_category",
-   "fieldtype": "Link",
-   "label": "Asset Category",
-   "options": "Asset Category"
-  },
   {
    "fieldname": "column_break_voka",
    "fieldtype": "Column Break"
@@ -59,17 +49,45 @@
    "options": "Location"
   },
   {
-   "fetch_from": "asset_category.category_code",
-   "fieldname": "category_code",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Available\nAllocated\nUnder Maintenance\nDamaged\nDecommissioned"
+  },
+  {
+   "fieldname": "asset_item",
+   "fieldtype": "Link",
+   "label": "Asset Item",
+   "options": "Asset Item"
+  },
+  {
+   "fieldname": "serial_number",
    "fieldtype": "Data",
-   "label": "Category Code",
+   "in_list_view": 1,
+   "label": "Serial Number",
+   "read_only": 1
+  },
+  {
+   "fieldname": "asset_purchase",
+   "fieldtype": "Link",
+   "label": "Asset Purchase",
+   "options": "Asset Purchase",
    "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
- "links": [],
- "modified": "2026-06-15 17:19:08.243054",
+ "links": [
+  {
+   "link_doctype": "Asset Maintenance",
+   "link_fieldname": "asset"
+  },
+  {
+   "link_doctype": "Complaints",
+   "link_fieldname": "related_asset"
+  }
+ ],
+ "modified": "2026-06-17 12:39:04.786897",
  "modified_by": "Administrator",
  "module": "Space Asset",
  "name": "Asset",
@@ -91,6 +109,7 @@
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
+ "search_fields": "asset_item,serial_number",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []

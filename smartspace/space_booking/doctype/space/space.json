@@ -1,0 +1,116 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "SPACE-.#####",
+ "creation": "2026-06-15 12:55:46.380900",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "space_details_section",
+  "location",
+  "floor",
+  "space_type",
+  "seating_capacity",
+  "column_break_gicu",
+  "availability_status",
+  "amenities",
+  "section_break_yjbf",
+  "description",
+  "pricing_details_section",
+  "hourly_rate"
+ ],
+ "fields": [
+  {
+   "fieldname": "space_details_section",
+   "fieldtype": "Section Break",
+   "label": "Space Details"
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Link",
+   "label": "Location",
+   "options": "Location"
+  },
+  {
+   "fieldname": "floor",
+   "fieldtype": "Link",
+   "label": "Floor",
+   "options": "Floor"
+  },
+  {
+   "fieldname": "column_break_gicu",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Available",
+   "fieldname": "availability_status",
+   "fieldtype": "Select",
+   "label": "Availability Status",
+   "options": "\nAvailable\nOccupied\nReserved\nUnder Maintenance\nInactive"
+  },
+  {
+   "fieldname": "space_type",
+   "fieldtype": "Select",
+   "label": "Space Type",
+   "options": "\nDesk\nCabin\nConference Room\nMeeting Room\nPrivate Office\nEvent Hall"
+  },
+  {
+   "fieldname": "seating_capacity",
+   "fieldtype": "Int",
+   "label": "Seating Capacity"
+  },
+  {
+   "fieldname": "amenities",
+   "fieldtype": "Small Text",
+   "label": "Amenities"
+  },
+  {
+   "fieldname": "section_break_yjbf",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "pricing_details_section",
+   "fieldtype": "Section Break",
+   "label": "Pricing Details"
+  },
+  {
+   "description": "Price per hour for this space",
+   "fieldname": "hourly_rate",
+   "fieldtype": "Currency",
+   "label": "Hourly Rate"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-07-28 23:18:19.541714",
+ "modified_by": "Administrator",
+ "module": "Space Booking",
+ "name": "Space",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

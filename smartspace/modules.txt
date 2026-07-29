@@ -1,9 +1,8 @@
 smartspace
-Booking
-Finance
-Parcking
-Event
-Parking
-Complaint
+Space Booking
+Space Finance
+Space Event
+Space Complaint
+Space Parking
 Space Asset
-AI
+Space AI

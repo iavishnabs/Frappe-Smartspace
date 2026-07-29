@@ -73,7 +73,7 @@
    "fieldname": "status",
    "fieldtype": "Select",
    "label": "Status",
-   "options": "\nActive\nInactive"
+   "options": "Active\nInactive"
   },
   {
    "fieldname": "column_break_mnuw",
@@ -92,7 +92,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-15 12:35:49.045714",
+ "modified": "2026-06-15 22:53:13.424920",
  "modified_by": "Administrator",
  "module": "smartspace",
  "name": "Location",
