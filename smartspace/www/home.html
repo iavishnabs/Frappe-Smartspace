@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartSpace | Coworking Space Management</title>
+
+    <link rel="manifest" href="/assets/smartspace/manifest.json">
+    <meta name="theme-color" content="#f97316">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="SmartSpace">
+    <link rel="apple-touch-icon" href="/assets/smartspace/icon-192.svg">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        html{
+            scroll-behavior:smooth;
+        }
+
+        body{
+            background:#f8fafc;
+        }
+
+        .hero-bg{
+            background:
+            radial-gradient(circle at top left,#ffedd5 0%,transparent 35%),
+            radial-gradient(circle at bottom right,#fed7aa 0%,transparent 35%);
+        }
+    </style>
+</head>
+
+<body class="text-gray-800">
+
+{% set active = 'home' %}
+{% include "www/nav_footer/header.html" %}
+
+
+<!-- Hero -->
+
+<section class="hero-bg">
+
+<div class="max-w-7xl mx-auto px-6 py-24">
+
+<div class="grid lg:grid-cols-2 gap-16 items-center">
+
+<div>
+
+<span class="inline-block bg-orange-100 text-orange-700 px-4 py-2 rounded-full text-sm font-semibold mb-6">
+Workspace • Booking • Membership
+</span>
+
+<h1 class="text-5xl lg:text-6xl font-bold leading-tight">
+
+Manage Your
+<span class="text-orange-500">
+Coworking Space
+</span>
+
+with Ease
+
+</h1>
+
+<p class="mt-8 text-lg text-gray-600 leading-8">
+
+SmartSpace simplifies workspace management by handling desk reservations,
+meeting room bookings, memberships, billing, and customer management—all from
+one powerful platform.
+
+</p>
+
+<div class="mt-10 flex flex-wrap gap-4">
+
+<a href="/signin"
+class="bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 rounded-xl font-semibold shadow">
+
+Get Started
+
+</a>
+
+<a href="#features"
+class="border border-gray-300 hover:bg-white px-8 py-4 rounded-xl font-semibold">
+
+Learn More
+
+</a>
+
+</div>
+
+</div>
+
+
+<div>
+
+<div class="bg-white rounded-3xl shadow-2xl p-8">
+
+<div class="grid grid-cols-2 gap-6">
+
+<div class="rounded-2xl bg-orange-50 p-6">
+
+<div class="text-orange-500 text-3xl font-bold">
+120+
+</div>
+
+<p class="mt-2 text-gray-600">
+Workspaces
+</p>
+
+</div>
+
+<div class="rounded-2xl bg-green-50 p-6">
+
+<div class="text-green-600 text-3xl font-bold">
+98%
+</div>
+
+<p class="mt-2 text-gray-600">
+Occupancy
+</p>
+
+</div>
+
+<div class="rounded-2xl bg-orange-50 p-6">
+
+<div class="text-orange-600 text-3xl font-bold">
+350+
+</div>
+
+<p class="mt-2 text-gray-600">
+Members
+</p>
+
+</div>
+
+<div class="rounded-2xl bg-purple-50 p-6">
+
+<div class="text-purple-600 text-3xl font-bold">
+24/7
+</div>
+
+<p class="mt-2 text-gray-600">
+Access
+</p>
+
+</div>
+
+</div>
+
+<hr class="my-8">
+
+<h3 class="font-semibold text-lg mb-4">
+Everything You Need
+</h3>
+
+<ul class="space-y-3 text-gray-600">
+
+<li>✔ Workspace Booking</li>
+<li>✔ Meeting Room Reservation</li>
+<li>✔ Membership Management</li>
+<li>✔ Billing & Payments</li>
+<li>✔ Visitor Management</li>
+<li>✔ Reports & Analytics</li>
+
+</ul>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</section>
+
+
+<!-- Features -->
+
+<section id="features" class="py-24">
+
+<div class="max-w-7xl mx-auto px-6">
+
+<div class="text-center mb-16">
+
+<h2 class="text-4xl font-bold">
+
+Powerful Features
+
+</h2>
+
+<p class="text-gray-500 mt-4">
+
+Everything required to efficiently manage a coworking space.
+
+</p>
+
+</div>
+
+<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+<div class="bg-white rounded-2xl shadow p-8">
+
+<div class="text-4xl mb-4">
+🏢
+</div>
+
+<h3 class="font-bold text-xl mb-3">
+Workspace Booking
+</h3>
+
+<p class="text-gray-600">
+Reserve desks, cabins, and private offices with real-time availability.
+</p>
+
+</div>
+
+
+<div class="bg-white rounded-2xl shadow p-8">
+
+<div class="text-4xl mb-4">
+📅
+</div>
+
+<h3 class="font-bold text-xl mb-3">
+Meeting Rooms
+</h3>
+
+<p class="text-gray-600">
+Schedule conference rooms with conflict-free reservations.
+</p>
+
+</div>
+
+
+<div class="bg-white rounded-2xl shadow p-8">
+
+<div class="text-4xl mb-4">
+👥
+</div>
+
+<h3 class="font-bold text-xl mb-3">
+Membership
+</h3>
+
+<p class="text-gray-600">
+Manage members, plans, renewals, and subscriptions effortlessly.
+</p>
+
+</div>
+
+
+<div class="bg-white rounded-2xl shadow p-8">
+
+<div class="text-4xl mb-4">
+💳
+</div>
+
+<h3 class="font-bold text-xl mb-3">
+Billing
+</h3>
+
+<p class="text-gray-600">
+Generate invoices and track payments in one place.
+</p>
+
+</div>
+
+
+<div class="bg-white rounded-2xl shadow p-8">
+
+<div class="text-4xl mb-4">
+📊
+</div>
+
+<h3 class="font-bold text-xl mb-3">
+Reports
+</h3>
+
+<p class="text-gray-600">
+Gain insights into occupancy, revenue, and member activity.
+</p>
+
+</div>
+
+
+<div class="bg-white rounded-2xl shadow p-8">
+
+<div class="text-4xl mb-4">
+🔒
+</div>
+
+<h3 class="font-bold text-xl mb-3">
+Secure Access
+</h3>
+
+<p class="text-gray-600">
+Role-based access for administrators, staff, and members.
+</p>
+
+</div>
+
+</div>
+
+</div>
+
+</section>
+
+
+<!-- CTA -->
+
+<section class="bg-black">
+
+<div class="max-w-5xl mx-auto px-6 py-20 text-center text-white">
+
+<h2 class="text-4xl font-bold">
+
+Ready to Manage Your Workspace?
+
+</h2>
+
+<p class="mt-5 text-orange-200 text-lg">
+
+Access your SmartSpace dashboard and manage bookings, members,
+and operations effortlessly.
+
+</p>
+
+<a href="/signin"
+class="inline-block mt-10 bg-orange-500 text-white font-semibold px-10 py-4 rounded-xl hover:bg-orange-600">
+
+Login to Dashboard
+
+</a>
+
+</div>
+
+</section>
+
+
+{% include "www/nav_footer/footer.html" %}
+
+</body>
+</html>

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+    <title>{{ space.name }} | SmartSpace</title>
+
+    <link rel="manifest" href="/assets/smartspace/manifest.json">
+    <meta name="theme-color" content="#f97316">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="SmartSpace">
+    <link rel="apple-touch-icon" href="/assets/smartspace/icon-192.svg">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    boxShadow: {
+                        card: "0 12px 30px rgba(0,0,0,.08)"
+                    }
+                }
+            }
+        }
+    </script>
+
+</head>
+
+<body class="bg-slate-50 text-gray-800">
+
+{% set active = 'spaces' %}
+{% include "www/nav_footer/header.html" %}
+<section class="bg-white border-b">
+
+    <div class="max-w-7xl mx-auto px-6 py-4 text-sm">
+
+        <a href="/home"
+            class="text-gray-500 hover:text-orange-500">
+
+            Home
+
+        </a>
+
+        <span class="mx-2">/</span>
+
+        <a href="/spaces"
+            class="text-gray-500 hover:text-orange-500">
+
+            Spaces
+
+        </a>
+
+        <span class="mx-2">/</span>
+
+        <span class="font-semibold">
+
+            {{ space.name }}
+
+        </span>
+
+    </div>
+
+</section>
+<section class="py-16">
+
+<div class="max-w-7xl mx-auto px-6">
+
+<div class="grid lg:grid-cols-5 gap-10">
+
+<!-- LEFT -->
+
+<div class="lg:col-span-3">
+
+<div class="flex flex-wrap gap-3 items-center">
+
+<h1 class="text-4xl font-bold">
+
+{{ space.name }}
+
+</h1>
+
+<span
+class="bg-orange-100 text-orange-700 px-4 py-1 rounded-full">
+
+{{ space.space_type }}
+
+</span>
+
+{% if space.availability_status == "Available" %}
+<span class="bg-green-100 text-green-700 px-4 py-1 rounded-full">Available</span>
+{% elif space.availability_status == "Occupied" %}
+<span class="bg-red-100 text-red-700 px-4 py-1 rounded-full">Occupied</span>
+{% elif space.availability_status == "Reserved" %}
+<span class="bg-blue-100 text-blue-700 px-4 py-1 rounded-full">Reserved</span>
+{% elif space.availability_status == "Under Maintenance" %}
+<span class="bg-amber-100 text-amber-700 px-4 py-1 rounded-full">Maintenance</span>
+{% endif %}
+
+</div>
+
+{% if space.description %}
+<p class="mt-8 text-gray-600 leading-8">
+
+{{ space.description }}
+
+</p>
+{% endif %}
+
+<div class="grid md:grid-cols-3 gap-6 mt-10">
+
+<div class="bg-white rounded-xl shadow-card p-5">
+
+<p class="text-gray-500 text-sm">
+
+Location
+
+</p>
+
+<p class="font-semibold mt-2">
+
+📍 {{ space.location_name or space.location or 'N/A' }}
+
+</p>
+
+</div>
+
+<div class="bg-white rounded-xl shadow-card p-5">
+
+<p class="text-gray-500 text-sm">
+
+Floor
+
+</p>
+
+<p class="font-semibold mt-2">
+
+🏢 {{ space.floor_name or space.floor or 'N/A' }}
+
+</p>
+
+</div>
+
+<div class="bg-white rounded-xl shadow-card p-5">
+
+<p class="text-gray-500 text-sm">
+
+Capacity
+
+</p>
+
+<p class="font-semibold mt-2">
+
+👥 {{ space.seating_capacity or 0 }} Seats
+
+</p>
+
+</div>
+
+</div>
+
+</div>
+
+<!-- RIGHT -->
+
+<div class="lg:col-span-2">
+
+<div class="sticky top-24">
+
+<div class="bg-white rounded-2xl shadow-card p-8">
+
+<p class="text-gray-500">
+
+Starting From
+
+</p>
+
+<h2 class="text-5xl font-bold text-orange-500 mt-2">
+
+₹{{ "%g" % space.pricing.hourly }}
+
+</h2>
+
+<p class="text-gray-500">
+
+per hour
+
+</p>
+
+<hr class="my-8">
+
+<div class="space-y-4">
+
+<div class="flex justify-between">
+
+<span>Hourly</span>
+
+<strong>₹{{ "%g" % space.pricing.hourly }}</strong>
+
+</div>
+
+<div class="flex justify-between">
+
+<span>Daily (8 hrs)</span>
+
+<strong>₹{{ "{:,.0f}".format(space.pricing.daily) }}</strong>
+
+</div>
+
+<div class="flex justify-between">
+
+<span>Weekly (40 hrs)</span>
+
+<strong>₹{{ "{:,.0f}".format(space.pricing.weekly) }}</strong>
+
+</div>
+
+<div class="flex justify-between">
+
+<span>Monthly (160 hrs)</span>
+
+<strong>₹{{ "{:,.0f}".format(space.pricing.monthly) }}</strong>
+
+</div>
+
+<div class="flex justify-between">
+
+<span>Yearly (1920 hrs)</span>
+
+<strong>₹{{ "{:,.0f}".format(space.pricing.yearly) }}</strong>
+
+</div>
+
+</div>
+
+<a href="/signin"
+class="block text-center bg-orange-500 hover:bg-orange-600 text-white rounded-xl py-4 font-semibold mt-8">
+
+Book Now
+
+</a>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</section>
+
+<section class="pb-16">
+
+<div class="max-w-7xl mx-auto px-6">
+
+<h2 class="text-3xl font-bold mb-8">
+
+Space Preview
+
+</h2>
+
+<div
+class="rounded-3xl bg-orange-50 h-96 flex flex-col justify-center items-center">
+
+<div class="text-8xl">
+
+{% if space.space_type == "Desk" %}💻
+{% elif space.space_type == "Cabin" %}🛖
+{% elif space.space_type == "Conference Room" %}🏢
+{% elif space.space_type == "Meeting Room" %}🤝
+{% elif space.space_type == "Private Office" %}🏛️
+{% elif space.space_type == "Event Hall" %}🎪
+{% else %}🏢{% endif %}
+
+</div>
+
+<h3 class="text-3xl font-bold mt-5">
+
+{{ space.space_type }}
+
+</h3>
+
+<p class="text-gray-500 mt-3">
+
+Future image placeholder
+
+</p>
+
+</div>
+
+</div>
+
+</section>
+{% if space.amenities_list %}
+<section class="pb-16">
+
+<div class="max-w-7xl mx-auto px-6">
+
+<h2 class="text-3xl font-bold mb-8">
+
+Amenities
+
+</h2>
+
+<div class="flex flex-wrap gap-4">
+
+{% for amenity in space.amenities_list %}
+<span class="bg-orange-100 text-orange-700 px-5 py-3 rounded-full">{{ amenity }}</span>
+{% endfor %}
+
+</div>
+
+</div>
+
+</section>
+{% endif %}
+
+<section class="pb-16">
+
+<div class="max-w-7xl mx-auto px-6">
+
+<h2 class="text-3xl font-bold mb-8">
+
+Booking Plans
+
+</h2>
+
+<div class="grid lg:grid-cols-5 md:grid-cols-2 gap-6">
+
+<div class="bg-white rounded-2xl shadow-card p-6">
+<h3 class="font-bold text-orange-500">Hourly</h3>
+<p class="mt-4 text-gray-600">Best for short meetings within office hours.</p>
+</div>
+
+<div class="bg-white rounded-2xl shadow-card p-6">
+<h3 class="font-bold text-orange-500">Daily</h3>
+<p class="mt-4 text-gray-600">8 working hours. Ideal for a full workday.</p>
+</div>
+
+<div class="bg-white rounded-2xl shadow-card p-6">
+<h3 class="font-bold text-orange-500">Weekly</h3>
+<p class="mt-4 text-gray-600">40 hours per week for regular members.</p>
+</div>
+
+<div class="bg-white rounded-2xl shadow-card p-6">
+<h3 class="font-bold text-orange-500">Monthly</h3>
+<p class="mt-4 text-gray-600">160 hours/month for dedicated professionals.</p>
+</div>
+
+<div class="bg-white rounded-2xl shadow-card p-6">
+<h3 class="font-bold text-orange-500">Yearly</h3>
+<p class="mt-4 text-gray-600">1920 hours/year with the best long-term value.</p>
+</div>
+
+</div>
+
+</div>
+
+</section>
+<section class="pb-20">
+
+<div class="max-w-7xl mx-auto px-6">
+
+<a href="/spaces"
+class="inline-flex items-center gap-3 bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 rounded-xl">
+
+← Back to Available Spaces
+
+</a>
+
+</div>
+
+</section>
+{% include "www/nav_footer/footer.html" %}
+</body>
+
+</html>

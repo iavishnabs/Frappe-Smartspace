@@ -1,0 +1,88 @@
+<footer class="bg-gray-900 text-gray-300 mt-10">
+
+<div class="max-w-7xl mx-auto px-6 py-10">
+
+<div class="grid md:grid-cols-3 gap-10">
+
+<div>
+
+<h3 class="text-white text-xl font-bold">
+
+SmartSpace
+
+</h3>
+
+<p class="mt-4">
+
+Modern coworking space management platform for flexible offices, meeting rooms and workspaces.
+
+</p>
+
+</div>
+
+<div>
+
+<h4 class="text-white font-semibold mb-4">
+
+Quick Links
+
+</h4>
+
+<ul class="space-y-2">
+
+<li><a href="/home" class="hover:text-white">Home</a></li>
+<li><a href="/spaces" class="hover:text-white">Spaces</a></li>
+<li><a href="/contact" class="hover:text-white">Contact</a></li>
+<li><a href="/signin" class="hover:text-white">Login</a></li>
+
+</ul>
+
+</div>
+
+<div>
+
+<h4 class="text-white font-semibold mb-4">
+
+Contact
+
+</h4>
+
+<p>📍 Technopark, Trivandrum</p>
+
+<p class="mt-2">📞 +91 98765 43210</p>
+
+<p class="mt-2">✉ support@smartspace.com</p>
+
+</div>
+
+</div>
+
+<hr class="border-gray-700 my-8">
+
+<p class="text-center text-sm text-gray-400">
+
+© 2026 SmartSpace. All Rights Reserved.
+
+</p>
+
+</div>
+
+</footer>
+
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/assets/smartspace/sw.js')
+            .then(function(reg) {
+                reg.addEventListener('updatefound', function() {
+                    var newWorker = reg.installing;
+                    newWorker.addEventListener('statechange', function() {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            newWorker.postMessage({ type: 'SKIP_WAITING' });
+                        }
+                    });
+                });
+            });
+    });
+}
+</script>
