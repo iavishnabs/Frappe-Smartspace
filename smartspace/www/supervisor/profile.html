@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Staff | SmartSpace</title>
+    <title>Profile | SmartSpace</title>
 
     <link rel="manifest" href="/assets/smartspace/manifest.json">
     <link rel="icon" type="image/svg+xml" href="/assets/smartspace/favicon.svg">
@@ -17,8 +17,9 @@
 </head>
 <body class="bg-slate-50 min-h-screen">
 {% include "www/nav_footer/portal_header.html" %}
-<div class="max-w-7xl mx-auto px-6 py-10">
-    <h1 class="text-3xl font-bold">Staff</h1>
+{% include "www/supervisor/sidebar.html" %}
+<div class="md:ml-64 max-w-7xl mx-auto px-6 py-10">
+    <h1 class="text-3xl font-bold">Profile</h1>
 </div>
 </body>
 </html>
