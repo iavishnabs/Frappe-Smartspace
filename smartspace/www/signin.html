@@ -6,6 +6,7 @@
     <title>SmartSpace | Login</title>
 
     <link rel="manifest" href="/assets/smartspace/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/assets/smartspace/favicon.svg">
     <meta name="theme-color" content="#f97316">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -59,7 +60,10 @@
 
             </div>
 
-            <form class="mt-8 space-y-5">
+            <form id="login-form" class="mt-8 space-y-5">
+
+                <div id="login-error" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+                </div>
 
                 <div>
 
@@ -69,6 +73,9 @@
 
                     <input
                         type="email"
+                        id="login-email"
+                        name="usr"
+                        required
                         placeholder="Enter email"
                         class="w-full rounded-xl border border-gray-300 px-4 py-3 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none">
 
@@ -82,12 +89,17 @@
 
                     <input
                         type="password"
+                        id="login-password"
+                        name="pwd"
+                        required
                         placeholder="Enter password"
                         class="w-full rounded-xl border border-gray-300 px-4 py-3 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none">
 
                 </div>
 
                 <button
+                    type="submit"
+                    id="login-btn"
                     class="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-xl py-3 font-semibold transition">
 
                     Login
@@ -110,6 +122,51 @@
     </div>
 
 </div>
+
+<script>
+document.getElementById('login-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    var btn = document.getElementById('login-btn');
+    var errorDiv = document.getElementById('login-error');
+    var email = document.getElementById('login-email').value;
+    var password = document.getElementById('login-password').value;
+
+    errorDiv.classList.add('hidden');
+    btn.disabled = true;
+    btn.textContent = 'Logging in...';
+
+    // Step 1: Frappe login
+    fetch('/api/method/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'usr=' + encodeURIComponent(email) + '&pwd=' + encodeURIComponent(password)
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+        if (data.message === 'Logged In') {
+            // Step 2: Get user role and redirect
+            return fetch('/api/method/smartspace.frontend_api.auth.get_current_user')
+                .then(function(r) { return r.json(); })
+                .then(function(user) {
+                    if (user && user.message && user.message.redirect_url) {
+                        window.location.href = user.message.redirect_url;
+                    } else {
+                        window.location.href = '/home';
+                    }
+                });
+        } else {
+            throw new Error(data.message || 'Login failed');
+        }
+    })
+    .catch(function(err) {
+        errorDiv.textContent = 'Invalid email or password. Please try again.';
+        errorDiv.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Login';
+    });
+});
+</script>
 
 <script>
 if ('serviceWorker' in navigator) {
