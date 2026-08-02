@@ -14,12 +14,442 @@
     <link rel="apple-touch-icon" href="/assets/smartspace/icon-192.svg">
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    boxShadow: {
+                        card: "0 10px 30px rgba(0,0,0,.08)"
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 </head>
-<body class="bg-slate-50 min-h-screen">
+<body class="bg-slate-50 text-gray-800 min-h-screen">
 {% include "www/nav_footer/portal_header.html" %}
 {% include "www/supervisor/sidebar.html" %}
-<div class="md:ml-64 max-w-7xl mx-auto px-6 py-10">
-    <h1 class="text-3xl font-bold">Events</h1>
+
+<div class="sidebar-content transition-all duration-300">
+    <!-- Page Header -->
+    <div class="bg-black text-white px-6 py-8">
+        <h1 class="text-3xl font-bold">Events</h1>
+        <p class="text-orange-200 text-sm mt-1">Upcoming events and calendar</p>
+    </div>
+
+    {% raw %}
+    <div id="eventsApp" class="px-6 py-6">
+        <!-- Loading -->
+        <div v-if="loading" class="text-center py-12 text-gray-400">
+            <svg class="animate-spin mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            Loading events...
+        </div>
+
+        <!-- Empty State -->
+        <div v-if="!loading && events.length === 0" class="text-center py-16">
+            <svg class="mx-auto mb-4 text-gray-300" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <p class="text-gray-500 font-medium">No upcoming events</p>
+            <p class="text-gray-400 text-sm mt-1">Check back later for new events</p>
+        </div>
+
+        <div v-if="!loading && events.length > 0">
+            <!-- Two Column Layout: Events (left) + Calendar (right) -->
+            <div class="flex flex-col lg:flex-row gap-6">
+                <!-- Events Section -->
+                <div class="flex-1 min-w-0">
+                    <!-- Highlighted Next Event -->
+                    <div v-if="nextEvent" class="mb-6">
+                        <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Next Event</h2>
+                        <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-card p-6 text-white relative overflow-hidden">
+                            <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-12 -mt-12"></div>
+                            <div class="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full -ml-8 -mb-8"></div>
+                            <div class="relative">
+                                <div class="flex items-start justify-between mb-4">
+                                    <div>
+                                        <h3 class="text-2xl font-bold mb-1">{{ nextEvent.event_name }}</h3>
+                                        <p v-if="nextEvent.event_theme" class="text-orange-100 text-sm">{{ nextEvent.event_theme }}</p>
+                                    </div>
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white/20 text-white">
+                                        <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+                                        Upcoming
+                                    </span>
+                                </div>
+                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                                    <div>
+                                        <p class="text-orange-100 text-xs mb-0.5">Starts</p>
+                                        <p class="font-medium">{{ formatDateTime(nextEvent.start_date) }}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-orange-100 text-xs mb-0.5">Ends</p>
+                                        <p class="font-medium">{{ formatDateTime(nextEvent.end_date) }}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-orange-100 text-xs mb-0.5">Location</p>
+                                        <p class="font-medium">{{ nextEvent.location || '-' }}</p>
+                                    </div>
+                                </div>
+                                <p v-if="nextEvent.description" class="mt-4 text-orange-50 text-sm line-clamp-2" v-html="stripHtml(nextEvent.description)"></p>
+                                <button @click="openDetail(nextEvent)" class="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white text-orange-600 font-medium text-sm hover:bg-orange-50 transition">
+                                    View Details
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Other Upcoming Events -->
+                    <div v-if="otherEvents.length > 0">
+                        <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Other Upcoming Events</h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div v-for="event in otherEvents" :key="event.name" class="bg-white rounded-xl shadow-card p-5 hover:shadow-lg transition cursor-pointer" @click="openDetail(event)">
+                                <div class="flex items-start justify-between mb-3">
+                                    <div class="flex-1 min-w-0">
+                                        <h3 class="font-bold text-gray-800 text-base mb-0.5 truncate">{{ event.event_name }}</h3>
+                                        <p v-if="event.event_theme" class="text-xs text-gray-500">{{ event.event_theme }}</p>
+                                    </div>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-600 whitespace-nowrap ml-2">{{ getCountdown(event.start_date) }}</span>
+                                </div>
+                                <div class="space-y-1.5 text-sm">
+                                    <div class="flex items-center gap-2 text-gray-600">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                        <span>{{ formatDate(event.start_date) }}</span>
+                                    </div>
+                                    <div v-if="event.location" class="flex items-center gap-2 text-gray-600">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                                        <span>{{ event.location }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div v-if="totalPages > 1" class="mt-6 flex items-center justify-between">
+                        <p class="text-sm text-gray-500">Showing {{ (page - 1) * pageSize + 1 }}-{{ Math.min(page * pageSize, total) }} of {{ total }} events</p>
+                        <div class="flex items-center gap-2">
+                            <button @click="goToPage(page - 1)" :disabled="page <= 1" :class="page <= 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50 border-gray-200'" class="px-3 py-2 rounded-lg border text-sm font-medium transition">Prev</button>
+                            <span class="px-3 py-2 text-sm font-medium bg-orange-500 text-white rounded-lg border border-orange-500">{{ page }} / {{ totalPages }}</span>
+                            <button @click="goToPage(page + 1)" :disabled="page >= totalPages" :class="page >= totalPages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50 border-gray-200'" class="px-3 py-2 rounded-lg border text-sm font-medium transition">Next</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Calendar Section (Vue.js) -->
+                <div class="lg:w-96 flex-shrink-0">
+                    <div class="bg-white rounded-xl shadow-card p-5 lg:sticky lg:top-24">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-gray-800">Calendar</h3>
+                            <div class="flex items-center gap-1">
+                                <!-- Year Nav -->
+                                <button @click="prevYear" class="p-1.5 rounded-lg hover:bg-gray-100 transition text-gray-500" title="Previous Year">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+                                </button>
+                                <!-- Month Nav -->
+                                <button @click="prevMonth" class="p-1.5 rounded-lg hover:bg-gray-100 transition text-gray-600" title="Previous Month">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                                </button>
+                                <span class="text-sm font-semibold text-gray-700 min-w-[120px] text-center">{{ monthNames[currentMonth] }} {{ currentYear }}</span>
+                                <button @click="nextMonth" class="p-1.5 rounded-lg hover:bg-gray-100 transition text-gray-600" title="Next Month">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                                </button>
+                                <!-- Year Nav -->
+                                <button @click="nextYear" class="p-1.5 rounded-lg hover:bg-gray-100 transition text-gray-500" title="Next Year">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Today button -->
+                        <button @click="goToToday" class="mb-3 text-xs font-medium text-orange-600 hover:text-orange-700 transition">← Today</button>
+
+                        <!-- Calendar Grid -->
+                        <div class="grid grid-cols-7 gap-1">
+                            <!-- Day Headers -->
+                            <div v-for="day in dayHeaders" :key="day" class="text-center text-xs font-semibold text-gray-400 py-1">{{ day }}</div>
+                            <!-- Days -->
+                            <div v-for="(day, idx) in calendarDays" :key="idx" class="aspect-square flex flex-col items-center justify-center rounded-lg text-sm transition relative"
+                                :class="getDayClass(day)">
+                                <span class="font-medium">{{ day ? day.day : '' }}</span>
+                                <div v-if="day && day.events.length > 0" class="absolute bottom-1 flex gap-0.5">
+                                    <span v-for="e in day.events.slice(0, 3)" :key="e.name" class="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                                </div>
+                                <div v-if="day && day.events.length > 0" class="absolute inset-0 rounded-lg cursor-pointer hover:bg-orange-50 transition" @click="openDayEvents(day)"></div>
+                            </div>
+                        </div>
+
+                        <!-- Selected Day Events -->
+                        <div v-if="selectedDayEvents.length > 0" class="mt-4 border-t pt-3">
+                            <p class="text-xs font-semibold text-gray-500 mb-2">{{ formatSelectedDay }}</p>
+                            <div class="space-y-2">
+                                <div v-for="e in selectedDayEvents" :key="e.name" class="flex items-center gap-2 p-2 rounded-lg bg-orange-50 hover:bg-orange-100 transition cursor-pointer" @click="openDetail(e)">
+                                    <span class="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0"></span>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium text-gray-800 truncate">{{ e.event_name }}</p>
+                                        <p class="text-xs text-gray-500">{{ formatTime(e.start_date) }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Legend -->
+                        <div class="mt-4 flex items-center gap-3 text-xs text-gray-400">
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500"></span> Event</span>
+                            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-orange-500"></span> Today</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detail Modal -->
+        <div v-if="detailEvent" class="fixed inset-0 z-[60]" @click.self="detailEvent = null">
+            <div class="absolute inset-0 bg-black/50"></div>
+            <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg max-h-[85vh] bg-white rounded-xl shadow-xl flex flex-col">
+                <div class="flex items-center justify-between px-6 py-4 border-b">
+                    <h3 class="font-bold text-lg">Event Details</h3>
+                    <button @click="detailEvent = null" class="text-gray-400 hover:text-gray-600 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div class="overflow-y-auto flex-1 px-6 py-4 space-y-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800">{{ detailEvent.event_name }}</h2>
+                        <p v-if="detailEvent.event_theme" class="text-sm text-gray-500 mt-0.5">{{ detailEvent.event_theme }}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-600">{{ detailEvent.event_status }}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <p class="text-gray-400 text-xs mb-0.5">Start Date</p>
+                            <p class="font-medium">{{ formatDateTime(detailEvent.start_date) }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-400 text-xs mb-0.5">End Date</p>
+                            <p class="font-medium">{{ formatDateTime(detailEvent.end_date) }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-400 text-xs mb-0.5">Location</p>
+                            <p class="font-medium">{{ detailEvent.location || '-' }}</p>
+                        </div>
+                    </div>
+                    <div v-if="detailEvent.description" class="border-t pt-3">
+                        <p class="text-gray-400 text-xs mb-1">Description</p>
+                        <div class="text-gray-700 text-sm" v-html="detailEvent.description"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endraw %}
 </div>
+
+<script>
+const { createApp, ref, computed, onMounted } = Vue;
+
+createApp({
+    setup() {
+        const loading = ref(true);
+        const events = ref([]);
+        const allEvents = ref([]);
+        const total = ref(0);
+        const page = ref(1);
+        const pageSize = ref(10);
+        const totalPages = ref(1);
+        const detailEvent = ref(null);
+
+        // Calendar state
+        const today = new Date();
+        const currentMonth = ref(today.getMonth());
+        const currentYear = ref(today.getFullYear());
+        const selectedDate = ref(null);
+        const selectedDayEvents = ref([]);
+
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+        const nextEvent = computed(() => events.value.length > 0 ? events.value[0] : null);
+        const otherEvents = computed(() => events.value.slice(1));
+
+        const formatSelectedDay = computed(() => {
+            if (!selectedDate.value) return '';
+            var d = new Date(selectedDate.value);
+            return d.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+        });
+
+        function formatDateTime(dateStr) {
+            if (!dateStr) return '-';
+            var d = new Date(dateStr);
+            return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) +
+                ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            var d = new Date(dateStr);
+            return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        function formatTime(dateStr) {
+            if (!dateStr) return '-';
+            var d = new Date(dateStr);
+            return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function getCountdown(dateStr) {
+            if (!dateStr) return '';
+            var d = new Date(dateStr);
+            var now = new Date();
+            var diff = d - now;
+            var days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            if (days === 0) return 'Today';
+            if (days === 1) return 'Tomorrow';
+            if (days < 0) return 'Past';
+            return 'In ' + days + ' days';
+        }
+
+        function stripHtml(html) {
+            var tmp = document.createElement('div');
+            tmp.innerHTML = html;
+            return tmp.textContent || tmp.innerText || '';
+        }
+
+        function getEventsForDate(date) {
+            var dateStr = date.toISOString().split('T')[0];
+            return allEvents.value.filter(function(e) {
+                if (!e.start_date) return false;
+                var eventDate = new Date(e.start_date).toISOString().split('T')[0];
+                var eventEnd = e.end_date ? new Date(e.end_date).toISOString().split('T')[0] : eventDate;
+                return dateStr >= eventDate && dateStr <= eventEnd;
+            });
+        }
+
+        const calendarDays = computed(() => {
+            var firstDay = new Date(currentYear.value, currentMonth.value, 1);
+            var lastDay = new Date(currentYear.value, currentMonth.value + 1, 0);
+            var startOffset = firstDay.getDay();
+            var daysInMonth = lastDay.getDate();
+            var days = [];
+
+            for (var i = 0; i < startOffset; i++) {
+                days.push(null);
+            }
+
+            for (var d = 1; d <= daysInMonth; d++) {
+                var date = new Date(currentYear.value, currentMonth.value, d);
+                days.push({
+                    day: d,
+                    date: date,
+                    events: getEventsForDate(date),
+                    isToday: date.toDateString() === today.toDateString()
+                });
+            }
+
+            return days;
+        });
+
+        function getDayClass(day) {
+            if (!day) return 'text-gray-300';
+            var classes = [];
+            if (day.isToday) {
+                classes.push('bg-orange-500 text-white font-bold');
+            } else if (day.events.length > 0) {
+                classes.push('bg-orange-50 text-orange-700');
+            } else {
+                classes.push('text-gray-700 hover:bg-gray-50');
+            }
+            return classes.join(' ');
+        }
+
+        function prevMonth() {
+            if (currentMonth.value === 0) {
+                currentMonth.value = 11;
+                currentYear.value--;
+            } else {
+                currentMonth.value--;
+            }
+            selectedDayEvents.value = [];
+        }
+
+        function nextMonth() {
+            if (currentMonth.value === 11) {
+                currentMonth.value = 0;
+                currentYear.value++;
+            } else {
+                currentMonth.value++;
+            }
+            selectedDayEvents.value = [];
+        }
+
+        function prevYear() {
+            currentYear.value--;
+            selectedDayEvents.value = [];
+        }
+
+        function nextYear() {
+            currentYear.value++;
+            selectedDayEvents.value = [];
+        }
+
+        function goToToday() {
+            currentMonth.value = today.getMonth();
+            currentYear.value = today.getFullYear();
+            selectedDayEvents.value = [];
+        }
+
+        function openDayEvents(day) {
+            if (!day || day.events.length === 0) return;
+            selectedDate.value = day.date;
+            selectedDayEvents.value = day.events;
+        }
+
+        function openDetail(event) {
+            detailEvent.value = event;
+        }
+
+        function fetchEvents() {
+            loading.value = true;
+            var params = new URLSearchParams({
+                page: page.value,
+                page_size: pageSize.value
+            });
+
+            fetch('/api/method/smartspace.frontend_api.supervisor.get_events?' + params.toString())
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    var result = data.message || data;
+                    events.value = result.events || [];
+                    total.value = result.total || 0;
+                    totalPages.value = result.total_pages || 1;
+                    allEvents.value = result.events || [];
+                    loading.value = false;
+                })
+                .catch(function() {
+                    loading.value = false;
+                });
+        }
+
+        function goToPage(p) {
+            if (p < 1 || p > totalPages.value) return;
+            page.value = p;
+            fetchEvents();
+        }
+
+        onMounted(function() {
+            fetchEvents();
+        });
+
+        return {
+            loading, events, total, page, pageSize, totalPages,
+            nextEvent, otherEvents, detailEvent,
+            currentMonth, currentYear, monthNames, dayHeaders,
+            calendarDays, selectedDayEvents, formatSelectedDay,
+            formatDateTime, formatDate, formatTime, getCountdown, stripHtml,
+            getDayClass, prevMonth, nextMonth, prevYear, nextYear, goToToday,
+            openDayEvents, openDetail, goToPage
+        };
+    }
+}).mount('#eventsApp');
+</script>
 </body>
 </html>

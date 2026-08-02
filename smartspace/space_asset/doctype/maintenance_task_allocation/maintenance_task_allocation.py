@@ -77,7 +77,7 @@ def approve_decommission(name, closed_reason=None):
 
 	frappe.db.set_value("Asset Allocation",
 		{"name": ["in", frappe.db.get_all("Asset Allocation Item",
-			{"asset": maintenance.asset}, "parent", pluck=True)],
+			{"asset": maintenance.asset}, "parent", pluck="parent")],
 		 "allocation_status": "Active"},
 		"allocation_status", "Cancelled"
 	)
@@ -90,6 +90,7 @@ def approve_decommission(name, closed_reason=None):
 		complaint.save(ignore_permissions=True)
 
 	notify_technician(doc, "Decommission Approved")
+	frappe.db.commit()
 	return True
 
 

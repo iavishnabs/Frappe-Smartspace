@@ -14,12 +14,640 @@
     <link rel="apple-touch-icon" href="/assets/smartspace/icon-192.svg">
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    boxShadow: {
+                        card: "0 10px 30px rgba(0,0,0,.08)"
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
-<body class="bg-slate-50 min-h-screen">
+<body class="bg-slate-50 text-gray-800 min-h-screen">
 {% include "www/nav_footer/portal_header.html" %}
 {% include "www/supervisor/sidebar.html" %}
-<div class="md:ml-64 max-w-7xl mx-auto px-6 py-10">
-    <h1 class="text-3xl font-bold">Supervisor Dashboard</h1>
+
+<div class="sidebar-content transition-all duration-300">
+    <!-- Page Header -->
+    <div class="bg-black text-white px-6 py-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold" id="currentTime">--:--</h1>
+                <p class="text-orange-200 text-sm mt-1" id="dateLabel"></p>
+            </div>
+            <button onclick="fetchStats()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-orange-500 text-white font-medium text-sm hover:bg-orange-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                <span class="hidden sm:inline">Refresh</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="px-6 py-6">
+        <!-- Loading -->
+        <div id="loadingState" class="text-center py-12 text-gray-400">
+            <svg class="animate-spin mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            Loading dashboard...
+        </div>
+
+        <div id="dashboardContent" style="display:none">
+            <!-- Latest Upcoming Event Highlight -->
+            <div id="latestEventCard" class="rounded-xl shadow-card overflow-hidden bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 p-5 relative mb-6">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-orange-200/30 rounded-full -mr-8 -mt-8"></div>
+                <div class="relative flex items-center gap-2 mb-3">
+                    <div class="w-8 h-8 rounded-lg bg-orange-200 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-600"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    </div>
+                    <h3 class="font-bold text-orange-800 text-sm">Next Upcoming Event</h3>
+                </div>
+                <div id="latestEventContent" class="relative">
+                    <p class="text-orange-400 text-xs text-center py-4">No upcoming events</p>
+                </div>
+            </div>
+
+            <!-- Row 1: Key Number Cards -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <!-- Unsolved Complaints -->
+                <div class="bg-white rounded-xl shadow-card p-5 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-20 h-20 bg-red-50 rounded-full -mr-8 -mt-8"></div>
+                    <div class="relative">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-500"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            </div>
+                            <span id="complaintTrend" class="text-xs font-medium text-gray-400"></span>
+                        </div>
+                        <p class="text-3xl font-bold text-gray-800" id="unsolvedComplaints">0</p>
+                        <p class="text-xs text-gray-500 mt-1">Unsolved Complaints</p>
+                    </div>
+                </div>
+
+                <!-- Active Tasks -->
+                <div class="bg-white rounded-xl shadow-card p-5 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-20 h-20 bg-blue-50 rounded-full -mr-8 -mt-8"></div>
+                    <div class="relative">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+                            </div>
+                            <span class="text-xs font-medium text-gray-400">Active</span>
+                        </div>
+                        <p class="text-3xl font-bold text-gray-800" id="activeTasks">0</p>
+                        <p class="text-xs text-gray-500 mt-1">Maintenance Tasks</p>
+                    </div>
+                </div>
+
+                <!-- Total Members -->
+                <div class="bg-white rounded-xl shadow-card p-5 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-20 h-20 bg-green-50 rounded-full -mr-8 -mt-8"></div>
+                    <div class="relative">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-500"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            </div>
+                            <span id="memberTrend" class="text-xs font-medium text-green-500"></span>
+                        </div>
+                        <p class="text-3xl font-bold text-gray-800" id="totalMembers">0</p>
+                        <p class="text-xs text-gray-500 mt-1">Active Members</p>
+                        <div class="flex items-center gap-3 mt-2 text-xs">
+                            <span class="inline-flex items-center gap-1 text-gray-500"><span class="w-2 h-2 rounded-full bg-green-400"></span>Flex: <span id="memberFlex" class="font-bold text-gray-700">0</span></span>
+                            <span class="inline-flex items-center gap-1 text-gray-500"><span class="w-2 h-2 rounded-full bg-blue-400"></span>Regular: <span id="memberRegular" class="font-bold text-gray-700">0</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Total Assets -->
+                <div class="bg-white rounded-xl shadow-card p-5 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-20 h-20 bg-orange-50 rounded-full -mr-8 -mt-8"></div>
+                    <div class="relative">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-500"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                            </div>
+                            <span id="assetHealth" class="text-xs font-medium text-orange-500"></span>
+                        </div>
+                        <p class="text-3xl font-bold text-gray-800" id="totalAssets">0</p>
+                        <p class="text-xs text-gray-500 mt-1">Total Assets</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 2: Charts + Parking (3 columns) -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+                <!-- Complaints Donut -->
+                <div class="bg-white rounded-xl shadow-card p-4">
+                    <h3 class="font-bold text-gray-800 text-sm mb-2">Complaints by Status</h3>
+                    <div class="relative" style="height: 150px">
+                        <canvas id="complaintChart"></canvas>
+                    </div>
+                    <div class="mt-2 flex items-center justify-between text-xs">
+                        <span class="text-gray-500">Resolution Rate</span>
+                        <span id="complaintResolutionRate" class="font-bold text-green-500">0%</span>
+                    </div>
+                    <div class="mt-1.5 w-full bg-gray-100 rounded-full h-1.5">
+                        <div id="complaintProgressBar" class="bg-green-500 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Tasks Donut -->
+                <div class="bg-white rounded-xl shadow-card p-4">
+                    <h3 class="font-bold text-gray-800 text-sm mb-2">Tasks by Status</h3>
+                    <div class="relative" style="height: 150px">
+                        <canvas id="taskChart"></canvas>
+                    </div>
+                    <div class="mt-2 flex items-center justify-between text-xs">
+                        <span class="text-gray-500">Completion Rate</span>
+                        <span id="taskCompletionRate" class="font-bold text-blue-500">0%</span>
+                    </div>
+                    <div class="mt-1.5 w-full bg-gray-100 rounded-full h-1.5">
+                        <div id="taskProgressBar" class="bg-blue-500 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Parking Overview -->
+                <div class="bg-white rounded-xl shadow-card p-4">
+                    <h3 class="font-bold text-gray-800 text-sm mb-3">Parking Slots Overview</h3>
+                    <div class="grid grid-cols-3 gap-2 mb-3">
+                        <div class="text-center p-2 rounded-lg bg-green-50">
+                            <p class="text-xl font-bold text-green-600" id="parkingAvailable">0</p>
+                            <p class="text-xs text-gray-500">Available</p>
+                        </div>
+                        <div class="text-center p-2 rounded-lg bg-red-50">
+                            <p class="text-xl font-bold text-red-600" id="parkingOccupied">0</p>
+                            <p class="text-xs text-gray-500">Occupied</p>
+                        </div>
+                        <div class="text-center p-2 rounded-lg bg-gray-50">
+                            <p class="text-xl font-bold text-gray-600" id="parkingInactive">0</p>
+                            <p class="text-xs text-gray-500">Inactive</p>
+                        </div>
+                    </div>
+                    <div class="space-y-1.5" id="parkingByType"></div>
+                    <div class="mt-2 flex items-center justify-between text-xs pt-2 border-t">
+                        <span class="text-gray-500">Occupancy Rate</span>
+                        <span id="parkingOccupancyRate" class="font-bold text-red-500">0%</span>
+                    </div>
+                    <div class="mt-1.5 w-full bg-gray-100 rounded-full h-1.5">
+                        <div id="parkingProgressBar" class="bg-red-500 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 3: Workload + Lists (3 columns) -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+                <!-- Technician Workload -->
+                <div class="bg-white rounded-xl shadow-card p-4">
+                    <h3 class="font-bold text-gray-800 text-sm mb-3">Technician Workload</h3>
+                    <div id="techWorkload" class="space-y-2"></div>
+                </div>
+
+                <!-- Recent Unsolved Complaints -->
+                <div class="bg-white rounded-xl shadow-card overflow-hidden">
+                    <div class="px-4 py-2.5 border-b bg-gray-50 flex items-center justify-between">
+                        <h3 class="font-bold text-gray-800 text-sm">Recent Unsolved Complaints</h3>
+                        <a href="/supervisor/complaints" class="text-xs font-medium text-orange-600 hover:text-orange-700">View All →</a>
+                    </div>
+                    <div id="recentComplaints" class="divide-y divide-gray-100 max-h-48 overflow-y-auto"></div>
+                </div>
+
+                <!-- Recent Active Tasks -->
+                <div class="bg-white rounded-xl shadow-card overflow-hidden">
+                    <div class="px-4 py-2.5 border-b bg-gray-50 flex items-center justify-between">
+                        <h3 class="font-bold text-gray-800 text-sm">Recent Active Tasks</h3>
+                        <a href="/supervisor/asset-maintenance" class="text-xs font-medium text-orange-600 hover:text-orange-700">View All →</a>
+                    </div>
+                    <div id="recentTasks" class="divide-y divide-gray-100 max-h-48 overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <!-- Row 5: Asset Status Cards -->
+            <div class="bg-white rounded-xl shadow-card p-5 mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-gray-800 text-sm">Assets by Status</h3>
+                    <button onclick="openAssetModal('All Status')" class="text-xs font-medium text-orange-600 hover:text-orange-700">View All →</button>
+                </div>
+                <div id="assetStatusCards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3"></div>
+            </div>
+
+        </div>
+    </div>
 </div>
+
+<!-- Asset List Modal -->
+<div id="assetModal" class="fixed inset-0 z-[60] hidden">
+    <div class="absolute inset-0 bg-black/50" onclick="closeAssetModal()"></div>
+    <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl max-h-[85vh] bg-white rounded-xl shadow-xl flex flex-col">
+        <div class="flex items-center justify-between px-6 py-4 border-b">
+            <div class="flex items-center gap-3">
+                <h3 id="assetModalTitle" class="font-bold text-lg">Assets</h3>
+                <select id="assetModalStatus" class="px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white outline-none focus:border-orange-400">
+                    <option value="All Status">All Status</option>
+                    <option value="Available">Available</option>
+                    <option value="Allocated">Allocated</option>
+                    <option value="Under Maintenance">Under Maintenance</option>
+                    <option value="Damaged">Damaged</option>
+                    <option value="Decommissioned">Decommissioned</option>
+                </select>
+                <input id="assetModalSearch" type="text" placeholder="Search serial no..." class="px-3 py-1.5 rounded-lg border border-gray-200 text-sm outline-none focus:border-orange-400 w-44">
+            </div>
+            <button onclick="closeAssetModal()" class="text-gray-400 hover:text-gray-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div id="assetModalLoading" class="text-center py-12 text-gray-400">
+            <svg class="animate-spin mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            Loading assets...
+        </div>
+        <div id="assetModalEmpty" class="hidden text-center py-12 text-gray-400">
+            <p>No assets found</p>
+        </div>
+        <div id="assetModalContent" class="overflow-y-auto flex-1" style="display:none">
+            <table class="w-full">
+                <thead class="bg-gray-50 border-b sticky top-0">
+                    <tr>
+                        <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Asset ID</th>
+                        <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Serial No</th>
+                        <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Item</th>
+                        <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Location</th>
+                        <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="assetModalBody" class="divide-y divide-gray-100"></tbody>
+            </table>
+        </div>
+        <div id="assetModalPagination" class="hidden px-6 py-3 border-t flex items-center justify-between">
+            <span id="assetModalInfo" class="text-sm text-gray-500"></span>
+            <div id="assetModalControls" class="flex items-center gap-2"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+var charts = {};
+var assetModalPage = 1;
+var assetModalPageSize = 10;
+var assetModalDebounce = null;
+
+function updateTime() {
+    var now = new Date();
+    var el = document.getElementById('currentTime');
+    if (el) el.textContent = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+}
+setInterval(updateTime, 1000);
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    var d = new Date(dateStr);
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
+function statusColor(status) {
+    var colors = {
+        'Open': '#3b82f6',
+        'Scheduled': '#8b5cf6',
+        'In Progress': '#f59e0b',
+        'Flagged': '#ef4444',
+        'Overdue': '#dc2626',
+        'Resolved': '#10b981',
+        'Closed': '#6b7280',
+        'Completed': '#10b981',
+        'Available': '#10b981',
+        'Allocated': '#3b82f6',
+        'Under Maintenance': '#f59e0b',
+        'Damaged': '#ef4444',
+        'Decommissioned': '#9ca3af',
+        'Occupied': '#ef4444',
+        'Inactive': '#9ca3af'
+    };
+    return colors[status] || '#6b7280';
+}
+
+function renderDonut(canvasId, labels, data, colors) {
+    var ctx = document.getElementById(canvasId).getContext('2d');
+    if (charts[canvasId]) charts[canvasId].destroy();
+    charts[canvasId] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: colors,
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { boxWidth: 10, boxHeight: 10, font: { size: 10 }, padding: 8 }
+                }
+            }
+        }
+    });
+}
+
+function renderTechWorkload(workload) {
+    var container = document.getElementById('techWorkload');
+    if (workload.length === 0) {
+        container.innerHTML = '<p class="text-sm text-gray-400 text-center py-3">No technicians found</p>';
+        return;
+    }
+    var maxTasks = Math.max.apply(null, workload.map(function(t) { return t.active_tasks; })) || 1;
+    container.innerHTML = workload.map(function(tech) {
+        var pct = Math.round((tech.active_tasks / maxTasks) * 100);
+        return '<div>' +
+            '<div class="flex items-center justify-between mb-0.5">' +
+                '<span class="text-xs font-medium text-gray-700 truncate">' + tech.full_name + '</span>' +
+                '<span class="text-xs font-medium ' + (tech.active_tasks > 3 ? 'text-red-500' : tech.active_tasks > 0 ? 'text-orange-500' : 'text-green-500') + '">' + tech.active_tasks + ' active</span>' +
+            '</div>' +
+            '<div class="w-full bg-gray-100 rounded-full h-1.5">' +
+                '<div class="h-1.5 rounded-full transition-all duration-500 ' + (tech.active_tasks > 3 ? 'bg-red-500' : tech.active_tasks > 0 ? 'bg-orange-500' : 'bg-green-500') + '" style="width: ' + pct + '%"></div>' +
+            '</div>' +
+            '<p class="text-xs text-gray-400">' + tech.completed_tasks + ' completed</p>' +
+        '</div>';
+    }).join('');
+}
+
+function renderParkingByType(byType) {
+    var container = document.getElementById('parkingByType');
+    var types = Object.keys(byType);
+    container.innerHTML = types.map(function(type) {
+        var info = byType[type];
+        var occPct = info.total > 0 ? Math.round((info.occupied / info.total) * 100) : 0;
+        return '<div>' +
+            '<div class="flex items-center justify-between mb-0.5">' +
+                '<span class="text-xs text-gray-600">' + type + '</span>' +
+                '<span class="text-xs text-gray-400">' + info.available + '/' + info.total + ' free</span>' +
+            '</div>' +
+            '<div class="w-full bg-gray-100 rounded-full h-1.5">' +
+                '<div class="h-1.5 rounded-full bg-orange-400 transition-all duration-500" style="width: ' + occPct + '%"></div>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+}
+
+function renderRecentComplaints(complaints) {
+    var container = document.getElementById('recentComplaints');
+    if (complaints.length === 0) {
+        container.innerHTML = '<p class="text-sm text-gray-400 text-center py-6">No unsolved complaints</p>';
+        return;
+    }
+    container.innerHTML = complaints.map(function(c) {
+        return '<div class="px-4 py-2 hover:bg-gray-50 transition">' +
+            '<div class="flex items-center justify-between mb-0.5">' +
+                '<span class="text-xs font-medium px-2 py-0.5 rounded" style="background:' + statusColor(c.status) + '20;color:' + statusColor(c.status) + '">' + c.status + '</span>' +
+                '<span class="text-xs text-gray-400">' + formatDate(c.complaint_date) + '</span>' +
+            '</div>' +
+            '<p class="text-sm text-gray-700 truncate">' + (c.description || c.name) + '</p>' +
+            '<p class="text-xs text-gray-400">' + (c.assigned_to_name ? 'Assigned: ' + c.assigned_to_name : 'Unassigned') + '</p>' +
+        '</div>';
+    }).join('');
+}
+
+function renderRecentTasks(tasks) {
+    var container = document.getElementById('recentTasks');
+    if (tasks.length === 0) {
+        container.innerHTML = '<p class="text-sm text-gray-400 text-center py-6">No active tasks</p>';
+        return;
+    }
+    container.innerHTML = tasks.map(function(t) {
+        var priorityColor = t.priority === 'High' ? 'text-red-500' : t.priority === 'Medium' ? 'text-orange-500' : 'text-gray-400';
+        return '<div class="px-4 py-2 hover:bg-gray-50 transition">' +
+            '<div class="flex items-center justify-between mb-0.5">' +
+                '<div class="flex items-center gap-2">' +
+                    '<span class="text-xs font-medium px-2 py-0.5 rounded" style="background:' + statusColor(t.status) + '20;color:' + statusColor(t.status) + '">' + t.status + '</span>' +
+                    '<span class="text-xs ' + priorityColor + ' font-medium">' + (t.priority || '') + '</span>' +
+                '</div>' +
+                '<span class="text-xs text-gray-400">' + formatDate(t.assigned_on) + '</span>' +
+            '</div>' +
+            '<p class="text-sm text-gray-700">' + (t.technician_name || 'Unassigned') + '</p>' +
+        '</div>';
+    }).join('');
+}
+
+function renderAssetStatusCards(counts) {
+    var container = document.getElementById('assetStatusCards');
+    var statuses = Object.keys(counts);
+    container.innerHTML = statuses.map(function(s) {
+        var color = statusColor(s);
+        return '<button onclick="openAssetModal(\'' + s + '\')" class="flex flex-col items-center justify-center p-4 rounded-xl border border-gray-100 hover:border-gray-200 hover:shadow-card transition group">' +
+            '<div class="w-10 h-10 rounded-full flex items-center justify-center mb-2" style="background:' + color + '15">' +
+                '<span class="w-4 h-4 rounded-full" style="background:' + color + '"></span>' +
+            '</div>' +
+            '<p class="text-2xl font-bold text-gray-800 group-hover:text-orange-500 transition">' + counts[s] + '</p>' +
+            '<p class="text-xs text-gray-500 mt-0.5">' + s + '</p>' +
+        '</button>';
+    }).join('');
+}
+
+function openAssetModal(status) {
+    assetModalPage = 1;
+    document.getElementById('assetModalStatus').value = status || 'All Status';
+    document.getElementById('assetModalSearch').value = '';
+    document.getElementById('assetModalTitle').textContent = status ? status + ' Assets' : 'All Assets';
+    document.getElementById('assetModal').classList.remove('hidden');
+    fetchAssets();
+}
+
+function closeAssetModal() {
+    document.getElementById('assetModal').classList.add('hidden');
+}
+
+function fetchAssets() {
+    var loading = document.getElementById('assetModalLoading');
+    var empty = document.getElementById('assetModalEmpty');
+    var content = document.getElementById('assetModalContent');
+    var pagination = document.getElementById('assetModalPagination');
+
+    loading.classList.remove('hidden');
+    empty.classList.add('hidden');
+    content.style.display = 'none';
+    pagination.classList.add('hidden');
+
+    var status = document.getElementById('assetModalStatus').value;
+    var search = document.getElementById('assetModalSearch').value.trim();
+
+    var params = new URLSearchParams({
+        status: status,
+        search: search,
+        page: assetModalPage,
+        page_size: assetModalPageSize
+    });
+
+    fetch('/api/method/smartspace.frontend_api.supervisor.get_assets?' + params.toString())
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var result = data.message || data;
+            loading.classList.add('hidden');
+
+            if (!result.assets || result.assets.length === 0) {
+                empty.classList.remove('hidden');
+                return;
+            }
+
+            var body = document.getElementById('assetModalBody');
+            body.innerHTML = result.assets.map(function(a) {
+                var color = statusColor(a.status);
+                return '<tr class="hover:bg-gray-50 transition">' +
+                    '<td class="px-6 py-3 text-sm font-medium text-gray-800">' + a.name + '</td>' +
+                    '<td class="px-6 py-3 text-sm text-gray-600">' + (a.serial_number || '-') + '</td>' +
+                    '<td class="px-6 py-3 text-sm text-gray-600">' + (a.asset_item_name || '-') + '</td>' +
+                    '<td class="px-6 py-3 text-sm text-gray-600">' + (a.location_name || '-') + '</td>' +
+                    '<td class="px-6 py-3"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium" style="background:' + color + '20;color:' + color + '">' + a.status + '</span></td>' +
+                '</tr>';
+            }).join('');
+
+            content.style.display = '';
+            pagination.classList.remove('hidden');
+
+            var start = (result.page - 1) * result.page_size + 1;
+            var end = Math.min(result.page * result.page_size, result.total);
+            document.getElementById('assetModalInfo').textContent = 'Showing ' + start + '-' + end + ' of ' + result.total;
+
+            var controls = document.getElementById('assetModalControls');
+            var html = '';
+            html += '<button onclick="assetModalGoTo(' + (result.page - 1) + ')" ' + (result.page <= 1 ? 'disabled' : '') + ' class="px-3 py-1.5 rounded-lg border text-sm font-medium transition ' + (result.page <= 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50 border-gray-200') + '">Prev</button>';
+            html += '<span class="text-sm text-gray-500">' + result.page + ' / ' + result.total_pages + '</span>';
+            html += '<button onclick="assetModalGoTo(' + (result.page + 1) + ')" ' + (result.page >= result.total_pages ? 'disabled' : '') + ' class="px-3 py-1.5 rounded-lg border text-sm font-medium transition ' + (result.page >= result.total_pages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50 border-gray-200') + '">Next</button>';
+            controls.innerHTML = html;
+        })
+        .catch(function() {
+            loading.classList.add('hidden');
+            empty.classList.remove('hidden');
+        });
+}
+
+function assetModalGoTo(page) {
+    if (page < 1) return;
+    assetModalPage = page;
+    fetchAssets();
+}
+
+document.getElementById('assetModalStatus').addEventListener('change', function() {
+    assetModalPage = 1;
+    document.getElementById('assetModalTitle').textContent = this.value === 'All Status' ? 'All Assets' : this.value + ' Assets';
+    fetchAssets();
+});
+
+document.getElementById('assetModalSearch').addEventListener('input', function() {
+    clearTimeout(assetModalDebounce);
+    assetModalDebounce = setTimeout(function() {
+        assetModalPage = 1;
+        fetchAssets();
+    }, 300);
+});
+
+function fetchStats() {
+    var loadingEl = document.getElementById('loadingState');
+    var contentEl = document.getElementById('dashboardContent');
+    loadingEl.classList.remove('hidden');
+    contentEl.style.display = 'none';
+
+    fetch('/api/method/smartspace.frontend_api.supervisor.get_dashboard_stats')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var s = data.message || data;
+            loadingEl.classList.add('hidden');
+            contentEl.style.display = '';
+
+            // Date label and live time
+            document.getElementById('dateLabel').textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+            updateTime();
+
+            // Number cards
+            document.getElementById('unsolvedComplaints').textContent = s.complaints.unsolved;
+            document.getElementById('complaintTrend').textContent = s.complaints.last_7d + ' in 7d';
+            document.getElementById('activeTasks').textContent = s.tasks.active;
+            document.getElementById('totalMembers').textContent = s.members.active;
+            document.getElementById('memberTrend').textContent = '+ ' + s.members.new_30d + ' in 30d';
+            document.getElementById('totalAssets').textContent = s.assets.total;
+            document.getElementById('assetHealth').textContent = s.assets.health_rate + '% healthy';
+
+            // Complaints chart
+            var cLabels = Object.keys(s.complaints.counts);
+            var cData = cLabels.map(function(k) { return s.complaints.counts[k]; });
+            var cColors = cLabels.map(function(k) { return statusColor(k); });
+            renderDonut('complaintChart', cLabels, cData, cColors);
+            document.getElementById('complaintResolutionRate').textContent = s.complaints.resolution_rate + '%';
+            document.getElementById('complaintProgressBar').style.width = s.complaints.resolution_rate + '%';
+
+            // Tasks chart
+            var tLabels = Object.keys(s.tasks.counts);
+            var tData = tLabels.map(function(k) { return s.tasks.counts[k]; });
+            var tColors = tLabels.map(function(k) { return statusColor(k); });
+            renderDonut('taskChart', tLabels, tData, tColors);
+            document.getElementById('taskCompletionRate').textContent = s.tasks.completion_rate + '%';
+            document.getElementById('taskProgressBar').style.width = s.tasks.completion_rate + '%';
+
+            // Asset status cards
+            renderAssetStatusCards(s.assets.counts);
+
+            // Technician workload
+            renderTechWorkload(s.technicians.workload);
+
+            // Parking
+            document.getElementById('parkingAvailable').textContent = s.parking.counts['Available'] || 0;
+            document.getElementById('parkingOccupied').textContent = s.parking.counts['Occupied'] || 0;
+            document.getElementById('parkingInactive').textContent = s.parking.counts['Inactive'] || 0;
+            document.getElementById('parkingOccupancyRate').textContent = s.parking.occupancy_rate + '%';
+            document.getElementById('parkingProgressBar').style.width = s.parking.occupancy_rate + '%';
+            renderParkingByType(s.parking.by_type);
+
+            // Recent lists
+            renderRecentComplaints(s.recent_complaints);
+            renderRecentTasks(s.recent_tasks);
+
+            // Secondary stats
+            document.getElementById('memberFlex').textContent = s.members.flex;
+            document.getElementById('memberRegular').textContent = s.members.regular;
+
+            // Latest upcoming event
+            var ev = s.events.latest;
+            var evContainer = document.getElementById('latestEventContent');
+            if (ev) {
+                var evDate = new Date(ev.start_date);
+                var evEnd = new Date(ev.end_date);
+                var dateStr = evDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                var timeStr = evDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                var daysUntil = Math.ceil((evDate - new Date()) / (1000 * 60 * 60 * 24));
+                var countdown = daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : 'In ' + daysUntil + ' days';
+                evContainer.innerHTML =
+                    '<div class="flex items-start justify-between mb-2">' +
+                        '<div class="min-w-0">' +
+                            '<p class="text-orange-900 font-bold text-base truncate">' + (ev.event_name || ev.name) + '</p>' +
+                            (ev.event_theme ? '<p class="text-orange-600 text-xs mt-0.5">' + ev.event_theme + '</p>' : '') +
+                        '</div>' +
+                        '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-orange-200 text-orange-700 flex-shrink-0 ml-2">' + countdown + '</span>' +
+                    '</div>' +
+                    '<div class="space-y-1 text-xs text-orange-700">' +
+                        '<div class="flex items-center gap-1.5">' +
+                            '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' +
+                            '<span>' + dateStr + ' · ' + timeStr + '</span>' +
+                        '</div>' +
+                        (ev.location ? '<div class="flex items-center gap-1.5">' +
+                            '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>' +
+                            '<span>' + ev.location + '</span>' +
+                        '</div>' : '') +
+                    '</div>' +
+                    '<a href="/supervisor/events" class="mt-3 inline-flex items-center gap-1 text-xs font-medium text-orange-600 hover:text-orange-700">View Details →</a>';
+            } else {
+                evContainer.innerHTML = '<p class="text-orange-400 text-xs text-center py-4">No upcoming events</p>';
+            }
+        })
+        .catch(function() {
+            loadingEl.classList.add('hidden');
+            contentEl.style.display = '';
+            contentEl.innerHTML = '<div class="text-center py-16 text-gray-400"><p class="font-medium">Error loading dashboard</p></div>';
+        });
+}
+
+fetchStats();
+</script>
 </body>
 </html>

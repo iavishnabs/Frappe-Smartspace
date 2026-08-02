@@ -17,12 +17,16 @@ def assign_technician(
     complaint,
     reported_date,
     priority,
-    task_description
+    task_description,
+    technician=None
 ):
     complaint_doc = frappe.get_doc("Complaints", complaint)
 
-    # Find least busy technician for asset location
-    technician = get_least_busy_technician(complaint_doc)
+    # Use selected technician or find least busy
+    if technician:
+        technician = technician
+    else:
+        technician = get_least_busy_technician(complaint_doc)
 
     if not technician:
         return {
@@ -119,3 +123,49 @@ def get_least_busy_technician(complaint_doc):
             selected = tech.name
 
     return selected
+
+
+@frappe.whitelist()
+def get_available_technicians(complaint_name):
+    """Return active technicians for the complaint's asset location, sorted by task count (least busy first)."""
+    complaint_doc = frappe.get_doc("Complaints", complaint_name)
+
+    asset_location = frappe.db.get_value(
+        "Asset",
+        complaint_doc.related_asset,
+        "location"
+    )
+
+    if not asset_location:
+        return {"technicians": [], "asset_location": None}
+
+    technicians = frappe.get_all(
+        "Staff",
+        filters={
+            "staff_type": "Technician",
+            "active": 1,
+            "location": asset_location
+        },
+        fields=["name", "full_name", "email", "phone"]
+    )
+
+    result = []
+    for tech in technicians:
+        count = frappe.db.count(
+            "Maintenance Task Allocation",
+            {
+                "technician": tech.name,
+                "status": ["in", ["Open", "In Progress", "Flagged", "Overdue"]]
+            }
+        )
+        result.append({
+            "name": tech.name,
+            "full_name": tech.full_name,
+            "email": tech.email,
+            "phone": tech.phone,
+            "active_tasks": count
+        })
+
+    result.sort(key=lambda x: x["active_tasks"])
+
+    return {"technicians": result, "asset_location": asset_location}

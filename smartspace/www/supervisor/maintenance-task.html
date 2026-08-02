@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maintenance Tasks | SmartSpace</title>
+
+    <link rel="manifest" href="/assets/smartspace/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/assets/smartspace/favicon.svg">
+    <meta name="theme-color" content="#f97316">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="SmartSpace">
+    <link rel="apple-touch-icon" href="/assets/smartspace/icon-192.svg">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    boxShadow: {
+                        card: "0 10px 30px rgba(0,0,0,.08)"
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-gray-800 min-h-screen">
+{% include "www/nav_footer/portal_header.html" %}
+{% include "www/supervisor/sidebar.html" %}
+
+<div class="sidebar-content transition-all duration-300">
+    <!-- Page Header -->
+    <div class="bg-black text-white px-6 py-8">
+        <h1 class="text-3xl font-bold">Maintenance Tasks</h1>
+        <p class="text-orange-200 text-sm mt-1">View all maintenance task allocations</p>
+    </div>
+
+    <!-- Filters Bar -->
+    <div class="bg-white shadow-sm border-b px-6 py-4 sticky top-20 z-30">
+        <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+            <!-- Status Filter -->
+            <select id="statusFilter" class="px-4 py-2.5 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm bg-white">
+                <option value="All Status">All Status</option>
+                <option value="Open">Open</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Flagged">Flagged</option>
+                <option value="Overdue">Overdue</option>
+                <option value="Completed">Completed</option>
+            </select>
+            <!-- Date From -->
+            <div class="relative">
+                <label class="absolute -top-2 left-3 bg-white px-1 text-xs text-gray-400">From</label>
+                <input id="dateFrom" type="date" class="px-4 py-2.5 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm bg-white">
+            </div>
+            <!-- Date To -->
+            <div class="relative">
+                <label class="absolute -top-2 left-3 bg-white px-1 text-xs text-gray-400">To</label>
+                <input id="dateTo" type="date" class="px-4 py-2.5 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm bg-white">
+            </div>
+            <!-- Clear Filters -->
+            <button id="clearFilters" class="px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">Clear</button>
+            <!-- Per Page -->
+            <select id="pageSizeSelect" class="px-4 py-2.5 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm bg-white sm:ml-auto">
+                <option value="10">10 / page</option>
+                <option value="20">20 / page</option>
+                <option value="50">50 / page</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Tasks List -->
+    <div class="px-6 py-6">
+        <div id="loadingState" class="text-center py-12 text-gray-400">
+            <svg class="animate-spin mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+            </svg>
+            Loading maintenance tasks...
+        </div>
+
+        <div id="emptyState" class="hidden text-center py-16">
+            <svg class="mx-auto mb-4 text-gray-300" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+            </svg>
+            <p class="text-gray-500 font-medium">No maintenance tasks found</p>
+            <p class="text-gray-400 text-sm mt-1">Try adjusting your filters</p>
+        </div>
+
+        <!-- Desktop Table -->
+        <div id="tableContainer" class="bg-white rounded-xl shadow-card overflow-hidden" style="display:none">
+            <table class="w-full">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Task ID</th>
+                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Technician</th>
+                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Asset</th>
+                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Serial No</th>
+                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Asset Item</th>
+                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Priority</th>
+                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Assigned On</th>
+                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody" class="divide-y divide-gray-100"></tbody>
+            </table>
+        </div>
+
+        <!-- Mobile Cards -->
+        <div id="cardContainer" class="space-y-3" style="display:none"></div>
+
+        <!-- Pagination -->
+        <div id="paginationBar" class="hidden mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div id="paginationInfo" class="text-sm text-gray-500"></div>
+            <div id="paginationControls" class="flex items-center gap-2"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Decommission Dialog -->
+<div id="decommissionModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
+        <div class="px-5 py-4 border-b bg-gray-50 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-500"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <h3 class="font-bold text-gray-800 text-sm">Approve Decommission</h3>
+        </div>
+        <div class="p-5">
+            <p class="text-sm text-gray-600 mb-3">Please provide a reason for decommissioning this asset. This action cannot be undone.</p>
+            <textarea id="closedReason" rows="3" class="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm resize-none" placeholder="Enter closed reason..."></textarea>
+            <p id="modalError" class="hidden mt-2 text-xs text-red-500 font-medium"></p>
+            <div class="mt-4 flex justify-end gap-2">
+                <button onclick="closeDecommissionModal()" class="px-4 py-2.5 rounded-lg border border-gray-200 text-gray-600 font-medium text-sm hover:bg-gray-50 transition">Cancel</button>
+                <button id="approveBtn" onclick="confirmApprove()" class="px-4 py-2.5 rounded-lg bg-red-500 text-white font-medium text-sm hover:bg-red-600 transition">Approve Decommission</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-6 right-6 z-[70] hidden">
+    <div id="toastInner" class="px-5 py-3 rounded-lg shadow-lg text-sm font-medium text-white"></div>
+</div>
+
+<script>
+var currentPage = 1;
+var currentPageSize = 10;
+var currentStatus = 'All Status';
+var currentDateFrom = '';
+var currentDateTo = '';
+
+function fetchTasks() {
+    var loadingState = document.getElementById('loadingState');
+    var tableContainer = document.getElementById('tableContainer');
+    var cardContainer = document.getElementById('cardContainer');
+    var emptyState = document.getElementById('emptyState');
+    var paginationBar = document.getElementById('paginationBar');
+
+    loadingState.classList.remove('hidden');
+    tableContainer.style.display = 'none';
+    cardContainer.style.display = 'none';
+    emptyState.classList.add('hidden');
+    paginationBar.classList.add('hidden');
+
+    var params = new URLSearchParams({
+        status: currentStatus,
+        date_from: currentDateFrom,
+        date_to: currentDateTo,
+        page: currentPage,
+        page_size: currentPageSize
+    });
+
+    fetch('/api/method/smartspace.frontend_api.supervisor.get_maintenance_tasks?' + params.toString())
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var result = data.message || data;
+            loadingState.classList.add('hidden');
+
+            if (result.tasks.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            renderTable(result.tasks);
+            renderCards(result.tasks);
+            renderPagination(result);
+            paginationBar.classList.remove('hidden');
+        })
+        .catch(function() {
+            loadingState.classList.add('hidden');
+            emptyState.classList.remove('hidden');
+        });
+}
+
+function formatDateTime(dateStr) {
+    if (!dateStr) return '-';
+    var d = new Date(dateStr);
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) +
+        ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
+function statusBadge(status) {
+    var colors = {
+        'Open': 'bg-blue-50 text-blue-600',
+        'In Progress': 'bg-amber-50 text-amber-600',
+        'Flagged': 'bg-red-50 text-red-600',
+        'Overdue': 'bg-orange-50 text-orange-600',
+        'Completed': 'bg-green-50 text-green-600'
+    };
+    var dots = {
+        'Open': 'bg-blue-500',
+        'In Progress': 'bg-amber-500',
+        'Flagged': 'bg-red-500',
+        'Overdue': 'bg-orange-500',
+        'Completed': 'bg-green-500'
+    };
+    var cls = colors[status] || 'bg-gray-50 text-gray-600';
+    var dot = dots[status] || 'bg-gray-500';
+    return '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ' + cls + '"><span class="w-1.5 h-1.5 rounded-full ' + dot + '"></span>' + (status || '-') + '</span>';
+}
+
+function priorityBadge(priority) {
+    var colors = {
+        'High': 'bg-red-50 text-red-600',
+        'Medium': 'bg-amber-50 text-amber-600',
+        'Low': 'bg-green-50 text-green-600'
+    };
+    var cls = colors[priority] || 'bg-gray-50 text-gray-600';
+    return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ' + cls + '">' + (priority || '-') + '</span>';
+}
+
+function renderTable(tasks) {
+    var hasActions = tasks.some(function(t) { return t.status === 'Flagged'; });
+    var tbody = document.getElementById('tableBody');
+    tbody.innerHTML = tasks.map(function(t) {
+        var asset = t.asset || {};
+        var actions = taskActions(t);
+        return '<tr class="hover:bg-gray-50 transition">' +
+            '<td class="px-6 py-4 font-medium text-gray-800">' + t.name + '</td>' +
+            '<td class="px-6 py-4 text-sm text-gray-600">' + (t.technician_name || '-') + '</td>' +
+            '<td class="px-6 py-4 text-sm text-gray-600">' + (asset.name || '-') + '</td>' +
+            '<td class="px-6 py-4 text-sm text-gray-600">' + (asset.serial_number || '-') + '</td>' +
+            '<td class="px-6 py-4 text-sm text-gray-600">' + (asset.asset_item || '-') + '</td>' +
+            '<td class="px-6 py-4">' + priorityBadge(t.priority) + '</td>' +
+            '<td class="px-6 py-4 text-sm text-gray-600">' + formatDateTime(t.assigned_on) + '</td>' +
+            '<td class="px-6 py-4">' + statusBadge(t.status) + '</td>' +
+            (hasActions ? '<td class="px-6 py-4 text-center whitespace-nowrap">' + (actions || '<span class="text-gray-300 text-xs">-</span>') + '</td>' : '') +
+        '</tr>';
+    }).join('');
+    document.getElementById('tableContainer').style.display = window.innerWidth >= 768 ? 'block' : 'none';
+}
+
+function renderCards(tasks) {
+    var hasActions = tasks.some(function(t) { return t.status === 'Flagged'; });
+    var container = document.getElementById('cardContainer');
+    container.innerHTML = tasks.map(function(t) {
+        var asset = t.asset || {};
+        var actions = taskActions(t);
+        return '<div class="bg-white rounded-xl shadow-card p-4">' +
+            '<div class="flex items-center justify-between mb-3">' +
+                '<span class="font-medium text-gray-800">' + t.name + '</span>' +
+                statusBadge(t.status) +
+            '</div>' +
+            '<div class="space-y-1.5 text-sm mb-3">' +
+                '<div><span class="text-gray-400">Technician:</span> <span class="text-gray-700">' + (t.technician_name || '-') + '</span></div>' +
+                '<div><span class="text-gray-400">Asset:</span> <span class="text-gray-700">' + (asset.name || '-') + '</span></div>' +
+                '<div><span class="text-gray-400">Serial No:</span> <span class="text-gray-700">' + (asset.serial_number || '-') + '</span></div>' +
+                '<div><span class="text-gray-400">Asset Item:</span> <span class="text-gray-700">' + (asset.asset_item || '-') + '</span></div>' +
+                '<div><span class="text-gray-400">Priority:</span> ' + priorityBadge(t.priority) + '</div>' +
+                '<div><span class="text-gray-400">Assigned:</span> <span class="text-gray-700">' + formatDateTime(t.assigned_on) + '</span></div>' +
+            '</div>' +
+            (hasActions && actions ? '<div class="flex gap-2 mt-3">' + actions + '</div>' : '') +
+        '</div>';
+    }).join('');
+    cardContainer.style.display = window.innerWidth < 768 ? 'block' : 'none';
+}
+
+function taskActions(t) {
+    var n = t.name;
+    if (t.status === 'Flagged') {
+        return '<button onclick="openDecommissionModal(\'' + n + '\')" title="Approve Decommission" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500 text-white font-medium text-xs hover:bg-red-600 transition">Approve</button>' +
+            '<button onclick="taskAction(\'reject\', \'' + n + '\')" title="Reject Decommission" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-50 text-orange-600 font-medium text-xs hover:bg-orange-100 transition">Reject</button>';
+    }
+    return '';
+}
+
+function taskAction(action, name) {
+    var endpoints = {
+        'start': 'start_task',
+        'finish': 'finish_task',
+        'flag': 'flag_task',
+        'reject': 'reject_flag'
+    };
+    var confirmMsg = {
+        'start': 'Start work on this task?',
+        'finish': 'Mark this task as completed?',
+        'flag': 'Flag this asset as unusable? Supervisor will be notified.',
+        'reject': 'Reject this flag and send the task back to in progress?'
+    };
+    if (!confirm(confirmMsg[action])) return;
+
+    fetch('/api/method/smartspace.frontend_api.supervisor.' + endpoints[action] + '?name=' + encodeURIComponent(name))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var res = data.message || data;
+            if (res.success) {
+                showToast(res.message, 'success');
+                fetchTasks();
+            } else {
+                showToast('Action failed', 'error');
+            }
+        })
+        .catch(function() { showToast('Action failed', 'error'); });
+}
+
+var pendingDecommissionName = null;
+
+function openDecommissionModal(name) {
+    pendingDecommissionName = name;
+    document.getElementById('closedReason').value = '';
+    document.getElementById('modalError').classList.add('hidden');
+    var modal = document.getElementById('decommissionModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeDecommissionModal() {
+    pendingDecommissionName = null;
+    var modal = document.getElementById('decommissionModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+function confirmApprove() {
+    var reason = document.getElementById('closedReason').value.trim();
+    if (!reason) {
+        var err = document.getElementById('modalError');
+        err.textContent = 'Please enter a closed reason';
+        err.classList.remove('hidden');
+        return;
+    }
+    document.getElementById('modalError').classList.add('hidden');
+    var btn = document.getElementById('approveBtn');
+    btn.disabled = true;
+    btn.textContent = 'Approving...';
+
+    fetch('/api/method/smartspace.frontend_api.supervisor.approve_decommission', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': window.frappe && frappe.csrf_token ? frappe.csrf_token : '' },
+        body: JSON.stringify({ name: pendingDecommissionName, closed_reason: reason })
+    })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var res = data.message || data;
+            btn.disabled = false;
+            btn.textContent = 'Approve Decommission';
+            if (res.success) {
+                closeDecommissionModal();
+                showToast(res.message, 'success');
+                fetchTasks();
+            } else {
+                showToast('Action failed', 'error');
+            }
+        })
+        .catch(function() {
+            btn.disabled = false;
+            btn.textContent = 'Approve Decommission';
+            showToast('Action failed', 'error');
+        });
+}
+
+function showToast(message, type) {
+    var toast = document.getElementById('toast');
+    var inner = document.getElementById('toastInner');
+    inner.textContent = message;
+    inner.className = 'px-5 py-3 rounded-lg shadow-lg text-sm font-medium text-white ' + (type === 'error' ? 'bg-red-500' : 'bg-green-500');
+    toast.classList.remove('hidden');
+    setTimeout(function() { toast.classList.add('hidden'); }, 3000);
+}
+
+function renderPagination(data) {
+    var info = document.getElementById('paginationInfo');
+    var controls = document.getElementById('paginationControls');
+    var start = (data.page - 1) * data.page_size + 1;
+    var end = Math.min(data.page * data.page_size, data.total);
+    info.textContent = 'Showing ' + start + '-' + end + ' of ' + data.total + ' tasks';
+
+    var html = '';
+    html += '<button onclick="goToPage(' + (data.page - 1) + ')" ' + (data.page <= 1 ? 'disabled' : '') + ' class="px-3 py-2 rounded-lg border text-sm font-medium transition ' + (data.page <= 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50 border-gray-200') + '">Prev</button>';
+
+    var maxVisible = 5;
+    var startPage = Math.max(1, data.page - Math.floor(maxVisible / 2));
+    var endPage = Math.min(data.total_pages, startPage + maxVisible - 1);
+    if (endPage - startPage < maxVisible - 1) { startPage = Math.max(1, endPage - maxVisible + 1); }
+
+    if (startPage > 1) {
+        html += '<button onclick="goToPage(1)" class="px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">1</button>';
+        if (startPage > 2) { html += '<span class="px-1 text-gray-400">...</span>'; }
+    }
+
+    for (var i = startPage; i <= endPage; i++) {
+        html += '<button onclick="goToPage(' + i + ')" class="px-3 py-2 rounded-lg border text-sm font-medium transition ' + (i === data.page ? 'bg-orange-500 text-white border-orange-500' : 'text-gray-700 hover:bg-gray-50 border-gray-200') + '">' + i + '</button>';
+    }
+
+    if (endPage < data.total_pages) {
+        if (endPage < data.total_pages - 1) { html += '<span class="px-1 text-gray-400">...</span>'; }
+        html += '<button onclick="goToPage(' + data.total_pages + ')" class="px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">' + data.total_pages + '</button>';
+    }
+
+    html += '<button onclick="goToPage(' + (data.page + 1) + ')" ' + (data.page >= data.total_pages ? 'disabled' : '') + ' class="px-3 py-2 rounded-lg border text-sm font-medium transition ' + (data.page >= data.total_pages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50 border-gray-200') + '">Next</button>';
+
+    controls.innerHTML = html;
+}
+
+function goToPage(page) {
+    if (page < 1) return;
+    currentPage = page;
+    fetchTasks();
+}
+
+document.getElementById('statusFilter').addEventListener('change', function() {
+    currentStatus = this.value;
+    currentPage = 1;
+    fetchTasks();
+});
+
+document.getElementById('dateFrom').addEventListener('change', function() {
+    currentDateFrom = this.value;
+    currentPage = 1;
+    fetchTasks();
+});
+
+document.getElementById('dateTo').addEventListener('change', function() {
+    currentDateTo = this.value;
+    currentPage = 1;
+    fetchTasks();
+});
+
+document.getElementById('clearFilters').addEventListener('click', function() {
+    currentStatus = 'All Status';
+    currentDateFrom = '';
+    currentDateTo = '';
+    currentPage = 1;
+    document.getElementById('statusFilter').value = 'All Status';
+    document.getElementById('dateFrom').value = '';
+    document.getElementById('dateTo').value = '';
+    fetchTasks();
+});
+
+document.getElementById('pageSizeSelect').addEventListener('change', function() {
+    currentPageSize = parseInt(this.value);
+    currentPage = 1;
+    fetchTasks();
+});
+
+fetchTasks();
+
+window.addEventListener('resize', function() {
+    var table = document.getElementById('tableContainer');
+    var cards = document.getElementById('cardContainer');
+    if (table.style.display !== 'none' || cards.style.display !== 'none') {
+        table.style.display = window.innerWidth >= 768 ? 'block' : 'none';
+        cards.style.display = window.innerWidth < 768 ? 'block' : 'none';
+    }
+});
+</script>
+</body>
+</html>
