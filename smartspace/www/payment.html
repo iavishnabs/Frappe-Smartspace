@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment | SmartSpace</title>
+    <link rel="manifest" href="/assets/smartspace/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/assets/smartspace/favicon.svg">
+    <meta name="theme-color" content="#f97316">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="SmartSpace">
+    <link rel="apple-touch-icon" href="/assets/smartspace/icon-192.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config={theme:{extend:{boxShadow:{card:"0 10px 30px rgba(0,0,0,.08)"}}}}</script>
+</head>
+<body class="bg-slate-50 text-gray-800 min-h-screen">
+    <div class="max-w-2xl mx-auto px-4 py-6">
+        <a id="backLink" href="/spaces" class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-orange-500 transition mb-6">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            <span id="backLinkText">Back to Spaces</span>
+        </a>
+
+        <input type="hidden" id="reservationName" value="">
+        <input type="hidden" id="paymentType" value="">
+        <input type="hidden" id="eventName" value="">
+
+        <div class="bg-white rounded-xl shadow-card p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold">Payment Summary</h3>
+                <span id="paymentTypeBadge" class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-medium"></span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-gray-500">Amount to Pay</span>
+                <span id="amountDisplay" class="text-3xl font-bold text-orange-500">₹0</span>
+            </div>
+        </div>
+
+        <div id="cardForm" class="bg-white rounded-xl shadow-card p-6 mb-6">
+            <h3 class="font-bold mb-4">Card Details</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Card Number</label>
+                    <input type="text" id="cardNumber" placeholder="1234 5678 9012 3456" maxlength="19" class="w-full border rounded-xl px-4 py-3" oninput="formatCardNumber(this)">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Expiry (MM/YY)</label>
+                        <input type="text" id="cardExpiry" placeholder="12/26" maxlength="5" class="w-full border rounded-xl px-4 py-3" oninput="formatExpiry(this)">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">CVV</label>
+                        <input type="text" id="cardCvv" placeholder="123" maxlength="3" class="w-full border rounded-xl px-4 py-3">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Cardholder Name</label>
+                    <input type="text" id="cardName" placeholder="John Doe" class="w-full border rounded-xl px-4 py-3">
+                </div>
+            </div>
+        </div>
+
+        <div id="errorMsg" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm mb-4"></div>
+
+        <button id="payBtn" onclick="processPayment()" class="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-xl py-4 font-semibold transition">Pay Now</button>
+
+        <div id="successState" style="display:none" class="text-center py-12">
+            <div class="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <h2 class="text-2xl font-bold text-green-600">Payment Successful!</h2>
+            <p class="text-gray-500 mt-2" id="successMsg"></p>
+            <div class="mt-6 flex gap-3 justify-center">
+                <a id="viewDetailsBtn" href="#" class="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-semibold transition">View Booking Details</a>
+                <a href="/member/dashboard" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-semibold transition">Go to Dashboard</a>
+            </div>
+        </div>
+    </div>
+<script>
+var csrfToken = '{{ frappe.session.csrf_token }}';
+var urlParams = new URLSearchParams(window.location.search);
+var reservation = urlParams.get('reservation');
+var amount = urlParams.get('amount');
+var type = urlParams.get('type') || 'booking';
+var event = urlParams.get('event');
+
+function fmtCurrency(v) { return '₹' + (v || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 }); }
+
+document.getElementById('amountDisplay').textContent = fmtCurrency(amount);
+
+if (type === 'event_fund') {
+    document.getElementById('paymentTypeBadge').textContent = 'Event Fund Contribution';
+    document.getElementById('eventName').value = event;
+    document.getElementById('backLink').href = '/member/events';
+    document.getElementById('backLinkText').textContent = 'Back to Events';
+} else {
+    document.getElementById('paymentTypeBadge').textContent = 'Space Booking';
+    document.getElementById('reservationName').value = reservation;
+}
+
+function formatCardNumber(input) {
+    var v = input.value.replace(/\s/g, '').replace(/(\d{4})(?=\d)/g, '$1 ');
+    input.value = v;
+}
+
+function formatExpiry(input) {
+    var v = input.value.replace(/\D/g, '');
+    if (v.length >= 3) v = v.substring(0, 2) + '/' + v.substring(2, 4);
+    input.value = v;
+}
+
+function processPayment() {
+    var btn = document.getElementById('payBtn');
+    var errDiv = document.getElementById('errorMsg');
+    errDiv.classList.add('hidden');
+
+    var cardNum = document.getElementById('cardNumber').value.replace(/\s/g, '');
+    var expiry = document.getElementById('cardExpiry').value;
+    var cvv = document.getElementById('cardCvv').value;
+    var name = document.getElementById('cardName').value.trim();
+
+    if (cardNum.length < 16) { errDiv.textContent = 'Please enter a valid card number'; errDiv.classList.remove('hidden'); return; }
+    if (!expiry || expiry.length < 5) { errDiv.textContent = 'Please enter a valid expiry date'; errDiv.classList.remove('hidden'); return; }
+    if (cvv.length < 3) { errDiv.textContent = 'Please enter a valid CVV'; errDiv.classList.remove('hidden'); return; }
+    if (!name) { errDiv.textContent = 'Please enter cardholder name'; errDiv.classList.remove('hidden'); return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Processing payment...';
+
+    var endpoint, body;
+    if (type === 'event_fund') {
+        endpoint = '/api/method/smartspace.frontend_api.member.fund_event';
+        body = new URLSearchParams({ event_name: event, amount: amount, payment_method: 'Card' });
+    } else {
+        endpoint = '/api/method/smartspace.frontend_api.member.pay_for_booking';
+        body = new URLSearchParams({ reservation_name: reservation, payment_method: 'Card' });
+    }
+
+    fetch(endpoint, {
+        method: 'POST',
+        headers: { 'X-Frappe-CSRF-Token': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString()
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        var result = data.message || data;
+        if (result.success) {
+            document.getElementById('cardForm').style.display = 'none';
+            btn.style.display = 'none';
+            document.getElementById('successState').style.display = '';
+            if (type === 'event_fund') {
+                document.getElementById('successMsg').textContent = 'Your contribution of ' + fmtCurrency(amount) + ' has been received.';
+                document.getElementById('viewDetailsBtn').href = '/member/events';
+            } else {
+                document.getElementById('successMsg').textContent = 'Your payment of ' + fmtCurrency(amount) + ' has been received.';
+                document.getElementById('viewDetailsBtn').href = '/member/booking-detail?name=' + encodeURIComponent(reservation);
+            }
+        } else {
+            throw new Error(result.message || 'Payment failed');
+        }
+    })
+    .catch(function(err) {
+        errDiv.textContent = err.message || 'Payment failed. Please try again.';
+        errDiv.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Pay Now';
+    });
+}
+</script>
+</body>
+</html>

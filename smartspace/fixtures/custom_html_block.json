@@ -1,0 +1,13 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Custom HTML Block",
+  "html": "<button id=\"admin-portal-link-btn\">Portal</button>",
+  "modified": "2026-08-22 01:29:20.844592",
+  "name": "Portal Link Button",
+  "private": 0,
+  "roles": [],
+  "script": "root_element.querySelector(\"#admin-portal-link-btn\").addEventListener(\"click\", function(e) {\n    e.preventDefault();\n    window.location.href = \"/admin-portal/analytics\";\n});",
+  "style": null
+ }
+]

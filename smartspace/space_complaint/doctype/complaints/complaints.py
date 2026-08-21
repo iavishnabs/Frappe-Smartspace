@@ -8,6 +8,17 @@ from frappe.model.document import Document
 from smartspace.notification import notify_supervisor_on_new_complaint
 
 class Complaints(Document):
+	def before_save(self):
+		if not self.location:
+			if self.related_asset:
+				asset_location = frappe.db.get_value("Asset", self.related_asset, "location")
+				if asset_location:
+					self.location = asset_location
+			if not self.location and self.raised_by:
+				app_user_location = frappe.db.get_value("App User", {"user": self.raised_by}, "location")
+				if app_user_location:
+					self.location = app_user_location
+
 	def after_insert(self):
 		notify_supervisor_on_new_complaint(self)
 

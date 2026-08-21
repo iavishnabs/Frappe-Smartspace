@@ -34,11 +34,57 @@
     <!-- Page Header -->
     <div class="bg-black text-white px-6 py-8">
         <h1 class="text-3xl font-bold">Complaints</h1>
-        <p class="text-orange-200 text-sm mt-1">View and manage asset complaints</p>
+        <p class="text-orange-200 text-sm mt-1">View and manage all complaints</p>
     </div>
 
-    <!-- Filters Bar -->
-    <div class="bg-white shadow-sm border-b px-6 py-4 sticky top-20 z-30">
+    <!-- Complaint Type Tabs + Filters Bar -->
+    <div class="bg-white shadow-sm border-b px-6 py-4 sticky top-20 z-30 space-y-4">
+        <!-- Scope Toggle + Create Button -->
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">View</span>
+                <div class="inline-flex rounded-lg border border-gray-200 overflow-hidden">
+                    <button id="scopeOthers" onclick="setScope('others')" class="px-4 py-2 text-sm font-medium transition bg-orange-500 text-white">Other Complaints</button>
+                    <button id="scopeMine" onclick="setScope('mine')" class="px-4 py-2 text-sm font-medium transition text-gray-600 hover:bg-gray-50">My Complaints</button>
+                </div>
+            </div>
+            <button onclick="openCreateComplaintModal()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-medium hover:bg-orange-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                New Complaint
+            </button>
+        </div>
+
+        <!-- Divider -->
+        <div class="border-t border-gray-100"></div>
+
+        <!-- Type Tabs + Sub-filter -->
+        <div class="flex items-center gap-3 flex-wrap">
+            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Type</span>
+            <div class="flex gap-2">
+                <button id="tabAsset" onclick="setComplaintTab('Asset Related')" class="px-4 py-2 rounded-lg text-sm font-medium transition bg-orange-500 text-white">
+                    <svg class="inline mr-1" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                    Asset Related
+                </button>
+                <button id="tabNonAsset" onclick="setComplaintTab('Non Asset')" class="px-4 py-2 rounded-lg text-sm font-medium transition text-gray-600 hover:bg-gray-50">
+                    <svg class="inline mr-1" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    General & Facility
+                </button>
+            </div>
+            <!-- Sub-filter for Non-Asset complaints (General / Facility) -->
+            <div id="subFilterBar" class="hidden flex items-center gap-2">
+                <span class="text-gray-300">|</span>
+                <div class="inline-flex rounded-lg border border-gray-200 overflow-hidden">
+                    <button id="subTabAll" onclick="setSubFilter('All')" class="px-3 py-1.5 text-sm font-medium transition bg-orange-500 text-white">All</button>
+                    <button id="subTabGeneral" onclick="setSubFilter('General')" class="px-3 py-1.5 text-sm font-medium transition text-gray-600 hover:bg-gray-50">General</button>
+                    <button id="subTabFacility" onclick="setSubFilter('Facility Related')" class="px-3 py-1.5 text-sm font-medium transition text-gray-600 hover:bg-gray-50">Facility</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Divider -->
+        <div class="border-t border-gray-100"></div>
+
+        <!-- Filters Row -->
         <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
             <select id="statusFilter" class="px-4 py-2.5 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm bg-white">
                 <option value="All Status">All Status</option>
@@ -81,9 +127,9 @@
                     <tr>
                         <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Complaint ID</th>
                         <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
-                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Asset</th>
+                        <th id="thAsset" class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Asset</th>
                         <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Assigned To</th>
+                        <th id="thAssignedTo" class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Assigned To</th>
                         <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                         <th class="text-center px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
@@ -97,6 +143,53 @@
         <div id="paginationBar" class="hidden mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div id="paginationInfo" class="text-sm text-gray-500"></div>
             <div id="paginationControls" class="flex items-center gap-2"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Complaint Modal -->
+<div id="createComplaintModal" class="fixed inset-0 z-[60] hidden">
+    <div class="absolute inset-0 bg-black/50" onclick="closeCreateComplaintModal()"></div>
+    <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg max-h-[85vh] bg-white rounded-xl shadow-xl flex flex-col">
+        <div class="flex items-center justify-between px-6 py-4 border-b">
+            <h3 id="ccModalTitle" class="font-bold text-lg">New Complaint</h3>
+            <button onclick="closeCreateComplaintModal()" class="text-gray-400 hover:text-gray-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="overflow-y-auto flex-1 px-6 py-4 space-y-4">
+            <input type="hidden" id="ccEditId" value="">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Complaint Type <span class="text-red-500">*</span></label>
+                <select id="ccType" class="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm bg-white">
+                    <option value="General">General</option>
+                    <option value="Facility Related">Facility Related</option>
+                    <option value="Asset Related">Asset Related</option>
+                </select>
+            </div>
+            <div id="ccAssetDiv" class="hidden">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Related Asset <span class="text-red-500">*</span></label>
+                <select id="ccAsset" class="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm bg-white">
+                    <option value="">Select asset...</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Description <span class="text-red-500">*</span></label>
+                <textarea id="ccDescription" rows="4" class="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm" placeholder="Describe the complaint..."></textarea>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Attachment (optional)</label>
+                <div class="flex items-center gap-3">
+                    <div id="ccImageContainer" class="hidden relative">
+                        <img id="ccImagePreview" src="" class="w-20 h-20 rounded-lg object-cover border border-gray-200">
+                        <button type="button" onclick="removeComplaintImage()" class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-xs hover:bg-red-600 transition">&times;</button>
+                    </div>
+                    <input id="ccImageFile" type="file" accept="image/*" class="text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-orange-50 file:text-orange-600 hover:file:bg-orange-100 cursor-pointer">
+                </div>
+                <input type="hidden" id="ccImageUrl" value="">
+                <input type="hidden" id="ccImageRemoved" value="0">
+            </div>
+            <button id="ccSubmitBtn" class="w-full py-2.5 rounded-lg bg-orange-500 text-white font-medium text-sm hover:bg-orange-600 transition">Create Complaint</button>
         </div>
     </div>
 </div>
@@ -154,6 +247,26 @@
     </div>
 </div>
 
+<!-- Confirm Dialog -->
+<div id="confirmDialog" class="fixed inset-0 z-[75] hidden">
+    <div class="absolute inset-0 bg-black/50" onclick="closeConfirmDialog()"></div>
+    <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-white rounded-xl shadow-xl">
+        <div class="p-6">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-600"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                </div>
+                <h3 id="confirmTitle" class="font-bold text-gray-800 text-base">Confirm</h3>
+            </div>
+            <p id="confirmMessage" class="text-sm text-gray-600 mb-5">Are you sure?</p>
+            <div class="flex gap-3">
+                <button onclick="closeConfirmDialog()" class="flex-1 py-2.5 rounded-lg border border-gray-200 text-gray-700 font-medium text-sm hover:bg-gray-50 transition">Cancel</button>
+                <button id="confirmOkBtn" class="flex-1 py-2.5 rounded-lg bg-green-500 text-white font-medium text-sm hover:bg-green-600 transition">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Toast -->
 <div id="toast" class="fixed bottom-6 right-6 z-[70] hidden">
     <div id="toastInner" class="px-5 py-3 rounded-lg shadow-lg text-sm font-medium text-white"></div>
@@ -164,9 +277,83 @@ var currentPage = 1;
 var currentPageSize = 10;
 var currentStatus = 'All Status';
 var currentSearch = '';
+var currentComplaintTab = 'Asset Related';
+var currentSubFilter = 'All';
+var currentScope = 'others';
 var debounceTimer;
 var currentComplaintForAssign = null;
 var allComplaints = [];
+var availableAssets = [];
+var currentUser = null;
+var pendingDeleteComplaint = null;
+
+function setScope(scope) {
+    currentScope = scope;
+    currentPage = 1;
+    var btnOthers = document.getElementById('scopeOthers');
+    var btnMine = document.getElementById('scopeMine');
+    if (scope === 'others') {
+        btnOthers.className = 'px-4 py-2.5 text-sm font-medium transition bg-orange-500 text-white';
+        btnMine.className = 'px-4 py-2.5 text-sm font-medium transition text-gray-600 hover:bg-gray-50';
+    } else {
+        btnMine.className = 'px-4 py-2.5 text-sm font-medium transition bg-orange-500 text-white';
+        btnOthers.className = 'px-4 py-2.5 text-sm font-medium transition text-gray-600 hover:bg-gray-50';
+    }
+    fetchComplaints();
+}
+
+function setComplaintTab(tab) {
+    currentComplaintTab = tab;
+    currentSubFilter = 'All';
+    currentPage = 1;
+
+    var tabAsset = document.getElementById('tabAsset');
+    var tabNonAsset = document.getElementById('tabNonAsset');
+    var subFilterBar = document.getElementById('subFilterBar');
+
+    if (tab === 'Asset Related') {
+        tabAsset.className = 'px-4 py-2 rounded-lg text-sm font-medium transition bg-orange-500 text-white';
+        tabNonAsset.className = 'px-4 py-2 rounded-lg text-sm font-medium transition text-gray-600 hover:bg-gray-50';
+        subFilterBar.classList.add('hidden');
+    } else {
+        tabNonAsset.className = 'px-4 py-2 rounded-lg text-sm font-medium transition bg-orange-500 text-white';
+        tabAsset.className = 'px-4 py-2 rounded-lg text-sm font-medium transition text-gray-600 hover:bg-gray-50';
+        subFilterBar.classList.remove('hidden');
+    }
+
+    // Reset sub-filter buttons
+    var subTabAll = document.getElementById('subTabAll');
+    var subTabGeneral = document.getElementById('subTabGeneral');
+    var subTabFacility = document.getElementById('subTabFacility');
+    subTabAll.className = 'px-4 py-2 text-sm font-medium transition bg-orange-500 text-white';
+    subTabGeneral.className = 'px-4 py-2 text-sm font-medium transition text-gray-600 hover:bg-gray-50';
+    subTabFacility.className = 'px-4 py-2 text-sm font-medium transition text-gray-600 hover:bg-gray-50';
+
+    fetchComplaints();
+}
+
+function setSubFilter(filter) {
+    currentSubFilter = filter;
+    currentPage = 1;
+
+    var subTabAll = document.getElementById('subTabAll');
+    var subTabGeneral = document.getElementById('subTabGeneral');
+    var subTabFacility = document.getElementById('subTabFacility');
+
+    subTabAll.className = 'px-4 py-2 text-sm font-medium transition text-gray-600 hover:bg-gray-50';
+    subTabGeneral.className = 'px-4 py-2 text-sm font-medium transition text-gray-600 hover:bg-gray-50';
+    subTabFacility.className = 'px-4 py-2 text-sm font-medium transition text-gray-600 hover:bg-gray-50';
+
+    if (filter === 'All') {
+        subTabAll.className = 'px-4 py-2 text-sm font-medium transition bg-orange-500 text-white';
+    } else if (filter === 'General') {
+        subTabGeneral.className = 'px-4 py-2 text-sm font-medium transition bg-orange-500 text-white';
+    } else if (filter === 'Facility Related') {
+        subTabFacility.className = 'px-4 py-2 text-sm font-medium transition bg-orange-500 text-white';
+    }
+
+    fetchComplaints();
+}
 
 function showToast(message, type) {
     var toast = document.getElementById('toast');
@@ -190,9 +377,22 @@ function fetchComplaints() {
     emptyState.classList.add('hidden');
     paginationBar.classList.add('hidden');
 
+    var complaintType = '';
+    if (currentComplaintTab === 'Asset Related') {
+        complaintType = 'Asset Related';
+    } else {
+        if (currentSubFilter === 'All') {
+            complaintType = 'Non Asset';
+        } else {
+            complaintType = currentSubFilter;
+        }
+    }
+
     var params = new URLSearchParams({
         status: currentStatus,
         search: currentSearch,
+        complaint_type: complaintType,
+        scope: currentScope,
         page: currentPage,
         page_size: currentPageSize
     });
@@ -203,6 +403,7 @@ function fetchComplaints() {
             var result = data.message || data;
             loadingState.classList.add('hidden');
             allComplaints = result.complaints || [];
+            currentUser = result.current_user || null;
 
             if (result.complaints.length === 0) {
                 emptyState.classList.remove('hidden');
@@ -260,42 +461,74 @@ function assignBtn(name) {
         'Assign Technician</button>';
 }
 
+function isComplaintOwner(c) {
+    return currentUser && c.raised_by === currentUser;
+}
+
+function editBtn(name) {
+    return '<button onclick="openDetailModal(\'' + name + '\')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition text-xs font-medium">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
+        'Edit</button>';
+}
+
+function deleteComplaintBtn(name) {
+    return '<button onclick="deleteComplaint(\'' + name + '\')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition text-xs font-medium">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +
+        'Delete</button>';
+}
+
 function renderTable(complaints) {
     var tbody = document.getElementById('tableBody');
+    var isAssetTab = currentComplaintTab === 'Asset Related';
+    document.getElementById('thAsset').style.display = isAssetTab ? '' : 'none';
+    document.getElementById('thAssignedTo').style.display = isAssetTab ? '' : 'none';
     tbody.innerHTML = complaints.map(function(c) {
         var asset = c.asset || {};
-        var actions = viewBtn(c.name);
-        return '<tr class="hover:bg-gray-50 transition">' +
+        var ownerOpen = isComplaintOwner(c) && c.status === 'Open';
+        var actions = ownerOpen ? editBtn(c.name) + ' ' + deleteComplaintBtn(c.name) : viewBtn(c.name);
+        var row = '<tr class="hover:bg-gray-50 transition">' +
             '<td class="px-6 py-4 font-medium text-gray-800">' + c.name + '</td>' +
-            '<td class="px-6 py-4 text-sm text-gray-600">' + (c.complaint_type || '-') + '</td>' +
-            '<td class="px-6 py-4 text-sm text-gray-600">' + (asset.name || '-') + (asset.serial_number ? ' (' + asset.serial_number + ')' : '') + '</td>' +
-            '<td class="px-6 py-4 text-sm text-gray-600">' + formatDate(c.complaint_date) + '</td>' +
-            '<td class="px-6 py-4 text-sm text-gray-600">' + (c.assigned_to_name || 'N/A') + '</td>' +
-            '<td class="px-6 py-4">' + statusBadge(c.status) + '</td>' +
+            '<td class="px-6 py-4 text-sm text-gray-600">' + (c.complaint_type || '-') + '</td>';
+        if (isAssetTab) {
+            row += '<td class="px-6 py-4 text-sm text-gray-600">' + (asset.name || '-') + (asset.serial_number ? ' (' + asset.serial_number + ')' : '') + '</td>';
+        }
+        row += '<td class="px-6 py-4 text-sm text-gray-600">' + formatDate(c.complaint_date) + '</td>';
+        if (isAssetTab) {
+            row += '<td class="px-6 py-4 text-sm text-gray-600">' + (c.assigned_to_name || 'N/A') + '</td>';
+        }
+        row += '<td class="px-6 py-4">' + statusBadge(c.status) + '</td>' +
             '<td class="px-6 py-4 text-center whitespace-nowrap">' + actions + '</td>' +
         '</tr>';
+        return row;
     }).join('');
     document.getElementById('tableContainer').style.display = window.innerWidth >= 768 ? 'block' : 'none';
 }
 
 function renderCards(complaints) {
     var container = document.getElementById('cardContainer');
+    var isAssetTab = currentComplaintTab === 'Asset Related';
     container.innerHTML = complaints.map(function(c) {
         var asset = c.asset || {};
-        var actions = viewBtn(c.name);
-        return '<div class="bg-white rounded-xl shadow-card p-4">' +
+        var ownerOpen = isComplaintOwner(c) && c.status === 'Open';
+        var actions = ownerOpen ? editBtn(c.name) + ' ' + deleteComplaintBtn(c.name) : viewBtn(c.name);
+        var html = '<div class="bg-white rounded-xl shadow-card p-4">' +
             '<div class="flex items-center justify-between mb-3">' +
                 '<span class="font-medium text-gray-800">' + c.name + '</span>' +
                 statusBadge(c.status) +
             '</div>' +
             '<div class="space-y-1.5 text-sm mb-3">' +
-                '<div><span class="text-gray-400">Type:</span> <span class="text-gray-700">' + (c.complaint_type || '-') + '</span></div>' +
-                '<div><span class="text-gray-400">Asset:</span> <span class="text-gray-700">' + (asset.name || '-') + '</span></div>' +
-                '<div><span class="text-gray-400">Date:</span> <span class="text-gray-700">' + formatDate(c.complaint_date) + '</span></div>' +
-                '<div><span class="text-gray-400">Assigned:</span> <span class="text-gray-700">' + (c.assigned_to_name || 'N/A') + '</span></div>' +
-            '</div>' +
-            '<div class="flex gap-2">' + actions + '</div>' +
+                '<div><span class="text-gray-400">Type:</span> <span class="text-gray-700">' + (c.complaint_type || '-') + '</span></div>';
+        if (isAssetTab) {
+            html += '<div><span class="text-gray-400">Asset:</span> <span class="text-gray-700">' + (asset.name || '-') + '</span></div>';
+        }
+        html += '<div><span class="text-gray-400">Date:</span> <span class="text-gray-700">' + formatDate(c.complaint_date) + '</span></div>';
+        if (isAssetTab) {
+            html += '<div><span class="text-gray-400">Assigned:</span> <span class="text-gray-700">' + (c.assigned_to_name || 'N/A') + '</span></div>';
+        }
+        html += '</div>' +
+            '<div class="flex gap-2 flex-wrap">' + actions + '</div>' +
         '</div>';
+        return html;
     }).join('');
     cardContainer.style.display = window.innerWidth < 768 ? 'block' : 'none';
 }
@@ -353,7 +586,11 @@ function openDetailModal(complaintName) {
     html += '</div>';
     html += '<div><span class="text-gray-400 text-xs uppercase tracking-wide block mb-1">Description</span><p class="text-gray-700 text-sm bg-gray-50 rounded-lg p-3">' + (c.description || '-') + '</p></div>';
     if (c.attachment) {
-        html += '<div class="flex justify-center"><img src="' + c.attachment + '" class="rounded-lg border border-gray-100 max-h-48 object-cover" onerror="this.parentElement.style.display=\'none\'"></div>';
+        html += '<div><span class="text-gray-400 text-xs uppercase tracking-wide block mb-1">Attachment</span>';
+        html += '<div class="flex justify-center bg-gray-50 rounded-lg p-2">';
+        html += '<img src="' + c.attachment + '" class="rounded-lg border border-gray-100 max-h-48 object-cover" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'block\'">';
+        html += '<span class="hidden text-gray-400 text-sm py-8">Unable to load image</span>';
+        html += '</div></div>';
     }
 
     if (asset.name) {
@@ -373,7 +610,7 @@ function openDetailModal(complaintName) {
         html += '</div></div>';
     }
 
-    if (c.assigned_to_name) {
+    if (c.assigned_to_name && c.complaint_type === 'Asset Related') {
         html += '<div class="border-t pt-3"><span class="text-gray-400 text-sm block mb-1">Assigned To</span><p class="text-gray-700 text-sm font-medium">' + c.assigned_to_name + '</p></div>';
     }
     if (c.closed_date) {
@@ -383,8 +620,19 @@ function openDetailModal(complaintName) {
         }
     }
 
-    if (c.status === 'Open' && !c.assigned_to) {
+    if (c.status === 'Open' && !c.assigned_to && c.complaint_type === 'Asset Related') {
         html += '<div class="border-t pt-3">' + assignBtn(c.name) + '</div>';
+    }
+
+    if (c.complaint_type !== 'Asset Related' && c.status !== 'Closed' && c.status !== 'Resolved') {
+        html += '<div class="border-t pt-3"><button onclick="resolveComplaint(\'' + c.name + '\')" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition text-sm font-medium"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Mark Resolved</button></div>';
+    }
+
+    if (isComplaintOwner(c) && c.status === 'Open') {
+        html += '<div class="border-t pt-3 flex gap-2">';
+        html += '<button onclick="closeDetailModal(); openEditComplaintModal(\'' + c.name + '\')" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition text-sm font-medium"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button>';
+        html += '<button onclick="closeDetailModal(); deleteComplaint(\'' + c.name + '\')" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition text-sm font-medium"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</button>';
+        html += '</div>';
     }
 
     html += '</div>';
@@ -395,6 +643,52 @@ function openDetailModal(complaintName) {
 
 function closeDetailModal() {
     document.getElementById('detailModal').classList.add('hidden');
+}
+
+var confirmCallback = null;
+
+function showConfirmDialog(title, message, callback) {
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmMessage').textContent = message;
+    confirmCallback = callback;
+    document.getElementById('confirmDialog').classList.remove('hidden');
+}
+
+function closeConfirmDialog() {
+    document.getElementById('confirmDialog').classList.add('hidden');
+    confirmCallback = null;
+}
+
+document.getElementById('confirmOkBtn').addEventListener('click', function() {
+    if (confirmCallback) confirmCallback();
+    closeConfirmDialog();
+});
+
+function resolveComplaint(name) {
+    showConfirmDialog('Mark Resolved', 'Mark this complaint as resolved?', function() {
+        var body = new FormData();
+        body.append('name', name);
+
+        fetch('/api/method/smartspace.frontend_api.supervisor.resolve_complaint', {
+            method: 'POST',
+            headers: { 'X-Frappe-CSRF-Token': csrfToken },
+            body: body
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var result = data.message || data;
+            if (result.success) {
+                showToast('Complaint marked as resolved', 'success');
+                closeDetailModal();
+                fetchComplaints();
+            } else {
+                showToast(result.message || 'Failed to resolve complaint', 'error');
+            }
+        })
+        .catch(function() {
+            showToast('Error resolving complaint', 'error');
+        });
+    });
 }
 
 function showAssignError(msg) {
@@ -437,7 +731,7 @@ document.getElementById('confirmAssignBtn').addEventListener('click', function()
 
     fetch('/api/method/smartspace.space_complaint.doctype.complaints.complaints.assign_technician', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': window.frappe && frappe.csrf_token ? frappe.csrf_token : '' },
+        headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrfToken },
         body: JSON.stringify({
             complaint: currentComplaintForAssign,
             reported_date: reportedDate,
@@ -494,6 +788,251 @@ document.getElementById('pageSizeSelect').addEventListener('change', function() 
     currentPageSize = parseInt(this.value);
     currentPage = 1;
     fetchComplaints();
+});
+
+// ── Create Complaint Modal ──
+
+document.getElementById('ccType').addEventListener('change', function() {
+    var assetDiv = document.getElementById('ccAssetDiv');
+    if (this.value === 'Asset Related') {
+        assetDiv.classList.remove('hidden');
+        if (availableAssets.length === 0) {
+            fetch('/api/method/smartspace.frontend_api.supervisor.get_assets?status=Available&page_size=100')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    var result = data.message || data;
+                    availableAssets = result.assets || [];
+                    var select = document.getElementById('ccAsset');
+                    select.innerHTML = '<option value="">Select asset...</option>';
+                    availableAssets.forEach(function(a) {
+                        var opt = document.createElement('option');
+                        opt.value = a.name;
+                        opt.textContent = a.name + (a.asset_item ? ' (' + a.asset_item + ')' : '');
+                        select.appendChild(opt);
+                    });
+                });
+        }
+    } else {
+        assetDiv.classList.add('hidden');
+    }
+});
+
+document.getElementById('ccImageFile').addEventListener('change', function(e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+        var preview = document.getElementById('ccImagePreview');
+        preview.src = ev.target.result;
+        document.getElementById('ccImageContainer').classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+});
+
+function removeComplaintImage() {
+    document.getElementById('ccImagePreview').src = '';
+    document.getElementById('ccImageContainer').classList.add('hidden');
+    document.getElementById('ccImageUrl').value = '';
+    document.getElementById('ccImageFile').value = '';
+    document.getElementById('ccImageRemoved').value = '1';
+}
+
+function openCreateComplaintModal() {
+    document.getElementById('ccModalTitle').textContent = 'New Complaint';
+    document.getElementById('ccEditId').value = '';
+    document.getElementById('ccType').value = 'General';
+    document.getElementById('ccAssetDiv').classList.add('hidden');
+    document.getElementById('ccAsset').innerHTML = '<option value="">Select asset...</option>';
+    document.getElementById('ccDescription').value = '';
+    document.getElementById('ccImageUrl').value = '';
+    document.getElementById('ccImageRemoved').value = '0';
+    document.getElementById('ccImageFile').value = '';
+    document.getElementById('ccImagePreview').src = '';
+    document.getElementById('ccImageContainer').classList.add('hidden');
+    document.getElementById('ccSubmitBtn').textContent = 'Create Complaint';
+    document.getElementById('createComplaintModal').classList.remove('hidden');
+}
+
+function openEditComplaintModal(complaintName) {
+    var c = allComplaints.find(function(x) { return x.name === complaintName; });
+    if (!c) return;
+
+    document.getElementById('ccModalTitle').textContent = 'Edit Complaint';
+    document.getElementById('ccEditId').value = c.name;
+    document.getElementById('ccType').value = c.complaint_type || 'General';
+
+    var assetDiv = document.getElementById('ccAssetDiv');
+    if (c.complaint_type === 'Asset Related') {
+        assetDiv.classList.remove('hidden');
+        if (availableAssets.length === 0) {
+            fetch('/api/method/smartspace.frontend_api.supervisor.get_assets?status=Available&page_size=100')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    var result = data.message || data;
+                    availableAssets = result.assets || [];
+                    var select = document.getElementById('ccAsset');
+                    select.innerHTML = '<option value="">Select asset...</option>';
+                    availableAssets.forEach(function(a) {
+                        var opt = document.createElement('option');
+                        opt.value = a.name;
+                        opt.textContent = a.name + (a.asset_item ? ' (' + a.asset_item + ')' : '');
+                        select.appendChild(opt);
+                    });
+                    if (c.related_asset) select.value = c.related_asset;
+                });
+        } else {
+            var select = document.getElementById('ccAsset');
+            select.innerHTML = '<option value="">Select asset...</option>';
+            availableAssets.forEach(function(a) {
+                var opt = document.createElement('option');
+                opt.value = a.name;
+                opt.textContent = a.name + (a.asset_item ? ' (' + a.asset_item + ')' : '');
+                select.appendChild(opt);
+            });
+            if (c.related_asset) select.value = c.related_asset;
+        }
+    } else {
+        assetDiv.classList.add('hidden');
+    }
+
+    document.getElementById('ccDescription').value = c.description || '';
+    document.getElementById('ccImageUrl').value = c.attachment || '';
+    document.getElementById('ccImageRemoved').value = '0';
+    document.getElementById('ccImageFile').value = '';
+
+    if (c.attachment) {
+        var preview = document.getElementById('ccImagePreview');
+        preview.src = c.attachment;
+        document.getElementById('ccImageContainer').classList.remove('hidden');
+    } else {
+        document.getElementById('ccImageContainer').classList.add('hidden');
+    }
+
+    document.getElementById('ccSubmitBtn').textContent = 'Update Complaint';
+    document.getElementById('createComplaintModal').classList.remove('hidden');
+}
+
+function deleteComplaint(name) {
+    showConfirmDialog('Delete Complaint', 'Are you sure you want to delete this complaint? This action cannot be undone.', function() {
+        var body = new FormData();
+        body.append('name', name);
+
+        fetch('/api/method/smartspace.frontend_api.supervisor.delete_complaint', {
+            method: 'POST',
+            headers: { 'X-Frappe-CSRF-Token': csrfToken },
+            body: body
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var result = data.message || data;
+            if (result.deleted) {
+                showToast('Complaint deleted', 'success');
+                fetchComplaints();
+            } else {
+                showToast('Error: ' + (data.exc || 'Unknown error'), 'error');
+            }
+        })
+        .catch(function() {
+            showToast('Error deleting complaint', 'error');
+        });
+    });
+}
+
+function closeCreateComplaintModal() {
+    document.getElementById('createComplaintModal').classList.add('hidden');
+}
+
+function uploadComplaintImage(callback) {
+    var fileInput = document.getElementById('ccImageFile');
+    var file = fileInput.files[0];
+
+    if (!file) {
+        callback(document.getElementById('ccImageUrl').value || null);
+        return;
+    }
+
+    var formData = new FormData();
+    formData.append('file', file);
+    formData.append('is_private', '0');
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/method/upload_file');
+    xhr.setRequestHeader('X-Frappe-CSRF-Token', csrfToken);
+    xhr.onload = function() {
+        if (xhr.status === 200) {
+            try {
+                var resp = JSON.parse(xhr.responseText);
+                var fileUrl = resp.message && resp.message.file_url ? resp.message.file_url : null;
+                callback(fileUrl);
+            } catch(e) {
+                callback(null);
+            }
+        } else {
+            callback(null);
+        }
+    };
+    xhr.onerror = function() { callback(null); };
+    xhr.send(formData);
+}
+
+document.getElementById('ccSubmitBtn').addEventListener('click', function() {
+    var editId = document.getElementById('ccEditId').value;
+    var complaintType = document.getElementById('ccType').value;
+    var description = document.getElementById('ccDescription').value.trim();
+    var relatedAsset = document.getElementById('ccAsset').value;
+    var isEdit = editId !== '';
+
+    if (!complaintType) { showToast('Please select a complaint type', 'error'); return; }
+    if (!description) { showToast('Please enter a description', 'error'); return; }
+    if (complaintType === 'Asset Related' && !relatedAsset) { showToast('Please select an asset', 'error'); return; }
+
+    var btn = this;
+    btn.textContent = 'Uploading...';
+    btn.disabled = true;
+
+    uploadComplaintImage(function(imageUrl) {
+        var body = new FormData();
+        body.append('complaint_type', complaintType);
+        body.append('description', description);
+        if (complaintType === 'Asset Related') body.append('related_asset', relatedAsset);
+        if (imageUrl) {
+            body.append('attachment', imageUrl);
+        } else if (isEdit && document.getElementById('ccImageRemoved').value === '1') {
+            body.append('attachment', '');
+        }
+
+        var method = isEdit ?
+            'smartspace.frontend_api.supervisor.update_complaint' :
+            'smartspace.frontend_api.supervisor.create_complaint';
+        if (isEdit) body.append('name', editId);
+
+        btn.textContent = isEdit ? 'Updating...' : 'Creating...';
+
+        fetch('/api/method/' + method, {
+            method: 'POST',
+            headers: { 'X-Frappe-CSRF-Token': csrfToken },
+            body: body
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var result = data.message || data;
+            btn.disabled = false;
+            btn.textContent = isEdit ? 'Update Complaint' : 'Create Complaint';
+
+            if (result.name || result.deleted) {
+                showToast(isEdit ? 'Complaint updated successfully' : 'Complaint created successfully', 'success');
+                closeCreateComplaintModal();
+                fetchComplaints();
+            } else {
+                showToast('Error: ' + (data.exc || 'Unknown error'), 'error');
+            }
+        })
+        .catch(function() {
+            btn.disabled = false;
+            btn.textContent = isEdit ? 'Update Complaint' : 'Create Complaint';
+            showToast(isEdit ? 'Error updating complaint' : 'Error creating complaint', 'error');
+        });
+    });
 });
 
 fetchComplaints();

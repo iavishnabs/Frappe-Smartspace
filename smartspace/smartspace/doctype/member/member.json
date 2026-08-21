@@ -21,6 +21,8 @@
   "column_break_dzay",
   "join_date",
   "expiry_date",
+  "vehicle_information_section",
+  "vehicle_numbers",
   "address_information_section",
   "address_line_1",
   "city",
@@ -145,12 +147,23 @@
    "fieldtype": "Link",
    "label": "Location",
    "options": "Location"
+  },
+  {
+   "fieldname": "vehicle_information_section",
+   "fieldtype": "Section Break",
+   "label": "Vehicle Information"
+  },
+  {
+   "fieldname": "vehicle_numbers",
+   "fieldtype": "Small Text",
+   "label": "Vehicle Numbers",
+   "description": "Comma-separated vehicle numbers from bookings"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-24 13:14:24.090567",
+ "modified": "2026-08-05 09:17:00.000000",
  "modified_by": "Administrator",
  "module": "smartspace",
  "name": "Member",

@@ -1,0 +1,122 @@
+{
+ "add_total_row": 1,
+ "columns": [
+  {
+   "fieldname": "event_name",
+   "fieldtype": "Data",
+   "label": "Event Name",
+   "width": 200
+  },
+  {
+   "fieldname": "event_theme",
+   "fieldtype": "Data",
+   "label": "Event Theme",
+   "width": 150
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Link",
+   "label": "Location",
+   "options": "Location",
+   "width": 120
+  },
+  {
+   "fieldname": "event_status",
+   "fieldtype": "Data",
+   "label": "Event Status",
+   "width": 100
+  },
+  {
+   "fieldname": "start_date",
+   "fieldtype": "Datetime",
+   "label": "Start Date",
+   "width": 140
+  },
+  {
+   "fieldname": "end_date",
+   "fieldtype": "Datetime",
+   "label": "End Date",
+   "width": 140
+  },
+  {
+   "fieldname": "budget_amount",
+   "fieldtype": "Currency",
+   "label": "Budget",
+   "width": 120
+  },
+  {
+   "fieldname": "total_collected",
+   "fieldtype": "Currency",
+   "label": "Collected",
+   "width": 120
+  },
+  {
+   "fieldname": "total_spent",
+   "fieldtype": "Currency",
+   "label": "Spent",
+   "width": 120
+  },
+  {
+   "fieldname": "fund_balance",
+   "fieldtype": "Currency",
+   "label": "Balance",
+   "width": 120
+  },
+  {
+   "fieldname": "contributors",
+   "fieldtype": "Int",
+   "label": "Contributors",
+   "width": 100
+  }
+ ],
+ "filters": [
+  {
+   "fieldname": "event",
+   "fieldtype": "Link",
+   "label": "Event",
+   "options": "Space Event"
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Link",
+   "label": "Location",
+   "options": "Location"
+  },
+  {
+   "fieldname": "event_status",
+   "fieldtype": "Select",
+   "label": "Event Status",
+   "options": "\nDraft\nPublished\nCompleted\nCancelled"
+  },
+  {
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "From Date"
+  },
+  {
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "To Date"
+  }
+ ],
+ "idx": 1,
+ "is_standard": "Yes",
+ "json": "{}",
+ "modified": "2026-08-21 18:35:00.000000",
+ "modified_by": "Administrator",
+ "module": "Smartspace",
+ "name": "Event Fund Summary",
+ "owner": "Administrator",
+ "prepared_report": 0,
+ "ref_doctype": "Space Event",
+ "report_name": "Event Fund Summary",
+ "report_type": "Script Report",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Desk User"
+  }
+ ]
+}

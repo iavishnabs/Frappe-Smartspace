@@ -7,14 +7,19 @@
  "engine": "InnoDB",
  "field_order": [
   "parking_slot",
-  "vehicle_number",
-  "member",
-  "app_user",
-  "column_break_vpkd",
   "allocation_date",
+  "column_break_vpkd",
+  "allocation_status",
+  "reservation",
+  "allocation_details_section",
   "allocated_from",
   "allocated_to",
-  "allocation_status"
+  "visitor_name",
+  "vehicle_number",
+  "column_break_phsi",
+  "allocation_type",
+  "member",
+  "app_user"
  ],
  "fields": [
   {
@@ -47,7 +52,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Allocation Status",
-   "options": "\nActive\nCompleted",
+   "options": "\nActive\nReleased\nCancelled",
    "read_only": 1
   },
   {
@@ -64,6 +69,7 @@
    "reqd": 1
   },
   {
+   "fetch_from": "member.app_user",
    "fieldname": "app_user",
    "fieldtype": "Link",
    "label": "App User",
@@ -72,14 +78,40 @@
   {
    "fieldname": "allocation_date",
    "fieldtype": "Date",
-   "label": "Allocation Date",
+   "label": "Posting Date",
    "read_only": 1
+  },
+  {
+   "fieldname": "allocation_type",
+   "fieldtype": "Select",
+   "label": "Allocation Type",
+   "options": "\nMember\nVisitor"
+  },
+  {
+   "fieldname": "visitor_name",
+   "fieldtype": "Data",
+   "label": "Visitor Name"
+  },
+  {
+   "fieldname": "allocation_details_section",
+   "fieldtype": "Section Break",
+   "label": "Allocation Details"
+  },
+  {
+   "fieldname": "column_break_phsi",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "reservation",
+   "fieldtype": "Link",
+   "label": "Reservation",
+   "options": "Reservation"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-15 15:13:06.137194",
+ "modified": "2026-08-12 15:16:30.161426",
  "modified_by": "Administrator",
  "module": "Space Parking",
  "name": "Parking Allocation",

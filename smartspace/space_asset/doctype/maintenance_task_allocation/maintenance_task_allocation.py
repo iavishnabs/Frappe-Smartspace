@@ -132,17 +132,13 @@ def notify_supervisor(mta_doc, maintenance, action):
 		user = frappe.db.get_value("App User", supervisor.app_user, "user")
 		if not user:
 			continue
-		try:
-			frappe.get_doc({
-				"doctype": "Notification Log",
-				"subject": subject,
-				"for_user": user,
-				"type": "Alert",
-				"document_type": "Maintenance Task Allocation",
-				"document_name": mta_doc.name
-			}).insert(ignore_permissions=True)
-		except Exception:
-			frappe.log_error(frappe.get_traceback(), f"Failed notifying supervisor {user}")
+		from smartspace.notification import create_notification_log
+		create_notification_log(
+			subject=subject,
+			for_user=user,
+			document_type="Maintenance Task Allocation",
+			document_name=mta_doc.name,
+		)
 
 
 def notify_technician(mta_doc, action):
@@ -155,14 +151,10 @@ def notify_technician(mta_doc, action):
 	if not user:
 		return
 	subject = f"Task {mta_doc.name} - {action}"
-	try:
-		frappe.get_doc({
-			"doctype": "Notification Log",
-			"subject": subject,
-			"for_user": user,
-			"type": "Alert",
-			"document_type": "Maintenance Task Allocation",
-			"document_name": mta_doc.name
-		}).insert(ignore_permissions=True)
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), f"Failed notifying technician {user}")
+	from smartspace.notification import create_notification_log
+	create_notification_log(
+		subject=subject,
+		for_user=user,
+		document_type="Maintenance Task Allocation",
+		document_name=mta_doc.name,
+	)

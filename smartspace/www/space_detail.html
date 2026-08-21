@@ -239,12 +239,17 @@ per hour
 
 </div>
 
-<a href="/signin"
+{% if book_url %}
+<a href="{{ book_url }}"
 class="block text-center bg-orange-500 hover:bg-orange-600 text-white rounded-xl py-4 font-semibold mt-8">
-
 Book Now
-
 </a>
+{% else %}
+<a href="/signin?signup=1"
+class="block text-center bg-orange-500 hover:bg-orange-600 text-white rounded-xl py-4 font-semibold mt-8">
+Book Now
+</a>
+{% endif %}
 
 </div>
 

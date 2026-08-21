@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Tasks | SmartSpace</title>
+
+    <link rel="manifest" href="/assets/smartspace/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/assets/smartspace/favicon.svg">
+    <meta name="theme-color" content="#f97316">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="SmartSpace">
+    <link rel="apple-touch-icon" href="/assets/smartspace/icon-192.svg">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    boxShadow: {
+                        card: "0 10px 30px rgba(0,0,0,.08)"
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-gray-800 min-h-screen">
+{% include "www/nav_footer/portal_header.html" %}
+{% include "www/technician/sidebar.html" %}
+
+<div class="sidebar-content transition-all duration-300">
+    <!-- Page Header -->
+    <div class="bg-black text-white px-6 py-8">
+        <h1 class="text-3xl font-bold">My Tasks</h1>
+        <p class="text-orange-200 text-sm mt-1">Your assigned maintenance tasks</p>
+    </div>
+
+    <!-- Filters Bar -->
+    <div class="bg-white shadow-sm border-b px-6 py-4 sticky top-20 z-30">
+        <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+            <select id="statusFilter" class="px-4 py-2.5 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm bg-white">
+                <option value="All Status">All Status</option>
+                <option value="Open">Open</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Flagged">Flagged</option>
+                <option value="Overdue">Overdue</option>
+                <option value="Completed">Completed</option>
+            </select>
+            <button id="clearFilters" class="px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">Clear</button>
+            <select id="pageSizeSelect" class="px-4 py-2.5 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm bg-white sm:ml-auto">
+                <option value="10">10 / page</option>
+                <option value="20">20 / page</option>
+                <option value="50">50 / page</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Tasks List -->
+    <div class="px-6 py-6">
+        <div id="loadingState" class="text-center py-12 text-gray-400">
+            <svg class="animate-spin mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            Loading tasks...
+        </div>
+
+        <div id="emptyState" class="hidden text-center py-16">
+            <svg class="mx-auto mb-4 text-gray-300" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+            <p class="text-gray-500 font-medium">No tasks found</p>
+            <p class="text-gray-400 text-sm mt-1">Try adjusting your filters</p>
+        </div>
+
+        <!-- Desktop Table -->
+        <div id="tableContainer" class="bg-white rounded-xl shadow-card overflow-hidden" style="display:none">
+            <table class="w-full">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Task ID</th>
+                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Asset</th>
+                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Serial No</th>
+                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Asset Item</th>
+                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Priority</th>
+                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Assigned On</th>
+                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="text-center px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody" class="divide-y divide-gray-100"></tbody>
+            </table>
+        </div>
+
+        <!-- Mobile Cards -->
+        <div id="cardContainer" class="space-y-3" style="display:none"></div>
+
+        <!-- Pagination -->
+        <div id="paginationBar" class="hidden mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div id="paginationInfo" class="text-sm text-gray-500"></div>
+            <div id="paginationControls" class="flex items-center gap-2"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Detail Modal -->
+<div id="detailModal" class="fixed inset-0 z-[60] hidden">
+    <div class="absolute inset-0 bg-black/50" onclick="closeDetailModal()"></div>
+    <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl max-h-[85vh] bg-white rounded-xl shadow-xl flex flex-col">
+        <div class="flex items-center justify-between px-6 py-4 border-b">
+            <h3 class="font-bold text-lg">Task Details</h3>
+            <button onclick="closeDetailModal()" class="text-gray-400 hover:text-gray-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div id="detailContent" class="overflow-y-auto flex-1 px-6 py-4"></div>
+    </div>
+</div>
+
+<!-- Confirm Dialog Modal -->
+<div id="confirmModal" class="fixed inset-0 z-[80] hidden">
+    <div class="absolute inset-0 bg-black/50" onclick="closeConfirmDialog()"></div>
+    <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-white rounded-xl shadow-xl flex flex-col">
+        <div class="p-6 text-center">
+            <div class="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            </div>
+            <h3 id="confirmTitle" class="font-bold text-gray-800 text-base mb-1">Confirm</h3>
+            <p id="confirmMessage" class="text-sm text-gray-500 mb-5"></p>
+            <div class="flex gap-3">
+                <button onclick="closeConfirmDialog()" class="flex-1 py-2.5 rounded-lg border border-gray-200 text-gray-700 font-medium text-sm hover:bg-gray-50 transition">Cancel</button>
+                <button id="confirmOkBtn" class="flex-1 py-2.5 rounded-lg bg-orange-500 text-white font-medium text-sm hover:bg-orange-600 transition">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-6 right-6 z-[70] hidden">
+    <div id="toastInner" class="px-5 py-3 rounded-lg shadow-lg text-sm font-medium text-white"></div>
+</div>
+
+<script>
+var currentPage = 1;
+var currentPageSize = 10;
+var currentStatus = 'All Status';
+var allTasks = [];
+
+function showToast(message, type) {
+    var toast = document.getElementById('toast');
+    var inner = document.getElementById('toastInner');
+    inner.textContent = message;
+    inner.className = 'px-5 py-3 rounded-lg shadow-lg text-sm font-medium text-white ' + (type === 'error' ? 'bg-red-500' : 'bg-green-500');
+    toast.classList.remove('hidden');
+    setTimeout(function() { toast.classList.add('hidden'); }, 3000);
+}
+
+function confirmDialog(title, message, onConfirm) {
+    document.getElementById('confirmTitle').textContent = title || 'Confirm';
+    document.getElementById('confirmMessage').textContent = message || '';
+    document.getElementById('confirmModal').classList.remove('hidden');
+    var okBtn = document.getElementById('confirmOkBtn');
+    okBtn.onclick = function() {
+        closeConfirmDialog();
+        if (onConfirm) onConfirm();
+    };
+}
+
+function closeConfirmDialog() {
+    document.getElementById('confirmModal').classList.add('hidden');
+}
+
+function fetchTasks() {
+    var loadingState = document.getElementById('loadingState');
+    var tableContainer = document.getElementById('tableContainer');
+    var cardContainer = document.getElementById('cardContainer');
+    var emptyState = document.getElementById('emptyState');
+    var paginationBar = document.getElementById('paginationBar');
+
+    loadingState.classList.remove('hidden');
+    tableContainer.style.display = 'none';
+    cardContainer.style.display = 'none';
+    emptyState.classList.add('hidden');
+    paginationBar.classList.add('hidden');
+
+    var params = new URLSearchParams({
+        status: currentStatus,
+        page: currentPage,
+        page_size: currentPageSize
+    });
+
+    fetch('/api/method/smartspace.frontend_api.technician.get_my_tasks?' + params.toString())
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var result = data.message || data;
+            loadingState.classList.add('hidden');
+            allTasks = result.tasks || [];
+
+            if (allTasks.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            renderTable(allTasks);
+            renderCards(allTasks);
+            renderPagination(result);
+            paginationBar.classList.remove('hidden');
+        })
+        .catch(function() {
+            loadingState.classList.add('hidden');
+            emptyState.classList.remove('hidden');
+        });
+}
+
+function formatDateTime(dateStr) {
+    if (!dateStr) return '-';
+    var d = new Date(dateStr);
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) +
+        ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
+function statusBadge(status) {
+    var colors = {
+        'Open': 'bg-blue-50 text-blue-600',
+        'In Progress': 'bg-amber-50 text-amber-600',
+        'Flagged': 'bg-red-50 text-red-600',
+        'Overdue': 'bg-orange-50 text-orange-600',
+        'Completed': 'bg-green-50 text-green-600'
+    };
+    var dots = {
+        'Open': 'bg-blue-500',
+        'In Progress': 'bg-amber-500',
+        'Flagged': 'bg-red-500',
+        'Overdue': 'bg-orange-500',
+        'Completed': 'bg-green-500'
+    };
+    var cls = colors[status] || 'bg-gray-50 text-gray-600';
+    var dot = dots[status] || 'bg-gray-500';
+    return '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ' + cls + '"><span class="w-1.5 h-1.5 rounded-full ' + dot + '"></span>' + (status || '-') + '</span>';
+}
+
+function priorityBadge(priority) {
+    var colors = {
+        'High': 'bg-red-50 text-red-600',
+        'Medium': 'bg-amber-50 text-amber-600',
+        'Low': 'bg-green-50 text-green-600'
+    };
+    var cls = colors[priority] || 'bg-gray-50 text-gray-600';
+    return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ' + cls + '">' + (priority || '-') + '</span>';
+}
+
+function viewBtn(name) {
+    return '<button onclick="openDetailModal(\'' + name + '\')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition text-xs font-medium">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>' +
+        'View</button>';
+}
+
+function renderTable(tasks) {
+    var tbody = document.getElementById('tableBody');
+    tbody.innerHTML = tasks.map(function(t) {
+        var asset = t.asset || {};
+        return '<tr class="hover:bg-gray-50 transition">' +
+            '<td class="px-6 py-4 font-medium text-gray-800">' + t.name + '</td>' +
+            '<td class="px-6 py-4 text-sm text-gray-600">' + (asset.name || '-') + '</td>' +
+            '<td class="px-6 py-4 text-sm text-gray-600">' + (asset.serial_number || '-') + '</td>' +
+            '<td class="px-6 py-4 text-sm text-gray-600">' + (asset.asset_item || '-') + '</td>' +
+            '<td class="px-6 py-4">' + priorityBadge(t.priority) + '</td>' +
+            '<td class="px-6 py-4 text-sm text-gray-600">' + formatDateTime(t.assigned_on) + '</td>' +
+            '<td class="px-6 py-4">' + statusBadge(t.status) + '</td>' +
+            '<td class="px-6 py-4 text-center whitespace-nowrap">' + viewBtn(t.name) + '</td>' +
+        '</tr>';
+    }).join('');
+    document.getElementById('tableContainer').style.display = window.innerWidth >= 768 ? 'block' : 'none';
+}
+
+function renderCards(tasks) {
+    var container = document.getElementById('cardContainer');
+    container.innerHTML = tasks.map(function(t) {
+        var asset = t.asset || {};
+        return '<div class="bg-white rounded-xl shadow-card p-4">' +
+            '<div class="flex items-center justify-between mb-3">' +
+                '<span class="font-medium text-gray-800">' + t.name + '</span>' +
+                statusBadge(t.status) +
+            '</div>' +
+            '<div class="space-y-1.5 text-sm mb-3">' +
+                '<div><span class="text-gray-400">Asset:</span> <span class="text-gray-700">' + (asset.name || '-') + '</span></div>' +
+                '<div><span class="text-gray-400">Serial No:</span> <span class="text-gray-700">' + (asset.serial_number || '-') + '</span></div>' +
+                '<div><span class="text-gray-400">Asset Item:</span> <span class="text-gray-700">' + (asset.asset_item || '-') + '</span></div>' +
+                '<div><span class="text-gray-400">Priority:</span> ' + priorityBadge(t.priority) + '</div>' +
+                '<div><span class="text-gray-400">Assigned:</span> <span class="text-gray-700">' + formatDateTime(t.assigned_on) + '</span></div>' +
+            '</div>' +
+            '<div class="flex gap-2 mt-3">' + viewBtn(t.name) + '</div>' +
+        '</div>';
+    }).join('');
+    cardContainer.style.display = window.innerWidth < 768 ? 'block' : 'none';
+}
+
+function renderPagination(data) {
+    var info = document.getElementById('paginationInfo');
+    var controls = document.getElementById('paginationControls');
+    var start = (data.page - 1) * data.page_size + 1;
+    var end = Math.min(data.page * data.page_size, data.total);
+    info.textContent = 'Showing ' + start + '-' + end + ' of ' + data.total + ' tasks';
+
+    var html = '';
+    html += '<button onclick="goToPage(' + (data.page - 1) + ')" ' + (data.page <= 1 ? 'disabled' : '') + ' class="px-3 py-2 rounded-lg border text-sm font-medium transition ' + (data.page <= 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50 border-gray-200') + '">Prev</button>';
+
+    var maxVisible = 5;
+    var startPage = Math.max(1, data.page - Math.floor(maxVisible / 2));
+    var endPage = Math.min(data.total_pages, startPage + maxVisible - 1);
+    if (endPage - startPage < maxVisible - 1) { startPage = Math.max(1, endPage - maxVisible + 1); }
+
+    if (startPage > 1) {
+        html += '<button onclick="goToPage(1)" class="px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">1</button>';
+        if (startPage > 2) { html += '<span class="px-1 text-gray-400">...</span>'; }
+    }
+
+    for (var i = startPage; i <= endPage; i++) {
+        html += '<button onclick="goToPage(' + i + ')" class="px-3 py-2 rounded-lg border text-sm font-medium transition ' + (i === data.page ? 'bg-orange-500 text-white border-orange-500' : 'text-gray-700 hover:bg-gray-50 border-gray-200') + '">' + i + '</button>';
+    }
+
+    if (endPage < data.total_pages) {
+        if (endPage < data.total_pages - 1) { html += '<span class="px-1 text-gray-400">...</span>'; }
+        html += '<button onclick="goToPage(' + data.total_pages + ')" class="px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">' + data.total_pages + '</button>';
+    }
+
+    html += '<button onclick="goToPage(' + (data.page + 1) + ')" ' + (data.page >= data.total_pages ? 'disabled' : '') + ' class="px-3 py-2 rounded-lg border text-sm font-medium transition ' + (data.page >= data.total_pages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50 border-gray-200') + '">Next</button>';
+
+    controls.innerHTML = html;
+}
+
+function goToPage(page) {
+    if (page < 1) return;
+    currentPage = page;
+    fetchTasks();
+}
+
+function openDetailModal(taskName) {
+    var t = allTasks.find(function(x) { return x.name === taskName; });
+    if (!t) return;
+
+    var asset = t.asset || {};
+    var html = '<div class="space-y-4">';
+
+    html += '<div class="flex items-center gap-2 mb-2">' + statusBadge(t.status) + '<span class="text-xs text-gray-400">' + formatDateTime(t.assigned_on) + '</span></div>';
+
+    html += '<div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 space-y-3">';
+    html += '<div class="flex items-center justify-between"><span class="text-gray-400 text-xs uppercase tracking-wide">Task ID</span><span class="font-medium text-sm">' + t.name + '</span></div>';
+    html += '<div class="flex items-center justify-between"><span class="text-gray-400 text-xs uppercase tracking-wide">Priority</span>' + priorityBadge(t.priority) + '</div>';
+    html += '<div class="flex items-center justify-between"><span class="text-gray-400 text-xs uppercase tracking-wide">Technician</span><span class="font-medium text-sm">' + (t.technician_name || '-') + '</span></div>';
+    html += '<div class="flex items-center justify-between"><span class="text-gray-400 text-xs uppercase tracking-wide">Assigned On</span><span class="font-medium text-sm">' + formatDateTime(t.assigned_on) + '</span></div>';
+    if (t.completed_on) {
+        html += '<div class="flex items-center justify-between"><span class="text-gray-400 text-xs uppercase tracking-wide">Completed On</span><span class="font-medium text-sm">' + formatDateTime(t.completed_on) + '</span></div>';
+    }
+    html += '</div>';
+
+    if (t.task_description) {
+        html += '<div><span class="text-gray-400 text-xs uppercase tracking-wide block mb-1">Task Description</span><p class="text-gray-700 text-sm bg-gray-50 rounded-lg p-3">' + t.task_description + '</p></div>';
+    }
+
+    if (asset.name) {
+        html += '<div class="border-t pt-3">';
+        html += '<span class="text-gray-400 text-sm block mb-2">Related Asset</span>';
+        html += '<div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 space-y-3">';
+        html += '<div class="flex items-center gap-2 pb-2 border-b border-gray-200">';
+        html += '<div class="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-600"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>';
+        html += '<span class="font-bold text-gray-800 text-sm">' + (asset.asset_item || asset.name) + '</span>';
+        html += '</div>';
+        html += '<div class="grid grid-cols-2 gap-3 text-sm">';
+        html += '<div><div class="text-xs text-gray-400">Asset ID</div><div class="font-medium text-gray-700">' + asset.name + '</div></div>';
+        html += '<div><div class="text-xs text-gray-400">Serial No</div><div class="font-medium text-gray-700">' + (asset.serial_number || '-') + '</div></div>';
+        html += '<div><div class="text-xs text-gray-400">Location</div><div class="font-medium text-gray-700">' + (asset.location || '-') + '</div></div>';
+        html += '<div><div class="text-xs text-gray-400">Status</div><div class="font-medium text-gray-700">' + (asset.status || '-') + '</div></div>';
+        html += '</div>';
+        html += '</div></div>';
+    }
+
+    // Action buttons based on status
+    if (t.status === 'Open') {
+        html += '<div class="border-t pt-3">';
+        html += '<button onclick="taskAction(\'start\', \'' + t.name + '\')" class="w-full py-2.5 rounded-lg bg-green-500 text-white font-medium text-sm hover:bg-green-600 transition inline-flex items-center justify-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>Start Work</button>';
+        html += '</div>';
+    } else if (t.status === 'In Progress') {
+        html += '<div class="border-t pt-3 flex gap-2">';
+        html += '<button onclick="taskAction(\'finish\', \'' + t.name + '\')" class="flex-1 py-2.5 rounded-lg bg-green-500 text-white font-medium text-sm hover:bg-green-600 transition inline-flex items-center justify-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Finish</button>';
+        html += '<button onclick="taskAction(\'flag\', \'' + t.name + '\')" class="flex-1 py-2.5 rounded-lg bg-red-50 text-red-600 font-medium text-sm hover:bg-red-100 transition inline-flex items-center justify-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>Flag Unusable</button>';
+        html += '</div>';
+    } else if (t.status === 'Flagged') {
+        html += '<div class="border-t pt-3">';
+        html += '<div class="px-4 py-3 rounded-lg bg-red-50 text-red-600 text-sm font-medium text-center">This task has been flagged. Waiting for supervisor approval.</div>';
+        html += '</div>';
+    } else if (t.status === 'Completed') {
+        html += '<div class="border-t pt-3">';
+        html += '<div class="px-4 py-3 rounded-lg bg-green-50 text-green-600 text-sm font-medium text-center">Task completed successfully.</div>';
+        html += '</div>';
+    }
+
+    html += '</div>';
+
+    document.getElementById('detailContent').innerHTML = html;
+    document.getElementById('detailModal').classList.remove('hidden');
+}
+
+function closeDetailModal() {
+    document.getElementById('detailModal').classList.add('hidden');
+}
+
+function taskAction(action, name) {
+    var endpoints = {
+        'start': 'start_task',
+        'finish': 'finish_task',
+        'flag': 'flag_task'
+    };
+    var titles = {
+        'start': 'Start Work',
+        'finish': 'Finish Task',
+        'flag': 'Flag Unusable'
+    };
+    var messages = {
+        'start': 'Start work on this task?',
+        'finish': 'Mark this task as completed?',
+        'flag': 'Flag this asset as unusable? Supervisor will be notified.'
+    };
+
+    confirmDialog(titles[action], messages[action], function() {
+        var body = new FormData();
+        body.append('name', name);
+
+        fetch('/api/method/smartspace.frontend_api.technician.' + endpoints[action], {
+            method: 'POST',
+            headers: { 'X-Frappe-CSRF-Token': csrfToken },
+            body: body
+        })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var res = data.message || data;
+                if (res.success) {
+                    showToast(res.message, 'success');
+                    closeDetailModal();
+                    fetchTasks();
+                } else {
+                    showToast('Error: ' + (data.exc || 'Action failed'), 'error');
+                }
+            })
+            .catch(function() { showToast('Action failed', 'error'); });
+    });
+}
+
+document.getElementById('statusFilter').addEventListener('change', function() {
+    currentStatus = this.value;
+    currentPage = 1;
+    fetchTasks();
+});
+
+document.getElementById('clearFilters').addEventListener('click', function() {
+    currentStatus = 'All Status';
+    currentPage = 1;
+    document.getElementById('statusFilter').value = 'All Status';
+    fetchTasks();
+});
+
+document.getElementById('pageSizeSelect').addEventListener('change', function() {
+    currentPageSize = parseInt(this.value);
+    currentPage = 1;
+    fetchTasks();
+});
+
+fetchTasks();
+
+window.addEventListener('resize', function() {
+    var table = document.getElementById('tableContainer');
+    var cards = document.getElementById('cardContainer');
+    if (table.style.display !== 'none' || cards.style.display !== 'none') {
+        table.style.display = window.innerWidth >= 768 ? 'block' : 'none';
+        cards.style.display = window.innerWidth < 768 ? 'block' : 'none';
+    }
+});
+</script>
+</body>
+</html>

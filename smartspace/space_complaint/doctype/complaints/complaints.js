@@ -2,7 +2,15 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Complaints", {
+	onload: function (frm) {
+		frm.set_query("related_asset", function () {
+			return { filters: [["Asset", "status", "=", "Available"]] };
+		});
+	},
 	refresh(frm) {
+		frm.set_query("related_asset", function () {
+			return { filters: [["Asset", "status", "=", "Available"]] };
+		});
         if (
             frm.doc.complaint_type === "Asset Related" &&
             frm.doc.related_asset

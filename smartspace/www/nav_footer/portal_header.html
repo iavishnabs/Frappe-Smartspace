@@ -15,10 +15,44 @@
             </div>
         </a>
 
-        <!-- Right: User info + Logout -->
+        <!-- Right: Notification Bell + User info + Logout -->
         <div class="flex items-center gap-4">
             {% set current_user_email = frappe.session.user %}
             {% if current_user_email != "Guest" %}
+
+                <!-- Notification Bell -->
+                <div class="relative">
+                    <span id="notifSiteName" class="hidden">{{ frappe.local.site }}</span>
+                    <button id="notifBell" onclick="event.stopPropagation(); toggleNotifDropdown()" class="relative w-10 h-10 rounded-lg hover:bg-gray-100 flex items-center justify-center transition cursor-pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-500">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                        </svg>
+                        <span id="notifBadge" class="hidden absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center"></span>
+                    </button>
+
+                    <!-- Notification Dropdown -->
+                    <div id="notifDropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 z-[60] flex flex-col" style="max-height: 40vh" onclick="event.stopPropagation()">
+                        <div class="flex items-center justify-between px-4 py-3 border-b">
+                            <h3 class="font-bold text-sm text-gray-800">Notifications</h3>
+                            <button id="markAllReadBtn" onclick="markAllNotificationsRead()" class="text-xs font-medium text-orange-600 hover:text-orange-700 hidden">Mark all read</button>
+                        </div>
+                        <div id="notifLoading" class="text-center py-8 text-gray-400">
+                            <svg class="animate-spin mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                            <p class="text-sm">Loading...</p>
+                        </div>
+                        <div id="notifEmpty" class="hidden text-center py-10 text-gray-400">
+                            <svg class="mx-auto mb-3 text-gray-300" xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                            <p class="text-sm">No notifications</p>
+                        </div>
+                        <div id="notifList" class="overflow-y-auto flex-1" style="display:none"></div>
+                        <div id="notifFooter" class="hidden px-4 py-2.5 border-t flex items-center justify-between">
+                            <span id="notifTotalCount" class="text-xs text-gray-400"></span>
+                            <button onclick="loadMoreNotifications()" id="loadMoreBtn" class="text-xs font-medium text-orange-600 hover:text-orange-700">Load more</button>
+                        </div>
+                    </div>
+                </div>
+
                 {% set app_user = frappe.db.get_value("App User", {"email": current_user_email}, ["full_name", "role"], as_dict=True) %}
                 {% set display_name = app_user.full_name if app_user else current_user_email %}
                 {% set initials = display_name[:1]|upper if display_name else 'U' %}
@@ -67,4 +101,280 @@ function smartspaceLogout() {
         window.location.href = '/signin';
     });
 }
+</script>
+
+<!-- Socket.io client for realtime notifications (async, non-blocking) -->
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js" async></script>
+<script>
+var notifPage = 1;
+var notifPageSize = 20;
+var notifTotalPages = 1;
+var notifDropdownOpen = false;
+var csrfToken = '{{ frappe.session.csrf_token }}';
+
+function notifApiBase() {
+    var path = window.location.pathname.toLowerCase();
+    if (path.indexOf('/member/') === 0) return '/api/method/smartspace.frontend_api.member';
+    if (path.indexOf('/technician/') === 0) return '/api/method/smartspace.frontend_api.technician';
+    if (path.indexOf('/security/') === 0) return '/api/method/smartspace.frontend_api.security';
+    return '/api/method/smartspace.frontend_api.supervisor';
+}
+var siteNameEl = document.getElementById('notifSiteName');
+var siteName = siteNameEl ? siteNameEl.textContent.trim() : window.location.hostname;
+
+function toggleNotifDropdown() {
+    var dd = document.getElementById('notifDropdown');
+    if (!dd) return;
+    notifDropdownOpen = !notifDropdownOpen;
+    if (notifDropdownOpen) {
+        dd.classList.remove('hidden');
+        notifPage = 1;
+        fetchNotifications();
+    } else {
+        dd.classList.add('hidden');
+    }
+}
+
+document.addEventListener('click', function(e) {
+    if (!notifDropdownOpen) return;
+    var bell = document.getElementById('notifBell');
+    var dd = document.getElementById('notifDropdown');
+    if (bell && !bell.contains(e.target) && dd && !dd.contains(e.target)) {
+        notifDropdownOpen = false;
+        dd.classList.add('hidden');
+    }
+});
+
+function formatNotifTime(dateStr) {
+    if (!dateStr) return '';
+    var d = new Date(dateStr);
+    var now = new Date();
+    var diff = (now - d) / 1000;
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+}
+
+function escapeNotifHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function renderNotificationItem(n) {
+    var unreadClass = n.read ? '' : 'bg-orange-50/60';
+    var dot = n.read
+        ? '<span class="w-2 h-2 rounded-full bg-gray-300 flex-shrink-0 mt-1.5"></span>'
+        : '<span class="w-2.5 h-2.5 rounded-full bg-orange-500 flex-shrink-0 mt-1"></span>';
+    var docLink = '';
+    if (n.document_type && n.document_name) {
+        docLink = '<p class="text-xs text-gray-400 mt-0.5">' + escapeNotifHtml(n.document_type) + ': ' + escapeNotifHtml(n.document_name) + '</p>';
+    }
+    var clickHandler = n.read ? '' : 'onclick="markNotifRead(\'' + n.name + '\')"';
+    return '<div class="mx-2 my-1.5 px-2.5 py-2 rounded-lg border border-gray-100 hover:border-gray-200 transition cursor-pointer flex gap-2 ' + unreadClass + '" ' + clickHandler + '>' +
+        dot +
+        '<div class="flex-1 min-w-0">' +
+            '<p class="text-xs font-medium text-gray-800 break-words">' + escapeNotifHtml(n.subject) + '</p>' +
+            docLink +
+            '<p class="text-xs text-gray-400 mt-0.5">' + formatNotifTime(n.creation) + '</p>' +
+        '</div>' +
+    '</div>';
+}
+
+function fetchNotifications() {
+    var loading = document.getElementById('notifLoading');
+    var empty = document.getElementById('notifEmpty');
+    var list = document.getElementById('notifList');
+    var footer = document.getElementById('notifFooter');
+    if (!loading || !empty || !list || !footer) return;
+
+    loading.classList.remove('hidden');
+    empty.classList.add('hidden');
+    list.style.display = 'none';
+    footer.classList.add('hidden');
+
+    var params = new URLSearchParams({
+        page: notifPage,
+        page_size: notifPageSize
+    });
+
+    fetch(notifApiBase() + '/get_notifications?' + params.toString())
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var result = data.message || data;
+            loading.classList.add('hidden');
+
+            updateNotifBadge(result.unread_count || 0);
+
+            if (!result.notifications || result.notifications.length === 0) {
+                empty.classList.remove('hidden');
+                return;
+            }
+
+            list.innerHTML = result.notifications.map(renderNotificationItem).join('');
+            list.style.display = '';
+            notifTotalPages = result.total_pages || 1;
+
+            var totalCountEl = document.getElementById('notifTotalCount');
+            totalCountEl.textContent = (result.total || 0) + ' total';
+
+            var loadMoreBtn = document.getElementById('loadMoreBtn');
+            if (notifPage < notifTotalPages) {
+                footer.classList.remove('hidden');
+                loadMoreBtn.classList.remove('hidden');
+            } else {
+                footer.classList.remove('hidden');
+                loadMoreBtn.classList.add('hidden');
+            }
+
+            var markAllBtn = document.getElementById('markAllReadBtn');
+            if (result.unread_count > 0) {
+                markAllBtn.classList.remove('hidden');
+            } else {
+                markAllBtn.classList.add('hidden');
+            }
+        })
+        .catch(function() {
+            loading.classList.add('hidden');
+            empty.classList.remove('hidden');
+        });
+}
+
+function loadMoreNotifications() {
+    notifPage++;
+    var params = new URLSearchParams({
+        page: notifPage,
+        page_size: notifPageSize
+    });
+
+    fetch(notifApiBase() + '/get_notifications?' + params.toString())
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var result = data.message || data;
+            var list = document.getElementById('notifList');
+            if (result.notifications && result.notifications.length > 0) {
+                list.innerHTML += result.notifications.map(renderNotificationItem).join('');
+            }
+            notifTotalPages = result.total_pages || 1;
+            if (notifPage >= notifTotalPages) {
+                document.getElementById('loadMoreBtn').classList.add('hidden');
+            }
+        });
+}
+
+function updateNotifBadge(count) {
+    var badge = document.getElementById('notifBadge');
+    if (count > 0) {
+        badge.textContent = count > 99 ? '99+' : count;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+}
+
+function markNotifRead(name) {
+    fetch(notifApiBase() + '/mark_notification_read', {
+        method: 'POST',
+        headers: {
+            'X-Frappe-CSRF-Token': csrfToken,
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: 'name=' + encodeURIComponent(name)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function() {
+        fetchUnreadCount();
+        if (notifDropdownOpen) fetchNotifications();
+    });
+}
+
+function markAllNotificationsRead() {
+    fetch(notifApiBase() + '/mark_all_notifications_read', {
+        method: 'POST',
+        headers: {
+            'X-Frappe-CSRF-Token': csrfToken
+        }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function() {
+        updateNotifBadge(0);
+        document.getElementById('markAllReadBtn').classList.add('hidden');
+        if (notifDropdownOpen) fetchNotifications();
+    });
+}
+
+function fetchUnreadCount() {
+    fetch(notifApiBase() + '/get_notifications?page=1&page_size=1')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var result = data.message || data;
+            updateNotifBadge(result.unread_count || 0);
+        })
+        .catch(function() {});
+}
+
+function showNotifToast(data) {
+    var toast = document.createElement('div');
+    toast.className = 'fixed top-24 right-4 z-[100] bg-white rounded-xl shadow-xl border border-gray-100 px-4 py-3 max-w-sm flex items-start gap-3 transition-all duration-300';
+    toast.style.transform = 'translateX(120%)';
+    toast.innerHTML =
+        '<div class="w-9 h-9 rounded-full bg-orange-50 flex items-center justify-center flex-shrink-0">' +
+            '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-500"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>' +
+        '</div>' +
+        '<div class="flex-1 min-w-0">' +
+            '<p class="text-sm font-medium text-gray-800 truncate">' + escapeNotifHtml(data.subject || 'New notification') + '</p>' +
+            (data.document_type ? '<p class="text-xs text-gray-400 mt-0.5">' + escapeNotifHtml(data.document_type) + '</p>' : '') +
+        '</div>' +
+        '<button onclick="this.parentElement.remove()" class="text-gray-300 hover:text-gray-500 flex-shrink-0">' +
+            '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+        '</button>';
+    document.body.appendChild(toast);
+    requestAnimationFrame(function() {
+        toast.style.transform = 'translateX(0)';
+    });
+    setTimeout(function() {
+        toast.style.transform = 'translateX(120%)';
+        setTimeout(function() { if (toast.parentElement) toast.remove(); }, 300);
+    }, 5000);
+}
+
+// Init: fetch unread count
+fetchUnreadCount();
+
+// Init realtime (separate try-catch so dropdown works even if socket.io fails)
+function initNotifRealtime() {
+    if (typeof io === 'undefined') {
+        setTimeout(initNotifRealtime, 1000);
+        return;
+    }
+    try {
+        var host = window.location.origin;
+        var namespace = '/' + siteName;
+        var notifSocket = io(host + namespace, {
+            withCredentials: true,
+            reconnectionAttempts: 5,
+            autoConnect: true
+        });
+
+        notifSocket.on('connect_error', function(err) {
+            console.warn('Notification realtime connect error:', err.message);
+        });
+
+        notifSocket.on('smartspace_notification', function(data) {
+            var badge = document.getElementById('notifBadge');
+            var current = 0;
+            if (!badge.classList.contains('hidden')) {
+                current = parseInt(badge.textContent) || 0;
+            }
+            current++;
+            updateNotifBadge(current);
+            showNotifToast(data);
+        });
+    } catch(e) {
+        console.warn('Notification realtime init failed:', e);
+    }
+}
+
+initNotifRealtime();
 </script>

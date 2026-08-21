@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics | Admin Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        [v-cloak] { display: none; }
+        .frappe-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; }
+        .frappe-btn { background: #1f2937; color: #fff; border-radius: 6px; font-size: 12px; font-weight: 600; padding: 6px 14px; transition: all 0.2s; }
+        .frappe-btn:hover { background: #000; }
+        .frappe-btn-secondary { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; font-weight: 600; padding: 6px 14px; transition: all 0.2s; }
+        .frappe-btn-secondary:hover { background: #e2e8f0; }
+        .frappe-input { border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; padding: 6px 10px; color: #334155; background: #fff; }
+        .frappe-input:focus { border-color: #1f2937; outline: none; box-shadow: 0 0 0 2px rgba(31,41,55,0.1); }
+        .stat-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+        .stat-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+        .stat-value { font-size: 24px; font-weight: 700; color: #1e293b; margin-top: 4px; }
+        .tab-btn { padding: 8px 16px; font-size: 13px; font-weight: 500; color: #64748b; border-bottom: 2px solid transparent; transition: all 0.2s; cursor: pointer; }
+        .tab-btn.active { color: #1f2937; border-bottom-color: #1f2937; }
+        .tab-btn:hover { color: #334155; }
+        .table-header { background: #f8fafc; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 600; }
+        .table-row { border-top: 1px solid #f1f5f9; font-size: 13px; color: #334155; }
+        .badge { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen">
+<div id="app" v-cloak>
+{% include "www/admin-portal/sidebar.html" %}
+<div id="adminContent" class="transition-all duration-300 min-h-screen" style="margin-left: 16rem;">
+    <!-- Header -->
+    <div class="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between flex-wrap gap-3">
+        <div>
+            <h1 class="text-lg font-semibold text-gray-800">Analytics Dashboard</h1>
+            <p class="text-sm text-gray-500">Location-wise performance, revenue, and operational insights</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <select v-model="filters.location" @change="loadAll" class="frappe-input">
+                <option value="">All Locations</option>
+                <option v-for="loc in locations" :key="loc.name" :value="loc.name">[[ loc.location_name ]]</option>
+            </select>
+            <input type="date" v-model="filters.fromDate" @change="loadAll" class="frappe-input">
+            <span class="text-gray-400 text-sm">to</span>
+            <input type="date" v-model="filters.toDate" @change="loadAll" class="frappe-input">
+            <button @click="resetFilters" class="frappe-btn-secondary">Reset</button>
+        </div>
+    </div>
+
+    <div class="p-6">
+        <!-- Loading -->
+        <div v-if="loading" class="flex items-center justify-center py-20">
+            <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1f2937" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            <span class="ml-3 text-gray-500 text-sm">Loading analytics...</span>
+        </div>
+
+        <div v-else>
+            <!-- Overview Stats -->
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+                <div class="stat-card">
+                    <p class="stat-label">Total Revenue</p>
+                    <p class="stat-value">[[ fmtCurrency(overview.total_revenue) ]]</p>
+                </div>
+                <div class="stat-card">
+                    <p class="stat-label">Bookings</p>
+                    <p class="stat-value">[[ overview.total_bookings ]]</p>
+                </div>
+                <div class="stat-card">
+                    <p class="stat-label">Pending</p>
+                    <p class="stat-value">[[ overview.pending_bookings ]]</p>
+                </div>
+                <div class="stat-card">
+                    <p class="stat-label">Completed</p>
+                    <p class="stat-value">[[ overview.completed_bookings ]]</p>
+                </div>
+                <div class="stat-card">
+                    <p class="stat-label">Total Assets</p>
+                    <p class="stat-value">[[ overview.total_assets ]]</p>
+                </div>
+                <div class="stat-card">
+                    <p class="stat-label">Asset Cost</p>
+                    <p class="stat-value">[[ fmtCurrency(overview.asset_purchase_cost) ]]</p>
+                </div>
+                <div class="stat-card">
+                    <p class="stat-label">Allocated Assets</p>
+                    <p class="stat-value">[[ overview.allocated_assets ]]</p>
+                </div>
+                <div class="stat-card">
+                    <p class="stat-label">Available Assets</p>
+                    <p class="stat-value">[[ overview.available_assets ]]</p>
+                </div>
+                <div class="stat-card">
+                    <p class="stat-label">Events</p>
+                    <p class="stat-value">[[ overview.total_events ]]</p>
+                </div>
+                <div class="stat-card">
+                    <p class="stat-label">Vendors</p>
+                    <p class="stat-value">[[ overview.vendor_count ]]</p>
+                </div>
+                <div class="stat-card">
+                    <p class="stat-label">Vendor Spend</p>
+                    <p class="stat-value">[[ fmtCurrency(overview.vendor_total_spend) ]]</p>
+                </div>
+                <div class="stat-card">
+                    <p class="stat-label">Members</p>
+                    <p class="stat-value">[[ overview.total_members ]]</p>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex border-b border-gray-200 mb-6">
+                <div class="tab-btn" :class="{active: activeTab==='charts'}" @click="activeTab='charts'">Charts</div>
+                <div class="tab-btn" :class="{active: activeTab==='locations'}" @click="activeTab='locations'">Location-wise</div>
+                <div class="tab-btn" :class="{active: activeTab==='bookings'}" @click="activeTab='bookings'">Bookings</div>
+                <div class="tab-btn" :class="{active: activeTab==='assets'}" @click="activeTab='assets'">Assets & Vendors</div>
+                <div class="tab-btn" :class="{active: activeTab==='events'}" @click="activeTab='events'">Events</div>
+                <div class="tab-btn" :class="{active: activeTab==='ai'}" @click="activeTab='ai'">AI Insights</div>
+            </div>
+
+            <!-- Charts Tab -->
+            <div v-show="activeTab==='charts'" class="space-y-6">
+                <div class="grid lg:grid-cols-2 gap-6">
+                    <div class="frappe-card p-5">
+                        <h3 class="text-sm font-semibold text-gray-700 mb-4">Revenue Trend</h3>
+                        <div style="height: 250px; position: relative;"><canvas ref="revenueChart"></canvas></div>
+                    </div>
+                    <div class="frappe-card p-5">
+                        <h3 class="text-sm font-semibold text-gray-700 mb-4">Booking Growth</h3>
+                        <div style="height: 250px; position: relative;"><canvas ref="bookingChart"></canvas></div>
+                    </div>
+                </div>
+                <div class="grid lg:grid-cols-2 gap-6">
+                    <div class="frappe-card p-5">
+                        <h3 class="text-sm font-semibold text-gray-700 mb-4">Space Type Distribution</h3>
+                        <div style="height: 250px; position: relative;"><canvas ref="spaceTypeChart"></canvas></div>
+                    </div>
+                    <div class="frappe-card p-5">
+                        <h3 class="text-sm font-semibold text-gray-700 mb-4">Asset Status Distribution</h3>
+                        <div style="height: 250px; position: relative;"><canvas ref="assetStatusChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Location-wise Tab -->
+            <div v-show="activeTab==='locations'">
+                <div class="frappe-card overflow-hidden">
+                    <div class="px-5 py-3 border-b border-gray-100">
+                        <h3 class="text-sm font-semibold text-gray-700">Location-wise Performance</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="table-header">
+                                    <th class="text-left px-5 py-3">Location</th>
+                                    <th class="text-right px-3 py-3">Spaces</th>
+                                    <th class="text-right px-3 py-3">Available</th>
+                                    <th class="text-right px-3 py-3">Occupied</th>
+                                    <th class="text-right px-3 py-3">Bookings</th>
+                                    <th class="text-right px-3 py-3">Revenue</th>
+                                    <th class="text-right px-3 py-3">Assets</th>
+                                    <th class="text-right px-3 py-3">Allocated</th>
+                                    <th class="text-right px-3 py-3">Asset Cost</th>
+                                    <th class="text-right px-3 py-3">Events</th>
+                                    <th class="text-right px-3 py-3">Members</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="loc in locationStats" :key="loc.location" class="table-row hover:bg-gray-50">
+                                    <td class="px-5 py-3 font-medium text-gray-700">[[ loc.location_name ]]</td>
+                                    <td class="text-right px-3 py-3">[[ loc.total_spaces ]]</td>
+                                    <td class="text-right px-3 py-3">[[ loc.available_spaces ]]</td>
+                                    <td class="text-right px-3 py-3">[[ loc.occupied_spaces ]]</td>
+                                    <td class="text-right px-3 py-3">[[ loc.total_bookings ]]</td>
+                                    <td class="text-right px-3 py-3 font-semibold">[[ fmtCurrency(loc.revenue) ]]</td>
+                                    <td class="text-right px-3 py-3">[[ loc.total_assets ]]</td>
+                                    <td class="text-right px-3 py-3">[[ loc.allocated_assets ]]</td>
+                                    <td class="text-right px-3 py-3">[[ fmtCurrency(loc.asset_cost) ]]</td>
+                                    <td class="text-right px-3 py-3">[[ loc.total_events ]]</td>
+                                    <td class="text-right px-3 py-3">[[ loc.total_members ]]</td>
+                                </tr>
+                                <tr v-if="locationStats.length === 0">
+                                    <td colspan="11" class="text-center py-8 text-gray-400">No location data available</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bookings Tab -->
+            <div v-show="activeTab==='bookings'">
+                <div class="frappe-card overflow-hidden">
+                    <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+                        <h3 class="text-sm font-semibold text-gray-700">Recent Bookings</h3>
+                        <span class="text-xs text-gray-400">[[ recentBookings.length ]] records</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="table-header">
+                                    <th class="text-left px-5 py-3">Reservation</th>
+                                    <th class="text-left px-3 py-3">User</th>
+                                    <th class="text-left px-3 py-3">Space</th>
+                                    <th class="text-left px-3 py-3">Type</th>
+                                    <th class="text-left px-3 py-3">Location</th>
+                                    <th class="text-left px-3 py-3">Date</th>
+                                    <th class="text-center px-3 py-3">Status</th>
+                                    <th class="text-center px-3 py-3">Payment</th>
+                                    <th class="text-right px-3 py-3">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="b in recentBookings" :key="b.name" class="table-row hover:bg-gray-50">
+                                    <td class="px-5 py-3 font-mono text-xs">[[ b.name ]]</td>
+                                    <td class="px-3 py-3">[[ b.user_name || b.app_user ]]</td>
+                                    <td class="px-3 py-3">[[ b.space ]]</td>
+                                    <td class="px-3 py-3">[[ b.space_type || '-' ]]</td>
+                                    <td class="px-3 py-3">[[ b.location || '-' ]]</td>
+                                    <td class="px-3 py-3 text-xs">[[ fmtDate(b.booking_date) ]]</td>
+                                    <td class="text-center px-3 py-3"><span class="badge" :style="bookingStatusStyle(b.booking_status)">[[ b.booking_status ]]</span></td>
+                                    <td class="text-center px-3 py-3"><span class="badge" :style="paymentStatusStyle(b.payment_status)">[[ b.payment_status ]]</span></td>
+                                    <td class="text-right px-3 py-3 font-semibold">[[ fmtCurrency(b.total_amount) ]]</td>
+                                </tr>
+                                <tr v-if="recentBookings.length === 0">
+                                    <td colspan="9" class="text-center py-8 text-gray-400">No bookings found</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Assets & Vendors Tab -->
+            <div v-show="activeTab==='assets'" class="space-y-6">
+                <div class="grid lg:grid-cols-2 gap-6">
+                    <div class="frappe-card p-5">
+                        <h3 class="text-sm font-semibold text-gray-700 mb-4">Asset Overview</h3>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="text-center p-3 bg-gray-50 rounded-lg">
+                                <p class="text-2xl font-bold text-gray-700">[[ overview.total_assets ]]</p>
+                                <p class="text-xs text-gray-500 mt-1">Total</p>
+                            </div>
+                            <div class="text-center p-3 bg-gray-50 rounded-lg">
+                                <p class="text-2xl font-bold text-gray-800">[[ overview.available_assets ]]</p>
+                                <p class="text-xs text-gray-500 mt-1">Available</p>
+                            </div>
+                            <div class="text-center p-3 bg-gray-50 rounded-lg">
+                                <p class="text-2xl font-bold text-gray-800">[[ overview.allocated_assets ]]</p>
+                                <p class="text-xs text-gray-500 mt-1">Allocated</p>
+                            </div>
+                            <div class="text-center p-3 bg-gray-50 rounded-lg">
+                                <p class="text-2xl font-bold text-gray-800">[[ overview.maintenance_assets ]]</p>
+                                <p class="text-xs text-gray-500 mt-1">Maintenance</p>
+                            </div>
+                            <div class="text-center p-3 bg-gray-50 rounded-lg">
+                                <p class="text-2xl font-bold text-gray-800">[[ overview.damaged_assets ]]</p>
+                                <p class="text-xs text-gray-500 mt-1">Damaged</p>
+                            </div>
+                            <div class="text-center p-3 bg-gray-50 rounded-lg">
+                                <p class="text-2xl font-bold text-gray-800">[[ fmtCurrency(overview.asset_purchase_cost) ]]</p>
+                                <p class="text-xs text-gray-500 mt-1">Purchase Cost</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="frappe-card p-5">
+                        <h3 class="text-sm font-semibold text-gray-700 mb-4">Vendor Summary</h3>
+                        <div class="grid grid-cols-2 gap-3 mb-4">
+                            <div class="text-center p-3 bg-gray-50 rounded-lg">
+                                <p class="text-2xl font-bold text-gray-700">[[ overview.vendor_count ]]</p>
+                                <p class="text-xs text-gray-500 mt-1">Vendors</p>
+                            </div>
+                            <div class="text-center p-3 bg-gray-50 rounded-lg">
+                                <p class="text-2xl font-bold text-gray-700">[[ fmtCurrency(overview.vendor_total_spend) ]]</p>
+                                <p class="text-xs text-gray-500 mt-1">Total Spend</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="frappe-card overflow-hidden">
+                    <div class="px-5 py-3 border-b border-gray-100">
+                        <h3 class="text-sm font-semibold text-gray-700">Vendor-wise Purchases</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="table-header">
+                                    <th class="text-left px-5 py-3">Vendor</th>
+                                    <th class="text-right px-3 py-3">Purchases</th>
+                                    <th class="text-right px-3 py-3">Total Amount</th>
+                                    <th class="text-left px-3 py-3">Recent Purchase</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="v in vendors" :key="v.vendor" class="table-row hover:bg-gray-50">
+                                    <td class="px-5 py-3 font-medium">[[ v.vendor ]]</td>
+                                    <td class="text-right px-3 py-3">[[ v.total_purchases ]]</td>
+                                    <td class="text-right px-3 py-3 font-semibold">[[ fmtCurrency(v.total_amount) ]]</td>
+                                    <td class="px-3 py-3 text-xs">[[ v.purchases.length > 0 ? fmtDate(v.purchases[0].date) : '-' ]]</td>
+                                </tr>
+                                <tr v-if="vendors.length === 0">
+                                    <td colspan="4" class="text-center py-8 text-gray-400">No vendor purchases found</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Events Tab -->
+            <div v-show="activeTab==='events'">
+                <div class="frappe-card overflow-hidden">
+                    <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+                        <h3 class="text-sm font-semibold text-gray-700">Events</h3>
+                        <span class="text-xs text-gray-400">[[ events.length ]] events</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="table-header">
+                                    <th class="text-left px-5 py-3">Event</th>
+                                    <th class="text-left px-3 py-3">Theme</th>
+                                    <th class="text-left px-3 py-3">Location</th>
+                                    <th class="text-left px-3 py-3">Start</th>
+                                    <th class="text-left px-3 py-3">End</th>
+                                    <th class="text-center px-3 py-3">Status</th>
+                                    <th class="text-right px-3 py-3">Collected</th>
+                                    <th class="text-right px-3 py-3">Spent</th>
+                                    <th class="text-right px-3 py-3">Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="e in events" :key="e.name" class="table-row hover:bg-gray-50">
+                                    <td class="px-5 py-3 font-medium">[[ e.event_name ]]</td>
+                                    <td class="px-3 py-3">[[ e.event_theme || '-' ]]</td>
+                                    <td class="px-3 py-3">[[ e.location_name || e.location || '-' ]]</td>
+                                    <td class="px-3 py-3 text-xs">[[ fmtDate(e.start_date) ]]</td>
+                                    <td class="px-3 py-3 text-xs">[[ fmtDate(e.end_date) ]]</td>
+                                    <td class="text-center px-3 py-3"><span class="badge" :style="eventStatusStyle(e.event_status)">[[ e.event_status ]]</span></td>
+                                    <td class="text-right px-3 py-3">[[ fmtCurrency(e.total_collected) ]]</td>
+                                    <td class="text-right px-3 py-3">[[ fmtCurrency(e.total_spent) ]]</td>
+                                    <td class="text-right px-3 py-3 font-semibold">[[ fmtCurrency(e.fund_balance) ]]</td>
+                                </tr>
+                                <tr v-if="events.length === 0">
+                                    <td colspan="9" class="text-center py-8 text-gray-400">No events found</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Insights Tab -->
+            <div v-show="activeTab==='ai'" class="space-y-6">
+                <!-- Insights Summary -->
+                <div class="frappe-card p-6">
+                    <div class="flex items-center gap-3 mb-5">
+                        <div class="w-9 h-9 rounded-lg bg-gray-900 flex items-center justify-center text-white shrink-0">
+                            <svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.5.8a2 2 0 11-3.536 0z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-semibold text-gray-800">AI-Generated Insights</h3>
+                            <p class="text-xs text-gray-500">Automated analysis of your analytics data</p>
+                        </div>
+                    </div>
+                    <div v-if="insightsLoading" class="flex items-center py-6">
+                        <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1f2937" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                        <span class="ml-3 text-gray-500 text-sm">Generating insights...</span>
+                    </div>
+                    <div v-else-if="insights.length > 0" class="space-y-3">
+                        <div v-for="(insight, i) in insights" :key="i" class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                            <div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center shrink-0 mt-0.5">
+                                <span class="text-xs font-bold text-gray-600">[[ i + 1 ]]</span>
+                            </div>
+                            <p class="text-sm text-gray-700 leading-relaxed">[[ insight ]]</p>
+                        </div>
+                    </div>
+                    <div v-else class="text-center py-8 text-gray-400 text-sm">No insights available for current filters.</div>
+                </div>
+
+                <!-- Q&A Box -->
+                <div class="frappe-card p-6">
+                    <div class="flex items-center gap-3 mb-5">
+                        <div class="w-9 h-9 rounded-lg bg-gray-700 flex items-center justify-center text-white shrink-0">
+                            <svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-semibold text-gray-800">Ask a Question</h3>
+                            <p class="text-xs text-gray-500">Ask about revenue, bookings, locations, assets, events, members, vendors, or spaces</p>
+                        </div>
+                    </div>
+
+                    <!-- Suggested Questions -->
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <button v-for="q in suggestedQuestions" :key="q" @click="askQuestion(q)" class="px-3 py-1.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+                            [[ q ]]
+                        </button>
+                    </div>
+
+                    <!-- Input -->
+                    <div class="flex gap-2 mb-4">
+                        <input v-model="questionInput" @keyup.enter="askQuestion(questionInput)" type="text" placeholder="Type your question..." class="frappe-input flex-1">
+                        <button @click="askQuestion(questionInput)" class="frappe-btn">Ask</button>
+                    </div>
+
+                    <!-- Answer -->
+                    <div v-if="qaAnswer" class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <div class="flex items-start gap-3">
+                            <div class="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center shrink-0">
+                                <svg width="14" height="14" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                            <p class="text-sm text-gray-700 leading-relaxed">[[ qaAnswer ]]</p>
+                        </div>
+                    </div>
+                    <div v-if="qaLoading" class="flex items-center py-3">
+                        <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1f2937" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                        <span class="ml-3 text-gray-500 text-sm">Thinking...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<script>
+var csrfToken = '{{ frappe.session.csrf_token }}';
+
+const { createApp, ref, reactive, onMounted, nextTick, watch } = Vue;
+
+createApp({
+    delimiters: ['[[', ']]'],
+    setup() {
+        const loading = ref(true);
+        const activeTab = ref('charts');
+        const locations = ref([]);
+        const overview = ref({});
+        const locationStats = ref([]);
+        const recentBookings = ref([]);
+        const vendors = ref([]);
+        const events = ref([]);
+
+        const filters = reactive({
+            location: '',
+            fromDate: '',
+            toDate: ''
+        });
+
+        const revenueChart = ref(null);
+        const bookingChart = ref(null);
+        const spaceTypeChart = ref(null);
+        const assetStatusChart = ref(null);
+
+        let rChart = null, bChart = null, stChart = null, asChart = null;
+        let chartData = { revenue: null, booking: null, spaceType: null, assetStatus: null };
+
+        const insights = ref([]);
+        const insightsLoading = ref(false);
+        const questionInput = ref('');
+        const qaAnswer = ref('');
+        const qaLoading = ref(false);
+        const suggestedQuestions = [
+            'Share profit details',
+            'How is revenue trending?',
+            'Which location performs best?',
+            'How are bookings doing?',
+            'What about expenses?',
+            'Tell me about events',
+            'How can we increase revenue?',
+            'Give me an overview'
+        ];
+
+        function fmtCurrency(v) {
+            return '\u20B9' + (v || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+        }
+
+        function fmtDate(d) {
+            if (!d) return '-';
+            return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        function bookingStatusStyle(s) {
+            var m = { 'Pending': 'background:#f3f4f6;color:#1f2937', 'Booked': 'background:#e5e7eb;color:#1f2937', 'Paid': 'background:#d1d5db;color:#1f2937', 'Completed': 'background:#f3f4f6;color:#475569', 'Cancelled': 'background:#e5e7eb;color:#6b7280' };
+            return m[s] || 'background:#f3f4f6;color:#475569';
+        }
+
+        function paymentStatusStyle(s) {
+            var m = { 'Pending': 'background:#f3f4f6;color:#1f2937', 'Paid': 'background:#d1d5db;color:#1f2937', 'Failed': 'background:#e5e7eb;color:#6b7280', 'Refunded': 'background:#f3f4f6;color:#475569' };
+            return m[s] || 'background:#f3f4f6;color:#475569';
+        }
+
+        function eventStatusStyle(s) {
+            var m = { 'Draft': 'background:#f3f4f6;color:#475569', 'Published': 'background:#e5e7eb;color:#1f2937', 'Completed': 'background:#d1d5db;color:#1f2937', 'Cancelled': 'background:#e5e7eb;color:#6b7280' };
+            return m[s] || 'background:#f3f4f6;color:#475569';
+        }
+
+        function buildParams() {
+            var p = new URLSearchParams();
+            if (filters.location) p.set('location', filters.location);
+            if (filters.fromDate) p.set('from_date', filters.fromDate);
+            if (filters.toDate) p.set('to_date', filters.toDate);
+            return p.toString();
+        }
+
+        function apiFetch(method) {
+            return fetch('/api/method/smartspace.frontend_api.analytics.' + method + '?' + buildParams())
+                .then(function(r) { return r.json(); })
+                .then(function(d) { return d.message || d; });
+        }
+
+        async function loadAll() {
+            loading.value = true;
+            try {
+                var results = await Promise.all([
+                    apiFetch('get_analytics_overview'),
+                    apiFetch('get_location_wise_stats'),
+                    apiFetch('get_recent_bookings'),
+                    apiFetch('get_vendor_list'),
+                    apiFetch('get_events_list'),
+                    apiFetch('get_revenue_trend'),
+                    apiFetch('get_booking_trend'),
+                    apiFetch('get_space_type_distribution'),
+                    apiFetch('get_asset_status_distribution')
+                ]);
+
+                overview.value = results[0] || {};
+                locationStats.value = results[1].locations || [];
+                recentBookings.value = results[2].bookings || [];
+                vendors.value = results[3].vendors || [];
+                events.value = results[4].events || [];
+
+                chartData.revenue = results[5];
+                chartData.booking = results[6];
+                chartData.spaceType = results[7];
+                chartData.assetStatus = results[8];
+
+                loading.value = false;
+                await nextTick();
+                renderCharts(results[5], results[6], results[7], results[8]);
+            } catch(e) {
+                console.error('Analytics load error:', e);
+            }
+        }
+
+        function renderCharts(revenueData, bookingData, spaceTypeData, assetStatusData) {
+            if (rChart) rChart.destroy();
+            if (bChart) bChart.destroy();
+            if (stChart) stChart.destroy();
+            if (asChart) asChart.destroy();
+
+            var commonOpts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
+
+            if (revenueChart.value && revenueData && revenueData.labels && revenueData.labels.length) {
+                rChart = new Chart(revenueChart.value, {
+                    type: 'line',
+                    data: {
+                        labels: revenueData.labels,
+                        datasets: [{
+                            label: 'Revenue',
+                            data: revenueData.values,
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59,130,246,0.1)',
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: { ...commonOpts, scales: { y: { ticks: { callback: function(v) { return '\u20B9' + v; } } } } }
+                });
+            }
+
+            if (bookingChart.value && bookingData && bookingData.labels && bookingData.labels.length) {
+                bChart = new Chart(bookingChart.value, {
+                    type: 'bar',
+                    data: {
+                        labels: bookingData.labels,
+                        datasets: [
+                            { label: 'Total', data: bookingData.totals, backgroundColor: '#3b82f6' },
+                            { label: 'Completed', data: bookingData.completed, backgroundColor: '#22c55e' },
+                            { label: 'Pending', data: bookingData.pending, backgroundColor: '#f59e0b' }
+                        ]
+                    },
+                    options: { ...commonOpts, plugins: { legend: { display: true, position: 'bottom' } } }
+                });
+            }
+
+            if (spaceTypeChart.value && spaceTypeData && spaceTypeData.labels && spaceTypeData.labels.length) {
+                stChart = new Chart(spaceTypeChart.value, {
+                    type: 'doughnut',
+                    data: {
+                        labels: spaceTypeData.labels,
+                        datasets: [{ data: spaceTypeData.values, backgroundColor: ['#3b82f6','#22c55e','#f59e0b','#a855f7','#ef4444','#6b7280'] }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+                });
+            }
+
+            if (assetStatusChart.value && assetStatusData && assetStatusData.labels && assetStatusData.labels.length) {
+                asChart = new Chart(assetStatusChart.value, {
+                    type: 'doughnut',
+                    data: {
+                        labels: assetStatusData.labels,
+                        datasets: [{ data: assetStatusData.values, backgroundColor: ['#22c55e','#a855f7','#f59e0b','#ef4444','#6b7280'] }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+                });
+            }
+        }
+
+        async function loadInsights() {
+            insightsLoading.value = true;
+            try {
+                var data = await apiFetch('get_insights_summary');
+                insights.value = data.insights || [];
+            } catch(e) {
+                console.error('Insights load error:', e);
+            }
+            insightsLoading.value = false;
+        }
+
+        async function askQuestion(q) {
+            if (!q || !q.trim()) return;
+            questionInput.value = q;
+            qaLoading.value = true;
+            qaAnswer.value = '';
+            try {
+                var params = buildParams();
+                params += (params ? '&' : '') + 'question=' + encodeURIComponent(q);
+                var data = await fetch('/api/method/smartspace.frontend_api.ai_insights.ask_question?' + params)
+                    .then(function(r) { return r.json(); })
+                    .then(function(d) { return d.message || d; });
+                qaAnswer.value = data.answer || 'No answer available.';
+            } catch(e) {
+                qaAnswer.value = 'Error: ' + e.message;
+            }
+            qaLoading.value = false;
+        }
+
+        function resetFilters() {
+            filters.location = '';
+            filters.fromDate = '';
+            filters.toDate = '';
+            loadAll();
+        }
+
+        onMounted(async function() {
+            var locs = await apiFetch('get_all_locations');
+            locations.value = locs || [];
+            await loadAll();
+        });
+
+        watch(activeTab, function(newTab) {
+            if (newTab === 'charts' && chartData.revenue) {
+                nextTick(function() {
+                    renderCharts(chartData.revenue, chartData.booking, chartData.spaceType, chartData.assetStatus);
+                });
+            }
+            if (newTab === 'ai' && insights.value.length === 0 && !insightsLoading.value) {
+                loadInsights();
+            }
+        });
+
+        return {
+            loading, activeTab, locations, overview, locationStats,
+            recentBookings, vendors, events, filters,
+            revenueChart, bookingChart, spaceTypeChart, assetStatusChart,
+            insights, insightsLoading, questionInput, qaAnswer, qaLoading, suggestedQuestions,
+            fmtCurrency, fmtDate, bookingStatusStyle, paymentStatusStyle, eventStatusStyle,
+            loadAll, resetFilters, askQuestion
+        };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>

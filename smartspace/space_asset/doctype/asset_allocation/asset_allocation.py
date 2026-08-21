@@ -14,6 +14,12 @@ class AssetAllocation(Document):
 		for row in self.assets:
 			self.update_asset_status(row.asset, "Available")
 
+	def before_save(self):
+		if self.allocation_status == "Cancelled" and self.docstatus == 1:
+			self.db_set("docstatus", 2)
+			for row in self.assets:
+				self.update_asset_status(row.asset, "Available")
+
 	def update_asset_status(self, asset, status):
 		if asset:
 			frappe.db.set_value("Asset", asset, "status", status)

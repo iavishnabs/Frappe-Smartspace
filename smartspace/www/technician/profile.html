@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile | SmartSpace</title>
+
+    <link rel="manifest" href="/assets/smartspace/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/assets/smartspace/favicon.svg">
+    <meta name="theme-color" content="#f97316">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="SmartSpace">
+    <link rel="apple-touch-icon" href="/assets/smartspace/icon-192.svg">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    boxShadow: {
+                        card: "0 10px 30px rgba(0,0,0,.08)"
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-gray-800 min-h-screen">
+{% include "www/nav_footer/portal_header.html" %}
+{% include "www/technician/sidebar.html" %}
+
+<div class="sidebar-content transition-all duration-300">
+    <!-- Profile Banner -->
+    <div class="bg-gradient-to-r from-gray-900 via-gray-800 to-black px-6 py-10 relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full -mr-20 -mt-20"></div>
+        <div class="absolute bottom-0 left-1/3 w-40 h-40 bg-orange-500/5 rounded-full -mb-16"></div>
+        <div class="relative flex items-center gap-5">
+            <div class="w-24 h-24 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white text-3xl font-bold flex-shrink-0 ring-4 ring-white/10">
+                <span id="avatarInitials">--</span>
+            </div>
+            <div class="min-w-0">
+                <h1 id="profileName" class="text-2xl font-bold text-white truncate">-</h1>
+                <p id="profileEmail" class="text-orange-200 text-sm mt-0.5 truncate">-</p>
+                <div class="flex items-center gap-2 mt-2">
+                    <span id="profileStaffType" class="hidden inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/15 text-white backdrop-blur"></span>
+                    <span id="profileActive" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-300">
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-400"></span> Active
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="px-6 py-6">
+        <!-- Loading -->
+        <div id="loadingState" class="text-center py-12 text-gray-400">
+            <svg class="animate-spin mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            Loading profile...
+        </div>
+
+        <div id="profileContent" style="display:none">
+            <!-- Details Grid: Account + Staff side by side -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <!-- Account Details -->
+                <div class="bg-white rounded-xl shadow-card overflow-hidden">
+                    <div class="px-5 py-3.5 border-b bg-gray-50 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-500"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <h3 class="font-bold text-gray-800 text-sm">Account Details</h3>
+                    </div>
+                    <div class="divide-y divide-gray-100">
+                        <div class="flex items-center justify-between px-5 py-3">
+                            <span class="text-sm text-gray-500">Full Name</span>
+                            <span id="auFullName" class="text-sm font-medium text-gray-800">-</span>
+                        </div>
+                        <div class="flex items-center justify-between px-5 py-3">
+                            <span class="text-sm text-gray-500">First Name</span>
+                            <span id="auFirstName" class="text-sm font-medium text-gray-800">-</span>
+                        </div>
+                        <div class="flex items-center justify-between px-5 py-3">
+                            <span class="text-sm text-gray-500">Last Name</span>
+                            <span id="auLastName" class="text-sm font-medium text-gray-800">-</span>
+                        </div>
+                        <div class="flex items-center justify-between px-5 py-3">
+                            <span class="text-sm text-gray-500">Email</span>
+                            <span id="auEmail" class="text-sm font-medium text-gray-800">-</span>
+                        </div>
+                        <div class="flex items-center justify-between px-5 py-3">
+                            <span class="text-sm text-gray-500">Location</span>
+                            <span id="auLocation" class="text-sm font-medium text-gray-800">-</span>
+                        </div>
+                        <div class="flex items-center justify-between px-5 py-3">
+                            <span class="text-sm text-gray-500">Status</span>
+                            <span id="auActive" class="text-sm font-medium text-gray-800">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Staff Details -->
+                <div id="staffSection" class="bg-white rounded-xl shadow-card overflow-hidden" style="display:none">
+                    <div class="px-5 py-3.5 border-b bg-gray-50 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-500"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                        <h3 class="font-bold text-gray-800 text-sm">Employment Details</h3>
+                    </div>
+                    <div class="divide-y divide-gray-100">
+                        <div class="flex items-center justify-between px-5 py-3">
+                            <span class="text-sm text-gray-500">Staff ID</span>
+                            <span id="stName" class="text-sm font-medium text-gray-800">-</span>
+                        </div>
+                        <div class="flex items-center justify-between px-5 py-3">
+                            <span class="text-sm text-gray-500">Staff Type</span>
+                            <span id="stType" class="text-sm font-medium text-gray-800">-</span>
+                        </div>
+                        <div class="flex items-center justify-between px-5 py-3">
+                            <span class="text-sm text-gray-500">Phone</span>
+                            <span id="stPhone" class="text-sm font-medium text-gray-800">-</span>
+                        </div>
+                        <div class="flex items-center justify-between px-5 py-3">
+                            <span class="text-sm text-gray-500">Date of Birth</span>
+                            <span id="stDob" class="text-sm font-medium text-gray-800">-</span>
+                        </div>
+                        <div class="flex items-center justify-between px-5 py-3">
+                            <span class="text-sm text-gray-500">Date of Join</span>
+                            <span id="stDoj" class="text-sm font-medium text-gray-800">-</span>
+                        </div>
+                        <div class="flex items-center justify-between px-5 py-3">
+                            <span class="text-sm text-gray-500">Location</span>
+                            <span id="stLocation" class="text-sm font-medium text-gray-800">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Change Password Card -->
+            <div class="bg-white rounded-xl shadow-card overflow-hidden">
+                <div class="px-5 py-3.5 border-b bg-gray-50 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-500"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <h3 class="font-bold text-gray-800 text-sm">Change Password</h3>
+                </div>
+                <div class="p-5">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">New Password</label>
+                            <div class="relative">
+                                <input id="newPassword" type="password" class="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm pr-10" placeholder="Enter new password">
+                                <button type="button" onclick="togglePassword('newPassword', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">Confirm Password</label>
+                            <div class="relative">
+                                <input id="confirmPassword" type="password" class="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm pr-10" placeholder="Confirm new password">
+                                <button type="button" onclick="togglePassword('confirmPassword', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                </button>
+                            </div>
+                            <p id="passwordMatchHint" class="hidden mt-1.5 text-xs text-red-500">Passwords do not match</p>
+                        </div>
+                    </div>
+                    <div id="passwordError" class="hidden mt-4 px-4 py-3 rounded-lg bg-red-50 text-red-600 text-sm"></div>
+                    <div id="passwordSuccess" class="hidden mt-4 px-4 py-3 rounded-lg bg-green-50 text-green-600 text-sm"></div>
+                    <div class="mt-4 flex justify-end">
+                        <button id="changePasswordBtn" onclick="submitPasswordChange()" class="px-6 py-2.5 rounded-lg bg-orange-500 text-white font-medium text-sm hover:bg-orange-600 transition inline-flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                            Change Password
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    var d = new Date(dateStr);
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function getInitials(name) {
+    if (!name) return '--';
+    var parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return parts[0].substring(0, 2).toUpperCase();
+}
+
+function togglePassword(inputId, btn) {
+    var input = document.getElementById(inputId);
+    if (input.type === 'password') {
+        input.type = 'text';
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+    } else {
+        input.type = 'password';
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+    }
+}
+
+function fetchProfile() {
+    fetch('/api/method/smartspace.frontend_api.technician.get_profile')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var profile = data.message || data;
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('profileContent').style.display = '';
+
+            var au = profile.app_user || {};
+            var st = profile.staff;
+
+            var fullName = au.full_name || au.first_name || au.email || '-';
+            document.getElementById('profileName').textContent = fullName;
+            document.getElementById('profileEmail').textContent = au.email || '-';
+            document.getElementById('avatarInitials').textContent = getInitials(fullName);
+
+            if (st && st.staff_type) {
+                var stBadge = document.getElementById('profileStaffType');
+                stBadge.textContent = st.staff_type;
+                stBadge.classList.remove('hidden');
+            }
+
+            if (au.active === 0 || au.active === false) {
+                document.getElementById('profileActive').textContent = 'Inactive';
+                document.getElementById('profileActive').className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500';
+            }
+
+            document.getElementById('auFullName').textContent = au.full_name || '-';
+            document.getElementById('auFirstName').textContent = au.first_name || '-';
+            document.getElementById('auLastName').textContent = au.last_name || '-';
+            document.getElementById('auEmail').textContent = au.email || '-';
+            document.getElementById('auLocation').textContent = au.location || '-';
+            document.getElementById('auActive').textContent = au.active ? 'Active' : 'Inactive';
+
+            if (st) {
+                document.getElementById('staffSection').style.display = '';
+                document.getElementById('stName').textContent = st.name || '-';
+                document.getElementById('stType').textContent = st.staff_type || '-';
+                document.getElementById('stPhone').textContent = st.phone || '-';
+                document.getElementById('stDob').textContent = formatDate(st.date_of_birth);
+                document.getElementById('stDoj').textContent = formatDate(st.date_of_join);
+                document.getElementById('stLocation').textContent = st.location || '-';
+            }
+        })
+        .catch(function() {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('profileContent').style.display = '';
+            document.getElementById('profileContent').innerHTML = '<div class="text-center py-16 text-gray-400"><p class="font-medium">Error loading profile</p></div>';
+        });
+}
+
+document.getElementById('confirmPassword').addEventListener('input', function() {
+    var newPwd = document.getElementById('newPassword').value;
+    var confirmPwd = this.value;
+    var hint = document.getElementById('passwordMatchHint');
+    if (confirmPwd && newPwd !== confirmPwd) {
+        hint.classList.remove('hidden');
+    } else {
+        hint.classList.add('hidden');
+    }
+});
+
+function submitPasswordChange() {
+    var newPwd = document.getElementById('newPassword').value;
+    var confirmPwd = document.getElementById('confirmPassword').value;
+    var errorEl = document.getElementById('passwordError');
+    var successEl = document.getElementById('passwordSuccess');
+    var btn = document.getElementById('changePasswordBtn');
+
+    errorEl.classList.add('hidden');
+    successEl.classList.add('hidden');
+
+    if (!newPwd || !confirmPwd) {
+        errorEl.textContent = 'Both fields are required';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+
+    if (newPwd !== confirmPwd) {
+        errorEl.textContent = 'Passwords do not match';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+
+    if (newPwd.length < 6) {
+        errorEl.textContent = 'Password must be at least 6 characters long';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+
+    btn.textContent = 'Saving...';
+    btn.disabled = true;
+
+    var body = new FormData();
+    body.append('new_password', newPwd);
+    body.append('confirm_password', confirmPwd);
+
+    fetch('/api/method/smartspace.frontend_api.technician.change_password', {
+        method: 'POST',
+        headers: { 'X-Frappe-CSRF-Token': csrfToken },
+        body: body
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        btn.textContent = 'Change Password';
+        btn.disabled = false;
+
+        var result = data.message || data;
+        if (result.success) {
+            successEl.textContent = result.message || 'Password changed successfully';
+            successEl.classList.remove('hidden');
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+            document.getElementById('passwordMatchHint').classList.add('hidden');
+            setTimeout(function() { successEl.classList.add('hidden'); }, 5000);
+        } else {
+            var errMsg = result.message;
+            if (!errMsg && data._server_messages) {
+                try {
+                    var msgs = JSON.parse(data._server_messages);
+                    if (msgs.length > 0) errMsg = JSON.parse(msgs[0]).message;
+                } catch(e) {}
+            }
+            if (!errMsg && data.exc) {
+                var match = data.exc.match(/(?:ValidationError|PermissionError|Exception):\s*(.+)/);
+                if (match) errMsg = match[1].trim();
+            }
+            errorEl.textContent = errMsg || 'Failed to change password';
+            errorEl.classList.remove('hidden');
+        }
+    })
+    .catch(function() {
+        btn.textContent = 'Change Password';
+        btn.disabled = false;
+        errorEl.textContent = 'Error changing password';
+        errorEl.classList.remove('hidden');
+    });
+}
+
+fetchProfile();
+</script>
+</body>
+</html>

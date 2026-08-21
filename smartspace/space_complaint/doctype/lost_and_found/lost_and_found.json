@@ -15,7 +15,6 @@
   "status",
   "reported_date",
   "matched_report",
-  "returned_to",
   "section_break_aiuf",
   "description"
  ],
@@ -52,7 +51,8 @@
    "fieldname": "location",
    "fieldtype": "Link",
    "label": "Location",
-   "options": "Location"
+   "options": "Location",
+   "reqd": 1
   },
   {
    "fieldname": "column_break_netf",
@@ -63,7 +63,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Status",
-   "options": "\nOpen\nReturned\nClosed",
+   "options": "\nOpen\nClosed",
    "read_only": 1
   },
   {
@@ -80,13 +80,6 @@
    "read_only": 1
   },
   {
-   "fieldname": "returned_to",
-   "fieldtype": "Link",
-   "label": "Returned To",
-   "options": "App User",
-   "read_only": 1
-  },
-  {
    "fieldname": "section_break_aiuf",
    "fieldtype": "Section Break"
   },
@@ -99,7 +92,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-15 15:49:33.653291",
+ "modified": "2026-08-04 10:12:34.709468",
  "modified_by": "Administrator",
  "module": "Space Complaint",
  "name": "Lost And Found",

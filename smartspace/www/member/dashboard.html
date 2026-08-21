@@ -14,11 +14,230 @@
     <link rel="apple-touch-icon" href="/assets/smartspace/icon-192.svg">
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: { extend: { boxShadow: { card: "0 10px 30px rgba(0,0,0,.08)" } } }
+        }
+    </script>
 </head>
-<body class="bg-slate-50 min-h-screen">
+<body class="bg-slate-50 text-gray-800 min-h-screen">
+{% set active = 'dashboard' %}
 {% include "www/nav_footer/portal_header.html" %}
-<div class="max-w-7xl mx-auto px-6 py-10">
-    <h1 class="text-3xl font-bold">Member Dashboard</h1>
+{% include "www/member/sidebar.html" %}
+
+<div class="sidebar-content transition-all duration-300">
+    <div class="bg-black text-white px-6 py-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold" id="currentTime">--:--</h1>
+                <p class="text-orange-200 text-sm mt-1" id="dateLabel"></p>
+            </div>
+            <div class="flex items-center gap-3">
+                <a href="/spaces" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-orange-500 text-white font-medium text-sm hover:bg-orange-600 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><circle cx="9" cy="9" r="1"/><circle cx="9" cy="13" r="1"/><circle cx="9" cy="17" r="1"/></svg>
+                    <span class="hidden sm:inline">View Spaces</span>
+                </a>
+                <button onclick="fetchStats()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white/10 text-white font-medium text-sm hover:bg-white/20 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                    <span class="hidden sm:inline">Refresh</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="px-6 py-6">
+        <div id="loadingState" class="text-center py-12 text-gray-400">
+            <svg class="animate-spin mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            Loading dashboard...
+        </div>
+
+        <div id="dashboardContent" style="display:none">
+            <div id="memberBanner" class="rounded-xl shadow-card p-5 mb-6"></div>
+
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white rounded-xl shadow-card p-5">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        </div>
+                        <div><p class="text-2xl font-bold" id="statActiveBookings">0</p><p class="text-xs text-gray-500">Active Bookings</p></div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-card p-5">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        </div>
+                        <div><p class="text-2xl font-bold" id="statCompleted">0</p><p class="text-xs text-gray-500">Completed</p></div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-card p-5">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        </div>
+                        <div><p class="text-2xl font-bold" id="statTotalSpent">₹0</p><p class="text-xs text-gray-500">Total Spent</p></div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-card p-5">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/></svg>
+                        </div>
+                        <div><p class="text-2xl font-bold" id="statParking">0</p><p class="text-xs text-gray-500">Active Parking</p></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white rounded-xl shadow-card p-4"><p class="text-xs text-gray-500">Open Complaints</p><p class="text-xl font-bold mt-1" id="statComplaintOpen">0</p></div>
+                <div class="bg-white rounded-xl shadow-card p-4"><p class="text-xs text-gray-500">Resolved Complaints</p><p class="text-xl font-bold mt-1" id="statComplaintResolved">0</p></div>
+                <div class="bg-white rounded-xl shadow-card p-4"><p class="text-xs text-gray-500">Upcoming Events</p><p class="text-xl font-bold mt-1" id="statEvents">0</p></div>
+                <div class="bg-white rounded-xl shadow-card p-4"><p class="text-xs text-gray-500">Lost & Found (Open)</p><p class="text-xl font-bold mt-1" id="statLostFound">0</p></div>
+            </div>
+
+            <div id="latestEventSection" class="rounded-xl shadow-card overflow-hidden bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 p-5 relative mb-6" style="display:none">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-orange-200/30 rounded-full -mr-8 -mt-8"></div>
+                <div class="relative flex items-center gap-2 mb-3">
+                    <span class="bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full">UPCOMING EVENT</span>
+                </div>
+                <h3 class="text-xl font-bold" id="latestEventName"></h3>
+                <p class="text-sm text-gray-600 mt-1" id="latestEventDate"></p>
+                <p class="text-sm text-gray-600 mt-2 line-clamp-2" id="latestEventDesc"></p>
+                <a href="/member/events" class="inline-block mt-3 text-sm font-medium text-orange-600 hover:text-orange-700">View Events →</a>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-card p-5 mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-bold">Active Bookings</h2>
+                    <a href="/member/bookings" class="text-sm font-medium text-orange-600 hover:text-orange-700">View All →</a>
+                </div>
+                <div id="activeBookingsList" class="space-y-3"></div>
+            </div>
+
+            <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <a href="/member/spaces" class="bg-white rounded-xl shadow-card p-5 hover:shadow-lg transition group">
+                    <div class="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center mb-3 group-hover:bg-orange-200 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
+                    </div>
+                    <p class="font-semibold text-sm">Book a Space</p>
+                    <p class="text-xs text-gray-500 mt-1">Browse and reserve</p>
+                </a>
+                <a href="/member/transactions" class="bg-white rounded-xl shadow-card p-5 hover:shadow-lg transition group">
+                    <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mb-3 group-hover:bg-blue-200 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    </div>
+                    <p class="font-semibold text-sm">Transactions</p>
+                    <p class="text-xs text-gray-500 mt-1">Payment history</p>
+                </a>
+                <a href="/member/complaints" class="bg-white rounded-xl shadow-card p-5 hover:shadow-lg transition group">
+                    <div class="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center mb-3 group-hover:bg-red-200 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    </div>
+                    <p class="font-semibold text-sm">Complaints</p>
+                    <p class="text-xs text-gray-500 mt-1">Track progress</p>
+                </a>
+                <a href="/member/parking" class="bg-white rounded-xl shadow-card p-5 hover:shadow-lg transition group">
+                    <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center mb-3 group-hover:bg-purple-200 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/></svg>
+                    </div>
+                    <p class="font-semibold text-sm">My Parking</p>
+                    <p class="text-xs text-gray-500 mt-1">View allocations</p>
+                </a>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+function updateTime() {
+    var now = new Date();
+    document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    document.getElementById('dateLabel').textContent = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+updateTime();
+setInterval(updateTime, 60000);
+
+function fmtCurrency(v) { return '₹' + (v || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 }); }
+function fmtDate(d) { if (!d) return '-'; return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
+function statusColor(s) { var m = { 'Pending': '#f59e0b', 'Booked': '#3b82f6', 'Paid': '#22c55e', 'Completed': '#6b7280', 'Cancelled': '#ef4444' }; return m[s] || '#6b7280'; }
+function stripHtml(html) { var tmp = document.createElement('div'); tmp.innerHTML = html; return tmp.textContent || tmp.innerText || ''; }
+
+function fetchStats() {
+    document.getElementById('loadingState').style.display = '';
+    document.getElementById('dashboardContent').style.display = 'none';
+
+    fetch('/api/method/smartspace.frontend_api.member.get_dashboard_stats')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var d = data.message || data;
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('dashboardContent').style.display = '';
+
+            var banner = document.getElementById('memberBanner');
+            if (d.member) {
+                var expiry = d.member.expiry_date ? fmtDate(d.member.expiry_date) : 'N/A';
+                var daysLeft = d.member.days_left != null ? d.member.days_left : null;
+                var daysLabel = '';
+                if (daysLeft != null) {
+                    daysLabel = ' (' + daysLeft + ' day' + (daysLeft === 1 ? '' : 's') + ' left)';
+                }
+                var typeColor = d.member.member_type === 'Regular' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-orange-50 text-orange-700 border-orange-200';
+                banner.className = 'rounded-xl shadow-card p-5 mb-6 border ' + typeColor;
+                banner.innerHTML = '<div class="flex items-center justify-between flex-wrap gap-3">' +
+                    '<div class="flex items-center gap-3">' +
+                        '<div class="w-12 h-12 rounded-full bg-white flex items-center justify-center font-bold text-lg">' + (d.member.full_name ? d.member.full_name.charAt(0).toUpperCase() : 'M') + '</div>' +
+                        '<div><p class="font-bold">' + (d.member.full_name || 'Member') + '</p>' +
+                        '<p class="text-xs">Type: <span class="font-semibold">' + (d.member.member_type || 'N/A') + '</span> | Expires: <span class="font-semibold">' + expiry + daysLabel + '</span></p></div>' +
+                    '</div>' +
+                    '<span class="px-3 py-1 rounded-full text-xs font-bold ' + (d.member.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') + '">' + (d.member.active ? 'Active' : 'Inactive') + '</span>' +
+                '</div>';
+            } else {
+                banner.className = 'rounded-xl shadow-card p-5 mb-6 bg-amber-50 border border-amber-200';
+                banner.innerHTML = '<div class="flex items-center gap-3">' +
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
+                    '<div><p class="font-semibold text-sm text-amber-800">You are not yet a confirmed member</p><p class="text-xs text-amber-600 mt-0.5">Your membership will be activated when your first reservation is confirmed by admin.</p></div>' +
+                '</div>';
+            }
+
+            document.getElementById('statActiveBookings').textContent = d.active_booking_count || 0;
+            document.getElementById('statCompleted').textContent = d.completed_count || 0;
+            document.getElementById('statTotalSpent').textContent = fmtCurrency(d.total_spent);
+            document.getElementById('statParking').textContent = d.parking_count || 0;
+            document.getElementById('statComplaintOpen').textContent = (d.complaints && d.complaints.open) || 0;
+            document.getElementById('statComplaintResolved').textContent = (d.complaints && d.complaints.resolved) || 0;
+            document.getElementById('statEvents').textContent = (d.events && d.events.upcoming) || 0;
+            document.getElementById('statLostFound').textContent = d.lost_found_open || 0;
+
+            if (d.events && d.events.latest) {
+                var ev = d.events.latest;
+                document.getElementById('latestEventSection').style.display = '';
+                document.getElementById('latestEventName').textContent = ev.event_name || 'Event';
+                document.getElementById('latestEventDate').textContent = fmtDate(ev.start_date) + ' - ' + fmtDate(ev.end_date);
+                document.getElementById('latestEventDesc').textContent = stripHtml(ev.description || ev.event_theme || '');
+            }
+
+            var listEl = document.getElementById('activeBookingsList');
+            if (d.active_bookings && d.active_bookings.length > 0) {
+                listEl.innerHTML = d.active_bookings.map(function(b) {
+                    var sc = statusColor(b.booking_status);
+                    return '<a href="/member/booking-detail?name=' + encodeURIComponent(b.name) + '" class="block bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition">' +
+                        '<div class="flex items-center justify-between">' +
+                            '<div><p class="font-semibold text-sm">' + (b.space || 'N/A') + '</p><p class="text-xs text-gray-500 mt-0.5">' + fmtDate(b.booking_from) + ' • ' + (b.booking_type || '') + '</p></div>' +
+                            '<div class="text-right"><span class="text-xs font-medium px-2 py-0.5 rounded" style="background:' + sc + '20;color:' + sc + '">' + b.booking_status + '</span><p class="text-xs text-gray-500 mt-1">' + fmtCurrency(b.total_amount) + '</p></div>' +
+                        '</div></a>';
+                }).join('');
+            } else {
+                listEl.innerHTML = '<div class="text-center py-8 text-gray-400"><p class="text-sm">No active bookings</p><a href="/member/spaces" class="inline-block mt-2 text-sm font-medium text-orange-600 hover:text-orange-700">Book a Space →</a></div>';
+            }
+        })
+        .catch(function() {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('dashboardContent').style.display = '';
+        });
+}
+
+fetchStats();
+</script>
 </body>
 </html>

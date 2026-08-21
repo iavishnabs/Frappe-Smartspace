@@ -9,6 +9,7 @@
   "complaint_type",
   "raised_by",
   "related_asset",
+  "location",
   "column_break_ridy",
   "status",
   "complaint_date",
@@ -46,6 +47,12 @@
    "fieldtype": "Link",
    "label": "Related Asset",
    "options": "Asset"
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Link",
+   "label": "Location",
+   "options": "Location"
   },
   {
    "fieldname": "column_break_ridy",

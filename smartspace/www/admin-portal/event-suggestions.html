@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Suggestions | Admin Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        [v-cloak] { display: none; }
+        .frappe-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; }
+        .frappe-input { border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; padding: 6px 10px; color: #334155; background: #fff; }
+        .frappe-input:focus { border-color: #1f2937; outline: none; box-shadow: 0 0 0 2px rgba(31,41,55,0.1); }
+        .frappe-btn-secondary { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; font-weight: 600; padding: 6px 14px; transition: all 0.2s; }
+        .frappe-btn-secondary:hover { background: #e2e8f0; }
+        .suggestion-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; transition: all 0.2s; }
+        .suggestion-card:hover { border-color: #cbd5e1; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .confidence-badge { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+        .confidence-high { background: #dbeafe; color: #1e40af; }
+        .confidence-medium { background: #fef3c7; color: #92400e; }
+        .confidence-low { background: #f1f5f9; color: #475569; }
+        .category-badge { font-size: 11px; padding: 2px 10px; border-radius: 12px; font-weight: 600; }
+        .cat-event-type { background: #e0e7ff; color: #3730a3; }
+        .cat-timing { background: #d1fae5; color: #065f46; }
+        .cat-theme { background: #fce7f3; color: #9f1239; }
+        .cat-location { background: #fef3c7; color: #92400e; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen">
+<div id="app" v-cloak>
+{% include "www/admin-portal/sidebar.html" %}
+<div id="adminContent" class="transition-all duration-300 min-h-screen" style="margin-left: 16rem;">
+    <div class="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between flex-wrap gap-3">
+        <div>
+            <h1 class="text-lg font-semibold text-gray-800">AI Event Suggestions</h1>
+            <p class="text-sm text-gray-500">Data-driven recommendations for events, timing, and themes</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <select v-model="filters.location" @change="loadSuggestions" class="frappe-input">
+                <option value="">All Locations</option>
+                <option v-for="loc in locations" :key="loc.name" :value="loc.name">[[ loc.location_name ]]</option>
+            </select>
+            <input type="date" v-model="filters.fromDate" @change="loadSuggestions" class="frappe-input">
+            <span class="text-gray-400 text-sm">to</span>
+            <input type="date" v-model="filters.toDate" @change="loadSuggestions" class="frappe-input">
+            <button @click="resetFilters" class="frappe-btn-secondary">Reset</button>
+        </div>
+    </div>
+
+    <div class="p-6">
+        <div v-if="loading" class="flex items-center justify-center py-20">
+            <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1f2937" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            <span class="ml-3 text-gray-500 text-sm">Analyzing data and generating suggestions...</span>
+        </div>
+
+        <div v-else>
+            <div class="frappe-card p-5 mb-6 flex items-center gap-4">
+                <div class="w-10 h-10 rounded-lg bg-gray-900 flex items-center justify-center text-white shrink-0">
+                    <svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.5.8a2 2 0 11-3.536 0z"/></svg>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-gray-800">[[ suggestions.length ]] AI-Generated Suggestions</p>
+                    <p class="text-xs text-gray-500">Based on booking patterns, space utilization, member activity, and past event performance.</p>
+                </div>
+            </div>
+
+            <div v-if="suggestions.length === 0" class="frappe-card p-12 text-center">
+                <p class="text-gray-400 text-sm">No suggestions available. Try adjusting filters or ensure there is enough data in the system.</p>
+            </div>
+
+            <div v-else class="grid md:grid-cols-2 gap-4">
+                <div v-for="(s, i) in suggestions" :key="i" class="suggestion-card">
+                    <div class="flex items-start justify-between mb-3">
+                        <span class="category-badge" :class="categoryClass(s.category)">[[ s.category ]]</span>
+                        <span class="confidence-badge" :class="confidenceClass(s.confidence)">[[ s.confidence ]]</span>
+                    </div>
+                    <h3 class="text-sm font-bold text-gray-800 mb-2">[[ s.title ]]</h3>
+                    <p class="text-sm text-gray-600 leading-relaxed mb-3">[[ s.description ]]</p>
+                    <div class="flex items-center gap-2 pt-3 border-t border-gray-100">
+                        <svg width="14" height="14" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#64748b"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>
+                        <span class="text-xs text-gray-500">[[ s.data_points ]]</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Q&A Box -->
+            <div class="frappe-card p-6 mt-6">
+                <div class="flex items-center gap-3 mb-5">
+                    <div class="w-9 h-9 rounded-lg bg-gray-700 flex items-center justify-center text-white shrink-0">
+                        <svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-800">Ask AI About Revenue & Events</h3>
+                        <p class="text-xs text-gray-500">Ask about revenue trends, event performance, booking patterns, or growth opportunities</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <button v-for="q in suggestedQuestions" :key="q" @click="askQuestion(q)" class="px-3 py-1.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+                        [[ q ]]
+                    </button>
+                </div>
+
+                <div class="flex gap-2 mb-4">
+                    <input v-model="questionInput" @keyup.enter="askQuestion(questionInput)" type="text" placeholder="Type your question..." class="frappe-input flex-1">
+                    <button @click="askQuestion(questionInput)" class="px-4 py-1.5 bg-gray-900 text-white rounded-md text-xs font-semibold hover:bg-black transition">Ask</button>
+                </div>
+
+                <div v-if="qaAnswer" class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div class="flex items-start gap-3">
+                        <div class="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center shrink-0">
+                            <svg width="14" height="14" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>
+                        <p class="text-sm text-gray-700 leading-relaxed">[[ qaAnswer ]]</p>
+                    </div>
+                </div>
+                <div v-if="qaLoading" class="flex items-center py-3">
+                    <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1f2937" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                    <span class="ml-3 text-gray-500 text-sm">Thinking...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<script>
+var csrfToken = '{{ frappe.session.csrf_token }}';
+const { createApp, ref, reactive, onMounted } = Vue;
+
+createApp({
+    delimiters: ['[[', ']]'],
+    setup() {
+        const loading = ref(true);
+        const suggestions = ref([]);
+        const locations = ref([]);
+        const questionInput = ref('');
+        const qaAnswer = ref('');
+        const qaLoading = ref(false);
+        const suggestedQuestions = [
+            'Share profit details',
+            'How is revenue trending?',
+            'Which location performs best?',
+            'How are bookings doing?',
+            'What about expenses?',
+            'Tell me about events',
+            'How can we increase revenue?',
+            'Give me an overview'
+        ];
+
+        const filters = reactive({
+            location: '',
+            fromDate: '',
+            toDate: ''
+        });
+
+        function buildParams() {
+            var p = new URLSearchParams();
+            if (filters.location) p.set('location', filters.location);
+            if (filters.fromDate) p.set('from_date', filters.fromDate);
+            if (filters.toDate) p.set('to_date', filters.toDate);
+            return p.toString();
+        }
+
+        function apiFetch(method) {
+            return fetch('/api/method/smartspace.frontend_api.ai_insights.' + method + '?' + buildParams())
+                .then(function(r) { return r.json(); })
+                .then(function(d) { return d.message || d; });
+        }
+
+        function categoryClass(cat) {
+            var m = {
+                'Event Type': 'cat-event-type',
+                'Optimal Timing': 'cat-timing',
+                'Theme': 'cat-theme',
+                'Location Strategy': 'cat-location'
+            };
+            return m[cat] || 'cat-event-type';
+        }
+
+        function confidenceClass(conf) {
+            var m = { 'High': 'confidence-high', 'Medium': 'confidence-medium', 'Low': 'confidence-low' };
+            return m[conf] || 'confidence-low';
+        }
+
+        async function loadSuggestions() {
+            loading.value = true;
+            try {
+                var data = await apiFetch('get_event_suggestions');
+                suggestions.value = data.suggestions || [];
+            } catch(e) {
+                console.error('Suggestions load error:', e);
+            }
+            loading.value = false;
+        }
+
+        function resetFilters() {
+            filters.location = '';
+            filters.fromDate = '';
+            filters.toDate = '';
+            loadSuggestions();
+        }
+
+        async function askQuestion(q) {
+            if (!q || !q.trim()) return;
+            questionInput.value = q;
+            qaLoading.value = true;
+            qaAnswer.value = '';
+            try {
+                var params = buildParams();
+                params += (params ? '&' : '') + 'question=' + encodeURIComponent(q);
+                var data = await fetch('/api/method/smartspace.frontend_api.ai_insights.ask_question?' + params)
+                    .then(function(r) { return r.json(); })
+                    .then(function(d) { return d.message || d; });
+                qaAnswer.value = data.answer || 'No answer available.';
+            } catch(e) {
+                qaAnswer.value = 'Error: ' + e.message;
+            }
+            qaLoading.value = false;
+        }
+
+        onMounted(async function() {
+            var locs = await fetch('/api/method/smartspace.frontend_api.analytics.get_all_locations')
+                .then(function(r) { return r.json(); })
+                .then(function(d) { return d.message || d; });
+            locations.value = locs || [];
+            await loadSuggestions();
+        });
+
+        return {
+            loading, suggestions, locations, filters,
+            questionInput, qaAnswer, qaLoading, suggestedQuestions,
+            categoryClass, confidenceClass, loadSuggestions, resetFilters, askQuestion
+        };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>

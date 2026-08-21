@@ -1,6 +1,70 @@
 import frappe
 
 
+def create_notification_log(subject, for_user, document_type=None, document_name=None):
+    """Create a Notification Log entry, skipping if a duplicate already exists."""
+    if not for_user:
+        return
+
+    existing = frappe.db.exists(
+        "Notification Log",
+        {
+            "subject": subject,
+            "for_user": for_user,
+            "document_type": document_type,
+            "document_name": document_name,
+        },
+    )
+    if existing:
+        return
+
+    try:
+        frappe.get_doc({
+            "doctype": "Notification Log",
+            "subject": subject,
+            "for_user": for_user,
+            "type": "Alert",
+            "document_type": document_type,
+            "document_name": document_name,
+        }).insert(ignore_permissions=True)
+    except Exception:
+        frappe.log_error(
+            frappe.get_traceback(),
+            f"Failed creating Notification Log for {for_user}: {subject}",
+        )
+
+
+def on_lost_found_insert(doc, method=None):
+    """Create Notification Log for active app users at the same location as the report."""
+    owner_user = frappe.db.get_value("App User", doc.reported_by, "user") if doc.reported_by else None
+
+    # Determine the report location: use the LAF location, or fall back to reporter's location
+    report_location = doc.location
+    if not report_location and doc.reported_by:
+        report_location = frappe.db.get_value("App User", doc.reported_by, "location")
+
+    if not report_location:
+        return
+
+    active_users = frappe.get_all(
+        "App User",
+        filters={"active": 1, "location": report_location},
+        fields=["user"],
+    )
+
+    subject = f"New {doc.report_type} Report: {doc.item_name}"
+
+    for au in active_users:
+        if not au.user or au.user == owner_user:
+            continue
+        create_notification_log(
+            subject=subject,
+            for_user=au.user,
+            document_type="Lost And Found",
+            document_name=doc.name,
+        )
+
+
 def notify_supervisor_on_new_complaint(complaint):
     location = None
     
@@ -65,18 +129,106 @@ def notify_supervisor_on_new_complaint(complaint):
         if not user:
             continue
 
-        try:
-            frappe.get_doc({
-                "doctype": "Notification Log",
-                "subject": f"New Complaint: {complaint.name}",
-                "for_user": user,
-                "type": "Alert",
-                "document_type": complaint.doctype,
-                "document_name": complaint.name
-            }).insert(ignore_permissions=True)
+        create_notification_log(
+            subject=f"New Complaint: {complaint.name}",
+            for_user=user,
+            document_type=complaint.doctype,
+            document_name=complaint.name,
+        )
 
-        except Exception:
-            frappe.log_error(
-                frappe.get_traceback(),
-                f"Failed notifying supervisor {user}"
-            )
+
+def on_notification_log_insert(doc, method=None):
+    """Publish realtime event when a Notification Log is created."""
+    if not doc.for_user:
+        return
+
+    frappe.publish_realtime(
+        "smartspace_notification",
+        {
+            "name": doc.name,
+            "subject": doc.subject,
+            "for_user": doc.for_user,
+            "type": doc.type,
+            "document_type": doc.document_type,
+            "document_name": doc.document_name,
+            "read": doc.read,
+            "creation": str(doc.creation) if doc.creation else None,
+        },
+        user=doc.for_user,
+        after_commit=True,
+    )
+
+
+@frappe.whitelist()
+def get_notifications(page=1, page_size=20, unread_only=False):
+    """Fetch notifications for the current session user from Notification Log."""
+    user = frappe.session.user
+    filters = {"for_user": user}
+
+    if unread_only and unread_only != "false":
+        filters["read"] = 0
+
+    page = int(page)
+    page_size = int(page_size)
+    start = (page - 1) * page_size
+
+    notifications = frappe.db.get_list(
+        "Notification Log",
+        filters=filters,
+        fields=[
+            "name",
+            "subject",
+            "for_user",
+            "type",
+            "email_content",
+            "document_type",
+            "document_name",
+            "read",
+            "attached_file",
+            "from_user",
+            "link",
+            "creation",
+        ],
+        order_by="creation desc",
+        start=start,
+        limit=page_size,
+    )
+
+    total = frappe.db.count("Notification Log", filters=filters)
+    unread_count = frappe.db.count(
+        "Notification Log",
+        {"for_user": user, "read": 0},
+    )
+
+    total_pages = max(1, (total + page_size - 1) // page_size)
+
+    return {
+        "notifications": notifications,
+        "total": total,
+        "unread_count": unread_count,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages,
+    }
+
+
+@frappe.whitelist()
+def mark_notification_read(name):
+    """Mark a single notification as read."""
+    frappe.db.set_value("Notification Log", name, "read", 1)
+    frappe.db.commit()
+    return {"success": True}
+
+
+@frappe.whitelist()
+def mark_all_notifications_read():
+    """Mark all notifications as read for the current user."""
+    user = frappe.session.user
+    frappe.db.set_value(
+        "Notification Log",
+        {"for_user": user, "read": 0},
+        "read",
+        1,
+    )
+    frappe.db.commit()
+    return {"success": True}

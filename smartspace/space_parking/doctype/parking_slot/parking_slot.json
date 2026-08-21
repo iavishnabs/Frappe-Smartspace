@@ -13,9 +13,7 @@
   "status",
   "column_break_ozjn",
   "location",
-  "floor",
-  "section_break_imgt",
-  "remarks"
+  "parking_category"
  ],
  "fields": [
   {
@@ -56,24 +54,7 @@
    "reqd": 1
   },
   {
-   "fieldname": "floor",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Floor",
-   "options": "Floor",
-   "reqd": 1
-  },
-  {
-   "fieldname": "section_break_imgt",
-   "fieldtype": "Section Break"
-  },
-  {
-   "fieldname": "remarks",
-   "fieldtype": "Small Text",
-   "label": "Remarks"
-  },
-  {
-   "default": "0",
+   "default": "1",
    "fieldname": "enabled",
    "fieldtype": "Check",
    "label": "Enabled"
@@ -81,12 +62,18 @@
   {
    "fieldname": "section_break_qyir",
    "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "parking_category",
+   "fieldtype": "Select",
+   "label": "Parking Category",
+   "options": "\nMember\nVisitor"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-15 15:12:41.514661",
+ "modified": "2026-08-12 11:04:54.009563",
  "modified_by": "Administrator",
  "module": "Space Parking",
  "name": "Parking Slot",

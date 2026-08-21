@@ -22,50 +22,8 @@ frappe.ui.form.on("Parking Allocation", {
 			});
 			style_black_button(btn);
 		}
-
-		if (!frm.is_new()) {
-			let btn = frm.add_custom_button(__("Find Vehicle"), function () {
-				show_find_vehicle_dialog();
-			});
-			style_black_button(btn);
-		}
 	}
 });
-
-function show_find_vehicle_dialog() {
-	let dialog = new frappe.ui.Dialog({
-		title: "Find Vehicle",
-		fields: [
-			{
-				label: "Vehicle Number",
-				fieldname: "vehicle_number",
-				fieldtype: "Data",
-				reqd: 1
-			}
-		],
-		primary_action_label: "Search",
-		primary_action: function (values) {
-			frappe.call({
-				method: "smartspace.space_parking.doctype.parking_allocation.parking_allocation.find_vehicle",
-				args: { vehicle_number: values.vehicle_number },
-				callback: function (r) {
-					if (r.message && r.message.length > 0) {
-						let html = "<table class='table table-bordered'><thead><tr><th>Slot</th><th>Vehicle</th><th>Member</th><th>Parked Since</th></tr></thead><tbody>";
-						r.message.forEach(function (row) {
-							html += `<tr><td>${row.parking_slot}</td><td>${row.vehicle_number}</td><td>${row.member || "-"}</td><td>${row.allocated_from}</td></tr>`;
-						});
-						html += "</tbody></table>";
-						dialog.set_title("Search Results");
-						dialog.fields_dict.vehicle_number.$wrapper.html(html);
-					} else {
-						frappe.msgprint("No active parking found for that vehicle number");
-					}
-				}
-			});
-		}
-	});
-	dialog.show();
-}
 
 function style_black_button(btn) {
 	$(btn)

@@ -138,13 +138,14 @@ app_license = "mit"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"Notification Log": {
+		"after_insert": "smartspace.notification.on_notification_log_insert"
+	},
+	"Lost And Found": {
+		"after_insert": "smartspace.notification.on_lost_found_insert"
+	}
+}
 
 # Scheduled Tasks
 # ---------------
@@ -241,5 +242,6 @@ scheduler_events = {
 # --------
 
 fixtures = [
-    {"dt": "Expense Category", "filters": [["enabled", "=", 1]]}
+    {"dt": "Expense Category", "filters": [["enabled", "=", 1]]},
+    {"dt": "Custom HTML Block", "filters": [["name", "=", "Portal Link Button"]]}
 ]

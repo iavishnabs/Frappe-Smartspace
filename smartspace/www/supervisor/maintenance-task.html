@@ -136,6 +136,26 @@
     </div>
 </div>
 
+<!-- Confirm Dialog -->
+<div id="confirmDialog" class="fixed inset-0 z-[75] hidden">
+    <div class="absolute inset-0 bg-black/50" onclick="closeConfirmDialog()"></div>
+    <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-white rounded-xl shadow-xl">
+        <div class="p-6">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                </div>
+                <h3 id="confirmTitle" class="font-bold text-gray-800 text-base">Confirm</h3>
+            </div>
+            <p id="confirmMessage" class="text-sm text-gray-600 mb-5">Are you sure?</p>
+            <div class="flex gap-3">
+                <button onclick="closeConfirmDialog()" class="flex-1 py-2.5 rounded-lg border border-gray-200 text-gray-700 font-medium text-sm hover:bg-gray-50 transition">Cancel</button>
+                <button id="confirmOkBtn" class="flex-1 py-2.5 rounded-lg bg-orange-500 text-white font-medium text-sm hover:bg-orange-600 transition">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Toast -->
 <div id="toast" class="fixed bottom-6 right-6 z-[70] hidden">
     <div id="toastInner" class="px-5 py-3 rounded-lg shadow-lg text-sm font-medium text-white"></div>
@@ -283,6 +303,25 @@ function taskActions(t) {
     return '';
 }
 
+var confirmCallback = null;
+
+function showConfirmDialog(title, message, callback) {
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmMessage').textContent = message;
+    confirmCallback = callback;
+    document.getElementById('confirmDialog').classList.remove('hidden');
+}
+
+function closeConfirmDialog() {
+    document.getElementById('confirmDialog').classList.add('hidden');
+    confirmCallback = null;
+}
+
+document.getElementById('confirmOkBtn').addEventListener('click', function() {
+    if (confirmCallback) confirmCallback();
+    closeConfirmDialog();
+});
+
 function taskAction(action, name) {
     var endpoints = {
         'start': 'start_task',
@@ -290,26 +329,40 @@ function taskAction(action, name) {
         'flag': 'flag_task',
         'reject': 'reject_flag'
     };
+    var titles = {
+        'start': 'Start Work',
+        'finish': 'Finish Task',
+        'flag': 'Flag Unusable',
+        'reject': 'Reject Flag'
+    };
     var confirmMsg = {
         'start': 'Start work on this task?',
         'finish': 'Mark this task as completed?',
         'flag': 'Flag this asset as unusable? Supervisor will be notified.',
         'reject': 'Reject this flag and send the task back to in progress?'
     };
-    if (!confirm(confirmMsg[action])) return;
 
-    fetch('/api/method/smartspace.frontend_api.supervisor.' + endpoints[action] + '?name=' + encodeURIComponent(name))
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            var res = data.message || data;
-            if (res.success) {
-                showToast(res.message, 'success');
-                fetchTasks();
-            } else {
-                showToast('Action failed', 'error');
-            }
+    showConfirmDialog(titles[action], confirmMsg[action], function() {
+        var body = new FormData();
+        body.append('name', name);
+
+        fetch('/api/method/smartspace.frontend_api.supervisor.' + endpoints[action], {
+            method: 'POST',
+            headers: { 'X-Frappe-CSRF-Token': csrfToken },
+            body: body
         })
-        .catch(function() { showToast('Action failed', 'error'); });
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var res = data.message || data;
+                if (res.success) {
+                    showToast(res.message, 'success');
+                    fetchTasks();
+                } else {
+                    showToast('Error: ' + (data.exc || 'Action failed'), 'error');
+                }
+            })
+            .catch(function() { showToast('Action failed', 'error'); });
+    });
 }
 
 var pendingDecommissionName = null;
@@ -345,7 +398,7 @@ function confirmApprove() {
 
     fetch('/api/method/smartspace.frontend_api.supervisor.approve_decommission', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': window.frappe && frappe.csrf_token ? frappe.csrf_token : '' },
+        headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrfToken },
         body: JSON.stringify({ name: pendingDecommissionName, closed_reason: reason })
     })
         .then(function(r) { return r.json(); })

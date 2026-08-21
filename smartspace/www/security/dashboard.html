@@ -14,11 +14,360 @@
     <link rel="apple-touch-icon" href="/assets/smartspace/icon-192.svg">
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    boxShadow: {
+                        card: "0 10px 30px rgba(0,0,0,.08)"
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
-<body class="bg-slate-50 min-h-screen">
+<body class="bg-slate-50 text-gray-800 min-h-screen">
 {% include "www/nav_footer/portal_header.html" %}
-<div class="max-w-7xl mx-auto px-6 py-10">
-    <h1 class="text-3xl font-bold">Security Dashboard</h1>
+{% include "www/security/sidebar.html" %}
+
+<div class="sidebar-content transition-all duration-300">
+    <!-- Page Header -->
+    <div class="bg-black text-white px-6 py-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold" id="currentTime">--:--</h1>
+                <p class="text-orange-200 text-sm mt-1" id="dateLabel"></p>
+            </div>
+            <button onclick="fetchStats()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-orange-500 text-white font-medium text-sm hover:bg-orange-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                <span class="hidden sm:inline">Refresh</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="px-6 py-6">
+        <!-- Loading -->
+        <div id="loadingState" class="text-center py-12 text-gray-400">
+            <svg class="animate-spin mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            Loading dashboard...
+        </div>
+
+        <div id="dashboardContent" style="display:none">
+            <!-- Latest Upcoming Event Highlight -->
+            <div id="latestEventCard" class="rounded-xl shadow-card overflow-hidden bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 p-5 relative mb-6">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-orange-200/30 rounded-full -mr-8 -mt-8"></div>
+                <div class="relative flex items-center gap-2 mb-3">
+                    <div class="w-8 h-8 rounded-lg bg-orange-200 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-600"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    </div>
+                    <h3 class="font-bold text-orange-800 text-sm">Next Upcoming Event</h3>
+                </div>
+                <div id="latestEventContent" class="relative">
+                    <p class="text-orange-400 text-xs text-center py-4">No upcoming events</p>
+                </div>
+            </div>
+
+            <!-- Row 1: Key Number Cards -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <!-- Available Parking -->
+                <div class="bg-white rounded-xl shadow-card p-5 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-20 h-20 bg-green-50 rounded-full -mr-8 -mt-8"></div>
+                    <div class="relative">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-500"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/></svg>
+                            </div>
+                            <span class="text-xs font-medium text-gray-400">Free</span>
+                        </div>
+                        <p class="text-3xl font-bold text-gray-800" id="availableParking">0</p>
+                        <p class="text-xs text-gray-500 mt-1">Available Slots</p>
+                    </div>
+                </div>
+
+                <!-- Occupied Parking -->
+                <div class="bg-white rounded-xl shadow-card p-5 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-20 h-20 bg-orange-50 rounded-full -mr-8 -mt-8"></div>
+                    <div class="relative">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-500"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/></svg>
+                            </div>
+                            <span class="text-xs font-medium text-gray-400">Used</span>
+                        </div>
+                        <p class="text-3xl font-bold text-gray-800" id="occupiedParking">0</p>
+                        <p class="text-xs text-gray-500 mt-1">Occupied Slots</p>
+                    </div>
+                </div>
+
+                <!-- Active Members -->
+                <div class="bg-white rounded-xl shadow-card p-5 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-20 h-20 bg-blue-50 rounded-full -mr-8 -mt-8"></div>
+                    <div class="relative">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            </div>
+                            <span class="text-xs font-medium text-gray-400">Active</span>
+                        </div>
+                        <p class="text-3xl font-bold text-gray-800" id="activeMembers">0</p>
+                        <p class="text-xs text-gray-500 mt-1">Active Members</p>
+                    </div>
+                </div>
+
+                <!-- Open Complaints -->
+                <div class="bg-white rounded-xl shadow-card p-5 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-20 h-20 bg-red-50 rounded-full -mr-8 -mt-8"></div>
+                    <div class="relative">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-500"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            </div>
+                            <span class="text-xs font-medium text-gray-400">Open</span>
+                        </div>
+                        <p class="text-3xl font-bold text-gray-800" id="openComplaints">0</p>
+                        <p class="text-xs text-gray-500 mt-1">My Open Complaints</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 2: Charts -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                <!-- Parking Donut -->
+                <div class="bg-white rounded-xl shadow-card p-4">
+                    <h3 class="font-bold text-gray-800 text-sm mb-2">Parking Overview</h3>
+                    <div class="relative" style="height: 150px">
+                        <canvas id="parkingChart"></canvas>
+                    </div>
+                    <div class="mt-2 flex items-center justify-between text-xs">
+                        <span class="text-gray-500">Occupancy Rate</span>
+                        <span id="occupancyRate" class="font-bold text-orange-500">0%</span>
+                    </div>
+                    <div class="mt-1.5 w-full bg-gray-100 rounded-full h-1.5">
+                        <div id="occupancyProgressBar" class="bg-orange-500 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Parking by Type -->
+                <div class="bg-white rounded-xl shadow-card p-4">
+                    <h3 class="font-bold text-gray-800 text-sm mb-3">Parking by Type</h3>
+                    <div id="parkingByType" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <!-- Row 3: Recent Complaints + Lost & Found -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+                <!-- Recent Open Complaints -->
+                <div class="bg-white rounded-xl shadow-card overflow-hidden lg:col-span-2">
+                    <div class="px-4 py-2.5 border-b bg-gray-50 flex items-center justify-between">
+                        <h3 class="font-bold text-gray-800 text-sm">My Open Complaints</h3>
+                        <a href="/security/complaints" class="text-xs font-medium text-orange-600 hover:text-orange-700">View All →</a>
+                    </div>
+                    <div id="recentComplaints" class="divide-y divide-gray-100 max-h-64 overflow-y-auto"></div>
+                </div>
+
+                <!-- Lost & Found Summary -->
+                <div class="bg-white rounded-xl shadow-card overflow-hidden">
+                    <div class="px-4 py-2.5 border-b bg-gray-50 flex items-center justify-between">
+                        <h3 class="font-bold text-gray-800 text-sm">Lost & Found</h3>
+                        <a href="/security/lost-found" class="text-xs font-medium text-orange-600 hover:text-orange-700">View →</a>
+                    </div>
+                    <div class="p-4 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-500"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                </div>
+                                <span class="text-sm text-gray-700">Open Reports</span>
+                            </div>
+                            <span id="lfOpen" class="text-lg font-bold text-orange-500">0</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-500"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                </div>
+                                <span class="text-sm text-gray-700">Closed Reports</span>
+                            </div>
+                            <span id="lfClosed" class="text-lg font-bold text-green-500">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
 </div>
+
+<script>
+var charts = {};
+
+function updateTime() {
+    var now = new Date();
+    var el = document.getElementById('currentTime');
+    if (el) el.textContent = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+}
+setInterval(updateTime, 1000);
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    var d = new Date(dateStr);
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
+function statusColor(status) {
+    var colors = {
+        'Available': '#10b981',
+        'Occupied': '#f59e0b',
+        'Inactive': '#6b7280',
+        'Open': '#3b82f6',
+        'Scheduled': '#8b5cf6',
+        'In Progress': '#f59e0b',
+        'Flagged': '#ef4444',
+        'Resolved': '#10b981',
+        'Closed': '#6b7280'
+    };
+    return colors[status] || '#6b7280';
+}
+
+function renderDonut(canvasId, labels, data, colors) {
+    var ctx = document.getElementById(canvasId).getContext('2d');
+    if (charts[canvasId]) charts[canvasId].destroy();
+    charts[canvasId] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: colors,
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { boxWidth: 10, boxHeight: 10, font: { size: 10 }, padding: 8 }
+                }
+            }
+        }
+    });
+}
+
+function renderRecentComplaints(complaints) {
+    var container = document.getElementById('recentComplaints');
+    if (complaints.length === 0) {
+        container.innerHTML = '<p class="text-sm text-gray-400 text-center py-6">No open complaints</p>';
+        return;
+    }
+    container.innerHTML = complaints.map(function(c) {
+        return '<div class="px-4 py-2.5 hover:bg-gray-50 transition">' +
+            '<div class="flex items-center justify-between mb-0.5">' +
+                '<span class="text-xs font-medium px-2 py-0.5 rounded" style="background:' + statusColor(c.status) + '20;color:' + statusColor(c.status) + '">' + c.status + '</span>' +
+                '<span class="text-xs text-gray-400">' + formatDate(c.complaint_date) + '</span>' +
+            '</div>' +
+            '<p class="text-sm text-gray-700 truncate">' + (c.description || c.name) + '</p>' +
+            '<p class="text-xs text-gray-400">' + (c.complaint_type || '') + '</p>' +
+        '</div>';
+    }).join('');
+}
+
+function fetchStats() {
+    var loadingEl = document.getElementById('loadingState');
+    var contentEl = document.getElementById('dashboardContent');
+    loadingEl.classList.remove('hidden');
+    contentEl.style.display = 'none';
+
+    fetch('/api/method/smartspace.frontend_api.security.get_dashboard_stats')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var s = data.message || data;
+            loadingEl.classList.add('hidden');
+            contentEl.style.display = '';
+
+            document.getElementById('dateLabel').textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+            updateTime();
+
+            // Number cards
+            document.getElementById('availableParking').textContent = s.parking.counts.Available || 0;
+            document.getElementById('occupiedParking').textContent = s.parking.counts.Occupied || 0;
+            document.getElementById('activeMembers').textContent = s.members.active;
+            document.getElementById('openComplaints').textContent = s.complaints.unsolved;
+
+            // Parking chart
+            var pLabels = Object.keys(s.parking.counts);
+            var pData = pLabels.map(function(k) { return s.parking.counts[k]; });
+            var pColors = pLabels.map(function(k) { return statusColor(k); });
+            renderDonut('parkingChart', pLabels, pData, pColors);
+            document.getElementById('occupancyRate').textContent = s.parking.occupancy_rate + '%';
+            document.getElementById('occupancyProgressBar').style.width = s.parking.occupancy_rate + '%';
+
+            // Parking by type
+            var typeContainer = document.getElementById('parkingByType');
+            typeContainer.innerHTML = Object.keys(s.parking.by_type).map(function(t) {
+                var info = s.parking.by_type[t];
+                var pct = info.total > 0 ? Math.round(info.occupied / info.total * 100) : 0;
+                return '<div>' +
+                    '<div class="flex items-center justify-between mb-1">' +
+                        '<span class="text-xs font-medium text-gray-700">' + t + '</span>' +
+                        '<span class="text-xs text-gray-400">' + info.occupied + '/' + info.total + ' occupied</span>' +
+                    '</div>' +
+                    '<div class="w-full bg-gray-100 rounded-full h-2">' +
+                        '<div class="bg-orange-500 h-2 rounded-full transition-all duration-500" style="width:' + pct + '%"></div>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+
+            // Recent complaints
+            renderRecentComplaints(s.recent_complaints);
+
+            // Lost & Found
+            document.getElementById('lfOpen').textContent = s.lost_found.open;
+            document.getElementById('lfClosed').textContent = s.lost_found.closed;
+
+            // Latest upcoming event
+            var ev = s.events.latest;
+            var evContainer = document.getElementById('latestEventContent');
+            if (ev) {
+                var evDate = new Date(ev.start_date);
+                var dateStr = evDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                var timeStr = evDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                var daysUntil = Math.ceil((evDate - new Date()) / (1000 * 60 * 60 * 24));
+                var countdown = daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : 'In ' + daysUntil + ' days';
+                evContainer.innerHTML =
+                    '<div class="flex items-start justify-between mb-2">' +
+                        '<div class="min-w-0">' +
+                            '<p class="text-orange-900 font-bold text-base truncate">' + (ev.event_name || ev.name) + '</p>' +
+                            (ev.event_theme ? '<p class="text-orange-600 text-xs mt-0.5">' + ev.event_theme + '</p>' : '') +
+                        '</div>' +
+                        '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-orange-200 text-orange-700 flex-shrink-0 ml-2">' + countdown + '</span>' +
+                    '</div>' +
+                    '<div class="space-y-1 text-xs text-orange-700">' +
+                        '<div class="flex items-center gap-1.5">' +
+                            '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' +
+                            '<span>' + dateStr + ' · ' + timeStr + '</span>' +
+                        '</div>' +
+                        (ev.location ? '<div class="flex items-center gap-1.5">' +
+                            '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>' +
+                            '<span>' + ev.location + '</span>' +
+                        '</div>' : '') +
+                    '</div>';
+            } else {
+                evContainer.innerHTML = '<p class="text-orange-400 text-xs text-center py-4">No upcoming events</p>';
+            }
+        })
+        .catch(function() {
+            loadingEl.classList.add('hidden');
+            contentEl.style.display = '';
+            contentEl.innerHTML = '<div class="text-center py-16 text-gray-400"><p class="font-medium">Error loading dashboard</p></div>';
+        });
+}
+
+fetchStats();
+</script>
 </body>
 </html>

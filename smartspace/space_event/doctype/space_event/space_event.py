@@ -49,6 +49,8 @@ def publish_event(name):
 
 
 def notify_members_and_staff(event):
+	from smartspace.notification import create_notification_log
+
 	subject = f"New Event: {event.event_name}"
 
 	members = frappe.get_all("Member", filters={"active": 1}, fields=["app_user"])
@@ -58,17 +60,12 @@ def notify_members_and_staff(event):
 		user = frappe.db.get_value("App User", member.app_user, "user")
 		if not user:
 			continue
-		try:
-			frappe.get_doc({
-				"doctype": "Notification Log",
-				"subject": subject,
-				"for_user": user,
-				"type": "Alert",
-				"document_type": "Space Event",
-				"document_name": event.name
-			}).insert(ignore_permissions=True)
-		except Exception:
-			frappe.log_error(frappe.get_traceback(), f"Failed notifying member {user}")
+		create_notification_log(
+			subject=subject,
+			for_user=user,
+			document_type="Space Event",
+			document_name=event.name,
+		)
 
 	staff = frappe.get_all("Staff", filters={"active": 1}, fields=["app_user"])
 	for s in staff:
@@ -77,17 +74,12 @@ def notify_members_and_staff(event):
 		user = frappe.db.get_value("App User", s.app_user, "user")
 		if not user:
 			continue
-		try:
-			frappe.get_doc({
-				"doctype": "Notification Log",
-				"subject": subject,
-				"for_user": user,
-				"type": "Alert",
-				"document_type": "Space Event",
-				"document_name": event.name
-			}).insert(ignore_permissions=True)
-		except Exception:
-			frappe.log_error(frappe.get_traceback(), f"Failed notifying staff {user}")
+		create_notification_log(
+			subject=subject,
+			for_user=user,
+			document_type="Space Event",
+			document_name=event.name,
+		)
 
 
 @frappe.whitelist()

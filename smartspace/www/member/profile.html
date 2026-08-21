@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile | SmartSpace</title>
+    <link rel="manifest" href="/assets/smartspace/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/assets/smartspace/favicon.svg">
+    <meta name="theme-color" content="#f97316">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="SmartSpace">
+    <link rel="apple-touch-icon" href="/assets/smartspace/icon-192.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config={theme:{extend:{boxShadow:{card:"0 10px 30px rgba(0,0,0,.08)"}}}}</script>
+</head>
+<body class="bg-slate-50 text-gray-800 min-h-screen">
+{% set active = 'profile' %}
+{% include "www/nav_footer/portal_header.html" %}
+{% include "www/member/sidebar.html" %}
+<div class="sidebar-content transition-all duration-300">
+    <div class="bg-black text-white px-6 py-8">
+        <h1 class="text-3xl font-bold">Profile</h1>
+        <p class="text-orange-200 text-sm mt-1">View and edit your account details</p>
+    </div>
+    <div class="px-6 py-6">
+        <div id="loadingState" class="text-center py-12 text-gray-400">
+            <svg class="animate-spin mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            Loading profile...
+        </div>
+        <div id="profileContent" style="display:none">
+            <div class="bg-white rounded-xl shadow-card p-6 mb-6">
+                <div class="flex items-center gap-4">
+                    <div class="relative">
+                        <img id="profileAvatar" class="w-20 h-20 rounded-full object-cover bg-orange-100 hidden">
+                        <div id="profileInitials" class="w-20 h-20 rounded-full bg-orange-100 flex items-center justify-center text-3xl font-bold text-orange-500"></div>
+                        <label for="profileImageInput" class="absolute bottom-0 right-0 bg-orange-500 hover:bg-orange-600 text-white rounded-full w-7 h-7 flex items-center justify-center cursor-pointer text-xs shadow">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                        </label>
+                        <input type="file" id="profileImageInput" accept="image/*" class="hidden" onchange="previewProfileImage(this)">
+                        <input type="hidden" id="profileImageUrl" value="">
+                    </div>
+                    <div>
+                        <h2 id="profileName" class="text-xl font-bold"></h2>
+                        <p id="profileEmail" class="text-sm text-gray-500 mt-1"></p>
+                        <span id="memberBadge" class="inline-block mt-2 px-3 py-1 rounded-full text-xs font-bold"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid sm:grid-cols-2 gap-6 mb-6">
+                <div class="bg-white rounded-xl shadow-card p-6">
+                    <h3 class="font-bold mb-4">Account Information</h3>
+                    <div class="space-y-3 text-sm" id="accountInfo"></div>
+                </div>
+
+                <div id="memberInfoSection" class="bg-white rounded-xl shadow-card p-6" style="display:none">
+                    <h3 class="font-bold mb-4">Membership Details</h3>
+                    <div class="space-y-3 text-sm" id="memberInfo"></div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-card p-6 mb-6">
+                <h3 class="font-bold mb-4">Personal Information</h3>
+                <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                        <input type="text" id="editPhone" placeholder="Enter phone number" class="w-full border rounded-xl px-4 py-3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
+                        <input type="date" id="editDob" class="w-full border rounded-xl px-4 py-3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+                        <select id="editGender" class="w-full border rounded-xl px-4 py-3">
+                            <option value="">Select</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="profileError" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm mt-4"></div>
+                <div id="profileSuccess" class="hidden bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 text-sm mt-4"></div>
+                <button id="saveProfileBtn" onclick="saveProfile()" class="mt-4 bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-semibold transition">Save Changes</button>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-card p-6 mb-6">
+                <h3 class="font-bold mb-4">Address Information</h3>
+                <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="sm:col-span-2 lg:col-span-3">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Address Line 1</label>
+                        <input type="text" id="editAddress1" placeholder="Enter address" class="w-full border rounded-xl px-4 py-3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">City</label>
+                        <input type="text" id="editCity" placeholder="Enter city" class="w-full border rounded-xl px-4 py-3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">State</label>
+                        <input type="text" id="editState" placeholder="Enter state" class="w-full border rounded-xl px-4 py-3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Pincode</label>
+                        <input type="text" id="editPincode" placeholder="Enter pincode" class="w-full border rounded-xl px-4 py-3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Country</label>
+                        <input type="text" id="editCountry" placeholder="Enter country" class="w-full border rounded-xl px-4 py-3">
+                    </div>
+                </div>
+                <div id="addressError" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm mt-4"></div>
+                <div id="addressSuccess" class="hidden bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 text-sm mt-4"></div>
+                <button id="saveAddressBtn" onclick="saveAddress()" class="mt-4 bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-semibold transition">Save Address</button>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-card p-6">
+                <h3 class="font-bold mb-4">Change Password</h3>
+                <div class="grid sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+                        <input type="password" id="newPassword" placeholder="Enter new password" class="w-full border rounded-xl px-4 py-3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+                        <input type="password" id="confirmPassword" placeholder="Confirm new password" class="w-full border rounded-xl px-4 py-3">
+                    </div>
+                </div>
+                <div id="pwdError" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm mt-4"></div>
+                <div id="pwdSuccess" class="hidden bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 text-sm mt-4"></div>
+                <button id="changePwdBtn" onclick="changePassword()" class="mt-4 bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-semibold transition">Change Password</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+var csrfToken = '{{ frappe.session.csrf_token }}';
+
+function fmtDate(d) { if (!d) return '-'; return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
+
+function previewProfileImage(input) {
+    if (input.files && input.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('profileAvatar').src = e.target.result;
+            document.getElementById('profileAvatar').classList.remove('hidden');
+            document.getElementById('profileInitials').classList.add('hidden');
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+fetch('/api/method/smartspace.frontend_api.member.get_profile')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        var p = data.message || data;
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('profileContent').style.display = '';
+
+        var au = p.app_user || {};
+        var m = p.member;
+        memberData = m;
+
+        var initials = (au.full_name || au.first_name || 'M').charAt(0).toUpperCase();
+        document.getElementById('profileInitials').textContent = initials;
+        if (m && m.profile_image) {
+            document.getElementById('profileAvatar').src = m.profile_image;
+            document.getElementById('profileAvatar').classList.remove('hidden');
+            document.getElementById('profileInitials').classList.add('hidden');
+            document.getElementById('profileImageUrl').value = m.profile_image;
+        }
+        document.getElementById('profileName').textContent = au.full_name || au.first_name + ' ' + au.last_name;
+        document.getElementById('profileEmail').textContent = au.email || '-';
+
+        var badge = document.getElementById('memberBadge');
+        if (m) {
+            badge.textContent = m.member_type ? m.member_type + ' Member' : 'Member';
+            badge.className = 'inline-block mt-2 px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700';
+        } else {
+            badge.textContent = 'Pending Membership';
+            badge.className = 'inline-block mt-2 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700';
+        }
+
+        document.getElementById('accountInfo').innerHTML =
+            '<div class="flex justify-between"><span class="text-gray-500">First Name</span><span class="font-medium">' + (au.first_name || '-') + '</span></div>' +
+            '<div class="flex justify-between"><span class="text-gray-500">Last Name</span><span class="font-medium">' + (au.last_name || '-') + '</span></div>' +
+            '<div class="flex justify-between"><span class="text-gray-500">Email</span><span class="font-medium">' + (au.email || '-') + '</span></div>' +
+            '<div class="flex justify-between"><span class="text-gray-500">Location</span><span class="font-medium">' + (au.location || '-') + '</span></div>' +
+            '<div class="flex justify-between"><span class="text-gray-500">Status</span><span class="font-medium">' + (au.active ? 'Active' : 'Inactive') + '</span></div>';
+
+        if (m) {
+            document.getElementById('memberInfoSection').style.display = '';
+            var vehicleNumbers = (m.vehicle_numbers || '').split(',').map(function(v) { return v.trim(); }).filter(function(v) { return v; });
+            var vehicleHtml = vehicleNumbers.length > 0
+                ? '<div class="flex flex-wrap gap-2">' + vehicleNumbers.map(function(v) {
+                    return '<span class="px-3 py-1.5 rounded-lg bg-orange-50 text-orange-700 text-xs font-medium border border-orange-200">' + v + '</span>';
+                }).join('') + '</div>'
+                : '<span class="text-gray-400 text-sm">No vehicles registered</span>';
+            document.getElementById('memberInfo').innerHTML =
+                '<div class="flex justify-between"><span class="text-gray-500">Member ID</span><span class="font-medium">' + (m.name || '-') + '</span></div>' +
+                '<div class="flex justify-between"><span class="text-gray-500">Member Type</span><span class="font-medium">' + (m.member_type || '-') + '</span></div>' +
+                '<div class="flex justify-between"><span class="text-gray-500">Join Date</span><span class="font-medium">' + fmtDate(m.join_date) + '</span></div>' +
+                '<div class="flex justify-between"><span class="text-gray-500">Expiry Date</span><span class="font-medium">' + fmtDate(m.expiry_date) + '</span></div>' +
+                '<div class="pt-2 border-t"><p class="text-gray-500 text-sm mb-2">Vehicles</p>' + vehicleHtml + '</div>';
+
+            document.getElementById('editPhone').value = m.phone || '';
+            document.getElementById('editDob').value = m.date_of_birth || '';
+            document.getElementById('editGender').value = m.gender || '';
+            document.getElementById('editAddress1').value = m.address_line_1 || '';
+            document.getElementById('editCity').value = m.city || '';
+            document.getElementById('editState').value = m.state || '';
+            document.getElementById('editPincode').value = m.pincode || '';
+            document.getElementById('editCountry').value = m.country || '';
+        }
+    });
+
+function uploadProfileImage(callback) {
+    var fileInput = document.getElementById('profileImageInput');
+    var file = fileInput.files[0];
+    if (!file) { callback(document.getElementById('profileImageUrl').value || null); return; }
+
+    var formData = new FormData();
+    formData.append('file', file);
+    formData.append('is_private', '0');
+    fetch('/api/method/upload_file', {
+        method: 'POST',
+        headers: { 'X-Frappe-CSRF-Token': csrfToken },
+        body: formData
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(uploadRes) {
+        var uploaded = uploadRes.message || uploadRes;
+        var fileUrl = (uploaded && uploaded.file_url) ? uploaded.file_url : null;
+        callback(fileUrl);
+    })
+    .catch(function() { callback(null); });
+}
+
+function saveProfile() {
+    var phone = document.getElementById('editPhone').value.trim();
+    var dob = document.getElementById('editDob').value;
+    var gender = document.getElementById('editGender').value;
+    var errDiv = document.getElementById('profileError');
+    var successDiv = document.getElementById('profileSuccess');
+    errDiv.classList.add('hidden');
+    successDiv.classList.add('hidden');
+
+    var btn = document.getElementById('saveProfileBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    uploadProfileImage(function(imageUrl) {
+        var body = new URLSearchParams({
+            phone: phone, date_of_birth: dob, gender: gender,
+            profile_image: imageUrl || document.getElementById('profileImageUrl').value || ''
+        });
+        fetch('/api/method/smartspace.frontend_api.member.update_profile', {
+            method: 'POST',
+            headers: { 'X-Frappe-CSRF-Token': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString()
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var result = data.message || data;
+            if (result.success) {
+                successDiv.textContent = 'Profile updated successfully';
+                successDiv.classList.remove('hidden');
+                setTimeout(function() { successDiv.classList.add('hidden'); }, 3000);
+            } else { throw new Error(result.message || 'Failed to update'); }
+            btn.disabled = false; btn.textContent = 'Save Changes';
+        })
+        .catch(function(err) {
+            errDiv.textContent = err.message || 'Failed to update profile';
+            errDiv.classList.remove('hidden');
+            btn.disabled = false; btn.textContent = 'Save Changes';
+        });
+    });
+}
+
+function saveAddress() {
+    var errDiv = document.getElementById('addressError');
+    var successDiv = document.getElementById('addressSuccess');
+    errDiv.classList.add('hidden');
+    successDiv.classList.add('hidden');
+
+    var btn = document.getElementById('saveAddressBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    var body = new URLSearchParams({
+        address_line_1: document.getElementById('editAddress1').value.trim(),
+        city: document.getElementById('editCity').value.trim(),
+        state: document.getElementById('editState').value.trim(),
+        pincode: document.getElementById('editPincode').value.trim(),
+        country: document.getElementById('editCountry').value.trim(),
+    });
+    fetch('/api/method/smartspace.frontend_api.member.update_profile', {
+        method: 'POST',
+        headers: { 'X-Frappe-CSRF-Token': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString()
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        var result = data.message || data;
+        if (result.success) {
+            successDiv.textContent = 'Address updated successfully';
+            successDiv.classList.remove('hidden');
+            setTimeout(function() { successDiv.classList.add('hidden'); }, 3000);
+        } else { throw new Error(result.message || 'Failed to update'); }
+        btn.disabled = false; btn.textContent = 'Save Address';
+    })
+    .catch(function(err) {
+        errDiv.textContent = err.message || 'Failed to update address';
+        errDiv.classList.remove('hidden');
+        btn.disabled = false; btn.textContent = 'Save Address';
+    });
+}
+
+function changePassword() {
+    var newPwd = document.getElementById('newPassword').value;
+    var confirmPwd = document.getElementById('confirmPassword').value;
+    var errDiv = document.getElementById('pwdError');
+    var successDiv = document.getElementById('pwdSuccess');
+    errDiv.classList.add('hidden');
+    successDiv.classList.add('hidden');
+
+    if (!newPwd || !confirmPwd) { errDiv.textContent = 'Please fill in both fields'; errDiv.classList.remove('hidden'); return; }
+    if (newPwd !== confirmPwd) { errDiv.textContent = 'Passwords do not match'; errDiv.classList.remove('hidden'); return; }
+    if (newPwd.length < 6) { errDiv.textContent = 'Password must be at least 6 characters'; errDiv.classList.remove('hidden'); return; }
+
+    var btn = document.getElementById('changePwdBtn');
+    btn.disabled = true;
+    btn.textContent = 'Changing...';
+
+    fetch('/api/method/smartspace.frontend_api.member.change_password', {
+        method: 'POST',
+        headers: { 'X-Frappe-CSRF-Token': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ new_password: newPwd, confirm_password: confirmPwd }).toString()
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        var result = data.message || data;
+        if (result.success) {
+            successDiv.textContent = result.message || 'Password changed successfully';
+            successDiv.classList.remove('hidden');
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+            setTimeout(function() { successDiv.classList.add('hidden'); }, 3000);
+        } else {
+            throw new Error(result.message || 'Failed to change password');
+        }
+        btn.disabled = false;
+        btn.textContent = 'Change Password';
+    })
+    .catch(function(err) {
+        errDiv.textContent = err.message || 'Failed to change password';
+        errDiv.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Change Password';
+    });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Renew Booking | SmartSpace</title>
+    <link rel="manifest" href="/assets/smartspace/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/assets/smartspace/favicon.svg">
+    <meta name="theme-color" content="#f97316">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="SmartSpace">
+    <link rel="apple-touch-icon" href="/assets/smartspace/icon-192.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config={theme:{extend:{boxShadow:{card:"0 10px 30px rgba(0,0,0,.08)"}}}}</script>
+</head>
+<body class="bg-slate-50 text-gray-800 min-h-screen">
+    <div class="max-w-3xl mx-auto px-4 py-6">
+        <a href="/member/bookings" class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-orange-500 transition mb-6">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            Back to Bookings
+        </a>
+
+        <div id="loadingState" class="text-center py-12 text-gray-400">
+            <svg class="animate-spin mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            Loading booking details...
+        </div>
+
+        <div id="formContent" style="display:none">
+            <input type="hidden" id="reservationName" value="">
+
+            <!-- Space Summary -->
+            <div class="bg-white rounded-xl shadow-card p-6 mb-6">
+                <div class="flex items-center gap-4">
+                    <div id="spaceIcon" class="w-14 h-14 rounded-xl bg-orange-100 flex items-center justify-center text-3xl"></div>
+                    <div>
+                        <h2 id="spaceTitle" class="text-xl font-bold"></h2>
+                        <p id="spaceMeta" class="text-sm text-gray-500 mt-1"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Previous Booking Info -->
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+                <p class="text-sm text-blue-700"><strong>Previous Booking:</strong> <span id="prevBookingInfo"></span></p>
+            </div>
+
+            <!-- Booking Details -->
+            <div class="bg-white rounded-xl shadow-card p-6 mb-6">
+                <h3 class="font-bold mb-4">New Booking Details</h3>
+                <div class="grid sm:grid-cols-2 gap-4">
+                    <div class="sm:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Booking Type</label>
+                        <select id="bookingType" class="w-full border rounded-xl px-4 py-3" onchange="onTypeChange()">
+                            <option value="Hourly">Hourly</option>
+                            <option value="Daily">Daily (8 hrs/day)</option>
+                            <option value="Weekly">Weekly (40 hrs/week)</option>
+                            <option value="Monthly">Monthly (160 hrs/month)</option>
+                            <option value="Yearly">Yearly (1920 hrs/year)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2"><span id="countLabel">Hours</span> <span class="text-gray-400">*</span></label>
+                        <input type="number" id="count" value="1" min="1" class="w-full border rounded-xl px-4 py-3" onchange="updateSummary()" oninput="updateSummary()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">From Date & Time <span class="text-gray-400">*</span></label>
+                        <input type="datetime-local" id="bookingFrom" class="w-full border rounded-xl px-4 py-3" onchange="updateSummary()" oninput="updateSummary()">
+                    </div>
+                    <div class="sm:col-span-2" id="bookingToRow" style="display:none">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Auto-calculated To</label>
+                        <input type="text" id="bookingToDisplay" readonly class="w-full border rounded-xl px-4 py-3 bg-gray-50 text-gray-600">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Parking Details (from previous booking) -->
+            <div class="bg-white rounded-xl shadow-card p-6 mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold">Parking Details <span class="text-xs font-normal text-gray-500">(from previous booking)</span></h3>
+                    <button type="button" onclick="addParkingRow()" class="text-sm font-medium text-orange-600 hover:text-orange-700">+ Add Vehicle</button>
+                </div>
+                <div id="parkingRows" class="space-y-3"></div>
+                <p class="text-xs text-gray-400 mt-3">Edit or add vehicles for your renewed booking. Parking slots are auto-assigned on confirmation.</p>
+            </div>
+
+            <!-- Payment Summary -->
+            <div class="bg-white rounded-xl shadow-card p-6 mb-6">
+                <h3 class="font-bold mb-4">Payment Summary</h3>
+                <div class="space-y-2">
+                    <div class="flex justify-between text-sm"><span class="text-gray-500">Hourly Rate</span><span id="summaryHourlyRate" class="font-medium">₹0</span></div>
+                    <div class="flex justify-between text-sm"><span class="text-gray-500">Rate</span><span id="summaryRate" class="font-medium">₹0</span></div>
+                    <div class="flex justify-between text-sm"><span class="text-gray-500">Duration</span><span id="summaryDuration" class="font-medium">-</span></div>
+                    <hr class="my-2">
+                    <div class="flex justify-between"><span class="font-semibold">Total</span><span id="summaryTotal" class="font-bold text-orange-500 text-lg">₹0</span></div>
+                </div>
+                <div class="mt-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
+                    <div class="flex gap-4">
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="paymentMethod" value="Card" checked class="text-orange-500"> <span class="text-sm">Online (Card/UPI)</span></label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="paymentMethod" value="Cash" class="text-orange-500"> <span class="text-sm">Pay at Desk</span></label>
+                    </div>
+                </div>
+            </div>
+
+            <div id="errorMsg" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm mb-4"></div>
+            <button id="submitBtn" onclick="submitRenew()" class="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-xl py-4 font-semibold transition">Renew Booking</button>
+        </div>
+    </div>
+<script>
+var csrfToken = '{{ frappe.session.csrf_token }}';
+var spacePricing = { hourly: 0, daily: 0, weekly: 0, monthly: 0, yearly: 0 };
+
+function fmtCurrency(v) { return '₹' + (v || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 }); }
+function fmtDateTime(d) {
+    if (!d) return '-';
+    var dt = new Date(d);
+    return dt.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+var urlParams = new URLSearchParams(window.location.search);
+var reservationName = urlParams.get('name');
+
+if (!reservationName) { window.location.href = '/member/bookings'; }
+
+document.getElementById('reservationName').value = reservationName;
+
+fetch('/api/method/smartspace.frontend_api.member.get_booking_detail?reservation_name=' + encodeURIComponent(reservationName))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        var d = data.message || data;
+        var sd = d.space_detail || {};
+
+        // Load pricing
+        spacePricing = {
+            hourly: sd.hourly_rate || 0,
+            daily: (sd.hourly_rate || 0) * 8,
+            weekly: (sd.hourly_rate || 0) * 40,
+            monthly: (sd.hourly_rate || 0) * 160,
+            yearly: (sd.hourly_rate || 0) * 1920,
+        };
+
+        var icon = sd.space_type === 'Desk' ? '💻' : sd.space_type === 'Cabin' ? '🛖' : sd.space_type === 'Meeting Room' ? '🤝' : sd.space_type === 'Private Office' ? '🏛️' : '🏢';
+        document.getElementById('spaceIcon').textContent = icon;
+        document.getElementById('spaceTitle').textContent = d.space || '-';
+        document.getElementById('spaceMeta').textContent = (sd.location_name || 'N/A') + ' • ' + (sd.space_type || '') + ' • ' + (sd.seating_capacity || 0) + ' seats';
+
+        document.getElementById('prevBookingInfo').textContent =
+            (d.booking_type || '') + ' • ' + (d.duration || '') + ' • From ' + fmtDateTime(d.booking_from) + ' to ' + fmtDateTime(d.booking_to);
+
+        // Pre-fill booking type from previous
+        document.getElementById('bookingType').value = d.booking_type || 'Hourly';
+        document.getElementById('count').value = d.count || 1;
+
+        // Pre-fill parking from previous booking
+        if (d.parking_details && d.parking_details.length > 0) {
+            d.parking_details.forEach(function(p) {
+                addParkingRow(p.vehicle_type, p.vehicle_number);
+            });
+        }
+
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('formContent').style.display = '';
+        onTypeChange();
+    });
+
+function onTypeChange() {
+    var type = document.getElementById('bookingType').value;
+    var labels = { 'Hourly': 'Hours', 'Daily': 'Days', 'Weekly': 'Weeks', 'Monthly': 'Months', 'Yearly': 'Years' };
+    document.getElementById('countLabel').textContent = labels[type] || 'Count';
+    updateSummary();
+}
+
+function calcBookingTo(fromStr, type, count) {
+    if (!fromStr || !count) return null;
+    var from = new Date(fromStr);
+    count = parseInt(count);
+    var msPerDay = 86400000;
+    if (type === 'Hourly') return new Date(from.getTime() + count * 3600000);
+    if (type === 'Daily') return new Date(from.getTime() + count * msPerDay);
+    if (type === 'Weekly') return new Date(from.getTime() + count * 7 * msPerDay);
+    if (type === 'Monthly') return new Date(from.getTime() + count * 30 * msPerDay);
+    if (type === 'Yearly') return new Date(from.getTime() + count * 365 * msPerDay);
+    return null;
+}
+
+function updateSummary() {
+    var type = document.getElementById('bookingType').value;
+    var count = parseInt(document.getElementById('count').value) || 1;
+    var fromVal = document.getElementById('bookingFrom').value;
+    var rate = spacePricing[type.toLowerCase()] || 0;
+    var total = rate * count;
+
+    var unitLabels = { 'Hourly': 'hour', 'Daily': 'day', 'Weekly': 'week', 'Monthly': 'month', 'Yearly': 'year' };
+    var unitLabel = unitLabels[type] || '';
+    document.getElementById('summaryHourlyRate').textContent = fmtCurrency(spacePricing.hourly || 0);
+    document.getElementById('summaryRate').textContent = fmtCurrency(rate);
+    document.getElementById('summaryDuration').textContent = count + ' ' + unitLabel + (count > 1 ? 's' : '');
+    document.getElementById('summaryTotal').textContent = fmtCurrency(total);
+
+    if (fromVal) {
+        var to = calcBookingTo(fromVal, type, count);
+        if (to) {
+            document.getElementById('bookingToDisplay').value = fmtDateTime(to);
+            document.getElementById('bookingToRow').style.display = '';
+        } else {
+            document.getElementById('bookingToDisplay').value = '';
+            document.getElementById('bookingToRow').style.display = 'none';
+        }
+    } else {
+        document.getElementById('bookingToDisplay').value = '';
+        document.getElementById('bookingToRow').style.display = 'none';
+    }
+}
+
+function addParkingRow(vtype, vnum) {
+    var container = document.getElementById('parkingRows');
+    var row = document.createElement('div');
+    row.className = 'flex flex-wrap gap-3 items-center bg-gray-50 rounded-lg p-3';
+    var typeOptions = '<option value="Bike">Bike</option><option value="Car">Car</option>';
+    if (vtype === 'Car') typeOptions = '<option value="Car">Car</option><option value="Bike">Bike</option>';
+    row.innerHTML =
+        '<select class="border rounded-lg px-3 py-2 text-sm" data-field="vehicle_type">' + typeOptions + '</select>' +
+        '<input type="text" placeholder="Vehicle Number (e.g. KA01AB1234)" class="border rounded-lg px-3 py-2 text-sm flex-1 min-w-[180px]" data-field="vehicle_number" value="' + (vnum || '') + '">' +
+        '<button type="button" onclick="this.parentElement.remove()" class="text-red-500 hover:text-red-700 text-sm font-medium">Remove</button>';
+    container.appendChild(row);
+}
+
+function submitRenew() {
+    var btn = document.getElementById('submitBtn');
+    var errDiv = document.getElementById('errorMsg');
+    errDiv.classList.add('hidden');
+
+    var bookingFrom = document.getElementById('bookingFrom').value;
+    if (!bookingFrom) { errDiv.textContent = 'Please select from date and time'; errDiv.classList.remove('hidden'); return; }
+
+    var count = parseInt(document.getElementById('count').value) || 1;
+    if (count < 1) { errDiv.textContent = 'Please enter a valid count'; errDiv.classList.remove('hidden'); return; }
+
+    var parkingRows = document.querySelectorAll('#parkingRows > div');
+    var parkingDetails = [];
+    parkingRows.forEach(function(row) {
+        var vtype = row.querySelector('[data-field="vehicle_type"]').value;
+        var vnum = row.querySelector('[data-field="vehicle_number"]').value.trim();
+        if (vnum) parkingDetails.push({ vehicle_type: vtype, vehicle_number: vnum });
+    });
+
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+
+    var body = new URLSearchParams({
+        reservation_name: document.getElementById('reservationName').value,
+        booking_type: document.getElementById('bookingType').value,
+        booking_from: bookingFrom,
+        count: count,
+    });
+    if (parkingDetails.length > 0) body.set('parking_details', JSON.stringify(parkingDetails));
+
+    fetch('/api/method/smartspace.frontend_api.member.renew_reservation', {
+        method: 'POST',
+        headers: { 'X-Frappe-CSRF-Token': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString()
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.message && data.message.success) {
+            var result = data.message;
+            var pm = document.querySelector('input[name="paymentMethod"]:checked').value;
+            if (pm === 'Card' && result.total_amount > 0) {
+                window.location.href = '/payment?reservation=' + encodeURIComponent(result.reservation) + '&amount=' + result.total_amount + '&type=booking';
+            } else {
+                window.location.href = '/member/booking-detail?name=' + encodeURIComponent(result.reservation);
+            }
+        } else {
+            throw new Error(data.message || data._server_messages || 'Failed to renew booking');
+        }
+    })
+    .catch(function(err) {
+        errDiv.textContent = err.message || 'Failed to renew booking. Please try again.';
+        errDiv.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Renew Booking';
+    });
+}
+</script>
+</body>
+</html>

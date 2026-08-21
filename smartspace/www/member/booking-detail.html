@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Details | SmartSpace</title>
+    <link rel="manifest" href="/assets/smartspace/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/assets/smartspace/favicon.svg">
+    <meta name="theme-color" content="#f97316">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="SmartSpace">
+    <link rel="apple-touch-icon" href="/assets/smartspace/icon-192.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config={theme:{extend:{boxShadow:{card:"0 10px 30px rgba(0,0,0,.08)"}}}}</script>
+</head>
+<body class="bg-slate-50 text-gray-800 min-h-screen">
+{% set active = 'bookings' %}
+{% include "www/nav_footer/portal_header.html" %}
+{% include "www/member/sidebar.html" %}
+<div class="sidebar-content transition-all duration-300">
+    <div class="bg-black text-white px-6 py-8">
+        <a href="/member/bookings" class="text-orange-200 text-sm hover:text-orange-400">← Back to Bookings</a>
+        <h1 class="text-3xl font-bold mt-2">Booking Details</h1>
+    </div>
+    <div class="px-6 py-6">
+        <div id="loadingState" class="text-center py-12 text-gray-400">
+            <svg class="animate-spin mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            Loading booking details...
+        </div>
+        <div id="detailContent" style="display:none">
+            <div class="bg-white rounded-xl shadow-card p-6 mb-6">
+                <div class="flex items-center justify-between flex-wrap gap-3">
+                    <div>
+                        <h2 class="text-xl font-bold" id="bookingId"></h2>
+                        <p class="text-sm text-gray-500 mt-1" id="bookingDateLabel"></p>
+                    </div>
+                    <span id="statusBadge" class="px-4 py-1.5 rounded-full text-sm font-bold"></span>
+                </div>
+            </div>
+
+            <div class="grid lg:grid-cols-2 gap-6 mb-6">
+                <div class="bg-white rounded-xl shadow-card p-6">
+                    <h3 class="font-bold mb-4">Space Information</h3>
+                    <div class="space-y-2 text-sm" id="spaceInfo"></div>
+                </div>
+                <div class="bg-white rounded-xl shadow-card p-6">
+                    <h3 class="font-bold mb-4">Booking Information</h3>
+                    <div class="space-y-2 text-sm" id="bookingInfo"></div>
+                </div>
+            </div>
+
+            <div id="assetsSection" class="bg-white rounded-xl shadow-card p-6 mb-6" style="display:none">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="font-bold">Allocated Assets</h3>
+                        <p class="text-sm text-gray-500 mt-1" id="assetsCountLabel"></p>
+                    </div>
+                    <button onclick="openAssetsModal()" class="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition">View Assets</button>
+                </div>
+            </div>
+
+            <div id="parkingSection" class="bg-white rounded-xl shadow-card p-6 mb-6" style="display:none">
+                <h3 class="font-bold mb-4">Parking Details</h3>
+                <div id="parkingList" class="space-y-3"></div>
+            </div>
+
+            <div id="paymentSection" class="bg-white rounded-xl shadow-card p-6 mb-6" style="display:none">
+                <h3 class="font-bold mb-4">Payment Information</h3>
+                <div id="paymentInfo" class="space-y-2 text-sm"></div>
+            </div>
+
+            <div id="payButtonSection" class="bg-white rounded-xl shadow-card p-6 mb-6" style="display:none">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500">Payment Status: <span id="payStatusText" class="font-semibold"></span></p>
+                        <p class="text-sm text-gray-500 mt-1">Amount: <span id="payAmountText" class="font-semibold"></span></p>
+                    </div>
+                    <button onclick="goToPayment()" class="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-semibold transition">Pay Now</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+<script>
+var csrfToken = '{{ frappe.session.csrf_token }}';
+var urlParams = new URLSearchParams(window.location.search);
+var reservationName = urlParams.get('name');
+var bookingData = null;
+
+function fmtCurrency(v) { return '₹' + (v || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 }); }
+function fmtDate(d) { if (!d) return '-'; return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
+function fmtDateTime(d) { if (!d) return '-'; return new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+function statusColor(s) { var m = { 'Pending': '#f59e0b', 'Booked': '#3b82f6', 'Paid': '#22c55e', 'Completed': '#6b7280', 'Cancelled': '#ef4444' }; return m[s] || '#6b7280'; }
+
+if (!reservationName) { window.location.href = '/member/bookings'; }
+
+fetch('/api/method/smartspace.frontend_api.member.get_booking_detail?reservation_name=' + encodeURIComponent(reservationName))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        var d = data.message || data;
+        bookingData = d;
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('detailContent').style.display = '';
+
+        document.getElementById('bookingId').textContent = d.name;
+        document.getElementById('bookingDateLabel').textContent = 'Booked on ' + fmtDate(d.booking_date);
+        var sc = statusColor(d.booking_status);
+        var badge = document.getElementById('statusBadge');
+        badge.textContent = d.booking_status;
+        badge.style.background = sc + '20';
+        badge.style.color = sc;
+
+        var sd = d.space_detail || {};
+        document.getElementById('spaceInfo').innerHTML =
+            '<div class="flex justify-between"><span class="text-gray-500">Space</span><span class="font-medium">' + (d.space || '-') + '</span></div>' +
+            '<div class="flex justify-between"><span class="text-gray-500">Type</span><span class="font-medium">' + (sd.space_type || '-') + '</span></div>' +
+            '<div class="flex justify-between"><span class="text-gray-500">Location</span><span class="font-medium">' + (sd.location_name || '-') + '</span></div>' +
+            '<div class="flex justify-between"><span class="text-gray-500">Floor</span><span class="font-medium">' + (sd.floor_name || '-') + '</span></div>' +
+            '<div class="flex justify-between"><span class="text-gray-500">Capacity</span><span class="font-medium">' + (sd.seating_capacity || 0) + ' seats</span></div>' +
+            (sd.amenities_list && sd.amenities_list.length > 0 ? '<div><span class="text-gray-500">Amenities:</span><div class="flex flex-wrap gap-2 mt-1">' + sd.amenities_list.map(function(a) { return '<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-xs">' + a + '</span>'; }).join('') + '</div></div>' : '');
+
+        document.getElementById('bookingInfo').innerHTML =
+            '<div class="flex justify-between"><span class="text-gray-500">Type</span><span class="font-medium">' + (d.booking_type || '-') + '</span></div>' +
+            '<div class="flex justify-between"><span class="text-gray-500">Count</span><span class="font-medium">' + (d.count || 1) + '</span></div>' +
+            '<div class="flex justify-between"><span class="text-gray-500">Duration</span><span class="font-medium">' + (d.duration || '-') + '</span></div>' +
+            '<div class="flex justify-between"><span class="text-gray-500">From</span><span class="font-medium">' + fmtDateTime(d.booking_from) + '</span></div>' +
+            '<div class="flex justify-between"><span class="text-gray-500">To</span><span class="font-medium">' + fmtDateTime(d.booking_to) + '</span></div>' +
+            '<div class="flex justify-between"><span class="text-gray-500">Member Type</span><span class="font-medium">' + (d.member_type || 'Pending') + '</span></div>' +
+            '<div class="flex justify-between"><span class="text-gray-500">Booking Source</span><span class="font-medium">' + (d.booking_source || 'Manual') + '</span></div>' +
+            '<div class="flex justify-between"><span class="text-gray-500">Total Amount</span><span class="font-bold ' + (d.payment_status === 'Free' ? 'text-green-600' : 'text-orange-500') + '">' + (d.payment_status === 'Free' ? 'FREE' : fmtCurrency(d.total_amount)) + '</span></div>';
+
+        if (d.assets && d.assets.length > 0) {
+            document.getElementById('assetsSection').style.display = '';
+            document.getElementById('assetsCountLabel').textContent = d.assets.length + ' asset' + (d.assets.length === 1 ? '' : 's') + ' allocated';
+        }
+
+        if (d.parking_details && d.parking_details.length > 0) {
+            document.getElementById('parkingSection').style.display = '';
+            document.getElementById('parkingList').innerHTML = d.parking_details.map(function(p) {
+                var slotStatus = p.slot_status ? '<span class="text-xs px-2 py-0.5 rounded ' + (p.slot_status === 'Occupied' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700') + '">' + p.slot_status + '</span>' : '<span class="text-xs text-gray-400">Not assigned yet</span>';
+                return '<div class="bg-gray-50 rounded-lg p-3 flex items-center justify-between">' +
+                    '<div><p class="font-medium text-sm">' + (p.vehicle_type || '-') + ' • ' + (p.vehicle_number || '-') + '</p>' +
+                    '<p class="text-xs text-gray-500 mt-1">Slot: ' + (p.slot_name || p.parking_slot || 'Pending assignment') + '</p></div>' +
+                    slotStatus + '</div>';
+            }).join('');
+        }
+
+        if (d.payment_detail) {
+            document.getElementById('paymentSection').style.display = '';
+            var pd = d.payment_detail;
+            document.getElementById('paymentInfo').innerHTML =
+                '<div class="flex justify-between"><span class="text-gray-500">Payment ID</span><span class="font-medium">' + (pd.name || '-') + '</span></div>' +
+                '<div class="flex justify-between"><span class="text-gray-500">Method</span><span class="font-medium">' + (pd.payment_method || '-') + '</span></div>' +
+                '<div class="flex justify-between"><span class="text-gray-500">Amount</span><span class="font-medium">' + fmtCurrency(pd.amount) + '</span></div>' +
+                '<div class="flex justify-between"><span class="text-gray-500">Status</span><span class="font-medium">' + (pd.payment_status || '-') + '</span></div>' +
+                '<div class="flex justify-between"><span class="text-gray-500">Date</span><span class="font-medium">' + fmtDateTime(pd.payment_date) + '</span></div>';
+        }
+
+        if (d.payment_status !== 'Paid' && d.payment_status !== 'Free' && d.total_amount > 0) {
+            document.getElementById('payButtonSection').style.display = '';
+            document.getElementById('payStatusText').textContent = d.payment_status || 'Pending';
+            document.getElementById('payAmountText').textContent = fmtCurrency(d.total_amount);
+        }
+    });
+
+function goToPayment() {
+    if (bookingData) {
+        window.location.href = '/payment?reservation=' + encodeURIComponent(bookingData.name) + '&amount=' + bookingData.total_amount + '&type=booking';
+    }
+}
+
+var assetComplaintAsset = null;
+
+function openAssetsModal() {
+    if (!bookingData || !bookingData.assets) return;
+    var list = bookingData.assets.map(function(a) {
+        return '<div class="bg-gray-50 rounded-lg p-3">' +
+            '<div class="flex items-start justify-between">' +
+                '<div><p class="font-medium text-sm">' + (a.asset_item_name || a.serial_number || a.name) + '</p>' +
+                '<p class="text-xs text-gray-500 mt-1">S/N: ' + (a.serial_number || '-') + ' • Status: ' + (a.status || '-') + '</p></div>' +
+                '<button onclick="openAssetComplaint(\'' + a.name + '\', \'' + encodeURIComponent(a.asset_item_name || a.serial_number || a.name) + '\')" class="text-xs font-medium text-red-500 hover:text-red-700 whitespace-nowrap ml-2">Complaint</button>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+    document.getElementById('assetsModalList').innerHTML = list;
+    document.getElementById('assetsModal').classList.remove('hidden');
+}
+
+function closeAssetsModal() {
+    document.getElementById('assetsModal').classList.add('hidden');
+}
+
+function openAssetComplaint(assetName, assetLabel) {
+    assetComplaintAsset = assetName;
+    document.getElementById('assetComplaintLabel').textContent = decodeURIComponent(assetLabel);
+    document.getElementById('assetComplaintDesc').value = '';
+    document.getElementById('assetComplaintError').classList.add('hidden');
+    document.getElementById('assetComplaintModal').classList.remove('hidden');
+}
+
+function closeAssetComplaint() {
+    document.getElementById('assetComplaintModal').classList.add('hidden');
+    assetComplaintAsset = null;
+}
+
+function submitAssetComplaint() {
+    var desc = document.getElementById('assetComplaintDesc').value.trim();
+    var errDiv = document.getElementById('assetComplaintError');
+    errDiv.classList.add('hidden');
+
+    if (!desc) { errDiv.textContent = 'Please enter a description'; errDiv.classList.remove('hidden'); return; }
+
+    var btn = document.getElementById('assetComplaintBtn');
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+
+    fetch('/api/method/smartspace.frontend_api.member.create_complaint', {
+        method: 'POST',
+        headers: { 'X-Frappe-CSRF-Token': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            complaint_type: 'Asset Related',
+            description: desc,
+            related_asset: assetComplaintAsset,
+        }).toString()
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        closeAssetComplaint();
+        alert('Complaint submitted successfully');
+        btn.disabled = false;
+        btn.textContent = 'Submit Complaint';
+    })
+    .catch(function() {
+        errDiv.textContent = 'Failed to submit complaint. Please try again.';
+        errDiv.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Submit Complaint';
+    });
+}
+</script>
+
+<div id="assetsModal" class="hidden fixed inset-0 z-[70] flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50" onclick="closeAssetsModal()"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xl font-bold">Allocated Assets</h3>
+            <button onclick="closeAssetsModal()" class="text-gray-400 hover:text-gray-600">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div id="assetsModalList" class="grid sm:grid-cols-2 gap-3"></div>
+    </div>
+</div>
+
+<div id="assetComplaintModal" class="hidden fixed inset-0 z-[80] flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50" onclick="closeAssetComplaint()"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+        <h3 class="text-xl font-bold mb-1">Asset Complaint</h3>
+        <p class="text-sm text-gray-500 mb-4">Asset: <span id="assetComplaintLabel" class="font-medium"></span></p>
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+            <textarea id="assetComplaintDesc" rows="4" placeholder="Describe the issue with this asset..." class="w-full border rounded-xl px-4 py-3"></textarea>
+        </div>
+        <div id="assetComplaintError" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm mb-4"></div>
+        <div class="flex gap-3">
+            <button onclick="closeAssetComplaint()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold transition">Cancel</button>
+            <button id="assetComplaintBtn" onclick="submitAssetComplaint()" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-semibold transition">Submit Complaint</button>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -16,6 +16,11 @@ frappe.ui.form.on("Asset Allocation", {
 			return { filters: [["Asset", "status", "=", "Available"]] };
 		});
 	},
+	refresh: function (frm) {
+		frm.set_query("asset", "assets", function () {
+			return { filters: [["Asset", "status", "=", "Available"]] };
+		});
+	},
 	location: function (frm) {
 		frm.set_value("floor", "");
 		frm.set_value("space", "");

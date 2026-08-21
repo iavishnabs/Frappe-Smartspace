@@ -5,7 +5,7 @@ import frappe
 from frappe.model.document import Document
 from frappe import _
 from frappe.utils import cstr
-from frappe.share import add as add_share
+from frappe.share import add_docshare
 
 
 class AppUser(Document):
@@ -149,4 +149,4 @@ class AppUser(Document):
 		if not self.user:
 			return
 		if not frappe.db.exists("DocShare", {"share_doctype": self.doctype, "share_name": self.name, "user": self.user}):
-			add_share(self.doctype, self.name, self.user, read=1, write=1)
+			add_docshare(self.doctype, self.name, self.user, read=1, write=1, flags={"ignore_share_permission": True})

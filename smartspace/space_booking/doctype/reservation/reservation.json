@@ -9,20 +9,24 @@
   "app_user",
   "member_type",
   "space",
-  "booking_type",
-  "booking_from",
-  "booking_to",
   "column_break_fjjo",
-  "booking_date",
   "duration",
   "rate",
-  "booking_status",
+  "booking_details_section",
+  "booking_type",
   "booking_source",
+  "booking_from",
+  "booking_to",
+  "column_break_cwey",
+  "booking_date",
+  "booking_status",
   "count",
-  "payment_details_section",
+  "parking_tab",
+  "parking_details",
+  "payments_tab",
   "total_amount",
   "remark",
-  "column_break_vamy",
+  "column_break_tcbr",
   "payment_status",
   "payment"
  ],
@@ -106,13 +110,8 @@
    "fieldname": "booking_status",
    "fieldtype": "Select",
    "label": "Booking Status",
-   "options": "\nPending\nBooked\nPaid\nCancelled\nCompleted",
+   "options": "\nPending\nBooked\nCancelled\nCompleted",
    "read_only": 1
-  },
-  {
-   "fieldname": "payment_details_section",
-   "fieldtype": "Section Break",
-   "label": "Payment Details"
   },
   {
    "fieldname": "payment",
@@ -125,7 +124,7 @@
    "fieldname": "payment_status",
    "fieldtype": "Select",
    "label": "Payment Status",
-   "options": "\nPending\nPaid\nFailed\nRefunded",
+   "options": "\nPending\nPaid\nFailed\nRefunded\nFree",
    "read_only": 1
   },
   {
@@ -135,25 +134,50 @@
    "read_only": 1
   },
   {
-   "fieldname": "remark",
-   "fieldtype": "Small Text",
-   "label": "Remark"
-  },
-  {
    "fieldname": "booking_source",
    "fieldtype": "Select",
    "label": "Booking Source",
    "options": "\nAI Assistant\nManual Booking"
   },
   {
-   "fieldname": "column_break_vamy",
+   "fieldname": "parking_tab",
+   "fieldtype": "Tab Break",
+   "label": "Parking"
+  },
+  {
+   "fieldname": "payments_tab",
+   "fieldtype": "Tab Break",
+   "label": "Payments"
+  },
+  {
+   "fieldname": "remark",
+   "fieldtype": "Small Text",
+   "label": "Remark"
+  },
+  {
+   "fieldname": "column_break_tcbr",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "parking_details",
+   "fieldtype": "Table",
+   "label": "Parking Details",
+   "options": "Reservation Parking"
+  },
+  {
+   "fieldname": "booking_details_section",
+   "fieldtype": "Section Break",
+   "label": "Booking Details"
+  },
+  {
+   "fieldname": "column_break_cwey",
    "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-29 00:22:58.837343",
+ "modified": "2026-08-12 11:22:49.971694",
  "modified_by": "Administrator",
  "module": "Space Booking",
  "name": "Reservation",

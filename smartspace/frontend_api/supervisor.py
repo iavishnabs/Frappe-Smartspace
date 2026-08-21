@@ -1,5 +1,14 @@
 import frappe
 
+from smartspace.frontend_api.auth import (
+	get_session_user_location,
+	get_session_app_user,
+	get_session_app_user_doc,
+	get_session_user_role,
+	is_session_user_admin,
+)
+from smartspace.notification import create_notification_log
+
 
 @frappe.whitelist()
 def get_technicians(search=None, location=None, page=1, page_size=10):
@@ -15,6 +24,10 @@ def get_technicians(search=None, location=None, page=1, page_size=10):
 
 	if location and location != "All Locations":
 		filters["location"] = location
+	else:
+		user_location = get_session_user_location()
+		if user_location:
+			filters["location"] = user_location
 
 	if search:
 		filters["full_name"] = ["like", f"%{search}%"]
@@ -48,21 +61,27 @@ def get_technicians(search=None, location=None, page=1, page_size=10):
 
 @frappe.whitelist()
 def get_asset_allocations(
-	location=None, allocated_from=None, allocated_to=None, page=1, page_size=10
+	status=None, allocated_from=None, allocated_to=None, page=1, page_size=10
 ):
 	"""Return submitted asset allocations with filtering and pagination.
 
 	Filters:
-	- location: Location name
+	- status: allocation status (Active, Cancelled)
 	- allocated_from: date range start (allocated_from >= this)
 	- allocated_to: date range end (allocated_to <= this)
 	- page: page number (1-based)
 	- page_size: items per page
+
+	Always filtered by the session user's location.
 	"""
 	filters = {"docstatus": 1}
 
-	if location and location != "All Locations":
-		filters["location"] = location
+	user_location = get_session_user_location()
+	if user_location:
+		filters["location"] = user_location
+
+	if status and status != "All Status":
+		filters["allocation_status"] = status
 
 	if allocated_from:
 		filters["allocated_from"] = [">=", allocated_from]
@@ -94,15 +113,12 @@ def get_asset_allocations(
 
 	total = frappe.db.count("Asset Allocation", filters=filters)
 
-	locations = frappe.db.get_all("Location", fields=["name"], order_by="name asc")
-
 	return {
 		"allocations": allocations,
 		"total": total,
 		"page": page,
 		"page_size": page_size,
 		"total_pages": (total + page_size - 1) // page_size if total > 0 else 1,
-		"locations": [loc.name for loc in locations],
 	}
 
 
@@ -154,6 +170,15 @@ def get_maintenance_tasks(
 			filters["assigned_on"] = ["between", [date_from, date_to]]
 		else:
 			filters["assigned_on"] = ["<=", date_to]
+
+	user_location = get_session_user_location()
+
+	if user_location:
+		technician_names = [s.name for s in frappe.get_all("Staff", filters={"location": user_location, "active": 1}, fields=["name"])]
+		if technician_names:
+			filters["technician"] = ["in", technician_names]
+		else:
+			filters["technician"] = "__nonexistent__"
 
 	page = int(page)
 	page_size = int(page_size)
@@ -227,6 +252,11 @@ def get_members(search=None, member_type=None, page=1, page_size=10):
 	if search:
 		filters["full_name"] = ["like", f"%{search}%"]
 
+	user_location = get_session_user_location()
+
+	if user_location:
+		filters["location"] = user_location
+
 	page = int(page)
 	page_size = int(page_size)
 	start = (page - 1) * page_size
@@ -263,12 +293,14 @@ def get_members(search=None, member_type=None, page=1, page_size=10):
 
 
 @frappe.whitelist()
-def get_complaints(status=None, search=None, page=1, page_size=10):
+def get_complaints(status=None, search=None, complaint_type=None, scope="all", page=1, page_size=10):
 	"""Return complaints with filtering and pagination.
 
 	Filters:
 	- status: complaint status (Open, Scheduled, In Progress, Flagged, Resolved, Closed)
 	- search: text search on complaint name or description
+	- complaint_type: General, Asset Related, Facility Related
+	- scope: "all", "mine", or "others" (filter by current user's raised_by)
 	- page: page number (1-based)
 	- page_size: items per page
 	"""
@@ -277,8 +309,25 @@ def get_complaints(status=None, search=None, page=1, page_size=10):
 	if status and status != "All Status":
 		filters["status"] = status
 
+	if complaint_type and complaint_type != "All Types":
+		if complaint_type == "Non Asset":
+			filters["complaint_type"] = ["in", ["General", "Facility Related"]]
+		else:
+			filters["complaint_type"] = complaint_type
+
 	if search:
 		filters["description"] = ["like", f"%{search}%"]
+
+	user_location = get_session_user_location()
+	user_id = frappe.session.user
+
+	if user_location:
+		filters["location"] = user_location
+
+	if scope == "mine":
+		filters["raised_by"] = user_id
+	elif scope == "others":
+		filters["raised_by"] = ["!=", user_id]
 
 	page = int(page)
 	page_size = int(page_size)
@@ -292,6 +341,7 @@ def get_complaints(status=None, search=None, page=1, page_size=10):
 			"complaint_type",
 			"raised_by",
 			"related_asset",
+			"location",
 			"status",
 			"complaint_date",
 			"description",
@@ -335,6 +385,126 @@ def get_complaints(status=None, search=None, page=1, page_size=10):
 		"page": page,
 		"page_size": page_size,
 		"total_pages": (total + page_size - 1) // page_size if total > 0 else 1,
+		"current_user": frappe.session.user,
+	}
+
+
+@frappe.whitelist()
+def resolve_complaint(name):
+	"""Mark a non-asset complaint as resolved by supervisor."""
+	complaint = frappe.get_doc("Complaints", name)
+
+	if complaint.complaint_type == "Asset Related":
+		frappe.throw("Asset related complaints are resolved via technician assignment")
+
+	if complaint.status == "Closed":
+		frappe.throw("Closed complaints cannot be modified")
+
+	complaint.status = "Resolved"
+	complaint.save(ignore_permissions=True)
+
+	return {"success": True, "status": "Resolved"}
+
+
+@frappe.whitelist()
+def update_complaint(
+	name, complaint_type=None, description=None, related_asset=None, attachment=None
+):
+	"""Update a complaint. Only the owner can edit, and only when status is Open."""
+	user_id = frappe.session.user
+
+	doc = frappe.get_doc("Complaints", name)
+
+	if doc.raised_by != user_id:
+		frappe.throw("You can only edit your own complaints")
+
+	if doc.status != "Open":
+		frappe.throw("Only open complaints can be edited")
+
+	if complaint_type is not None:
+		doc.complaint_type = complaint_type
+		if complaint_type == "Asset Related":
+			doc.related_asset = related_asset
+		else:
+			doc.related_asset = None
+	user_location = get_session_user_location()
+	if user_location:
+		doc.location = user_location
+	if description is not None:
+		doc.description = description
+	if attachment is not None:
+		doc.attachment = attachment if attachment else None
+
+	doc.save(ignore_permissions=True)
+
+	return {
+		"name": doc.name,
+		"complaint_type": doc.complaint_type,
+		"status": doc.status,
+	}
+
+
+@frappe.whitelist()
+def delete_complaint(name):
+	"""Delete a complaint. Only the owner can delete, and only when status is Open."""
+	user_id = frappe.session.user
+
+	doc = frappe.get_doc("Complaints", name)
+
+	if doc.raised_by != user_id:
+		frappe.throw("You can only delete your own complaints")
+
+	if doc.status != "Open":
+		frappe.throw("Only open complaints can be deleted")
+
+	frappe.delete_doc("Complaints", name, ignore_permissions=True)
+
+	return {"deleted": True, "name": name}
+
+
+@frappe.whitelist()
+def create_complaint(complaint_type, description, related_asset=None, attachment=None):
+	"""Create a complaint by the supervisor.
+
+	The complaint's raised_by is automatically set to the current session user.
+	Notification is sent to all App Admin users.
+	"""
+	user_id = frappe.session.user
+
+	doc = frappe.get_doc({
+		"doctype": "Complaints",
+		"complaint_type": complaint_type,
+		"raised_by": user_id,
+		"related_asset": related_asset if complaint_type == "Asset Related" else None,
+		"location": get_session_user_location(),
+		"description": description,
+		"attachment": attachment,
+		"status": "Open",
+	})
+	doc.insert(ignore_permissions=True)
+
+	
+
+	admin_users = frappe.get_all(
+		"App User",
+		filters={"active": 1, "role": "App Admin"},
+		fields=["user"],
+	)
+
+	subject = f"New Complaint: {doc.name}"
+	for admin in admin_users:
+		if admin.user:
+			create_notification_log(
+				subject=subject,
+				for_user=admin.user,
+				document_type="Complaints",
+				document_name=doc.name,
+			)
+
+	return {
+		"name": doc.name,
+		"complaint_type": doc.complaint_type,
+		"status": doc.status,
 	}
 
 
@@ -346,9 +516,9 @@ def get_lost_found(
 
 	Filters:
 	- report_type: Lost or Found
-	- status: Open, Returned, Closed
+	- status: Open, Closed
 	- search: text search on item_name or description
-	- scope: "all" or "mine" (filter by current user's App User)
+	- scope: "all", "mine", or "others" (filter by current user's App User)
 	- page: page number (1-based)
 	- page_size: items per page
 	"""
@@ -363,13 +533,22 @@ def get_lost_found(
 	if search:
 		filters["item_name"] = ["like", f"%{search}%"]
 
+	app_user = get_session_app_user()
+	user_location = get_session_user_location()
+
+	if user_location:
+		filters["location"] = user_location
+
 	if scope == "mine":
-		user_email = frappe.session.user
-		app_user = frappe.db.get_value("App User", {"email": user_email}, "name")
 		if app_user:
 			filters["reported_by"] = app_user
 		else:
 			filters["reported_by"] = "__nonexistent__"
+	elif scope == "others":
+		if app_user:
+			filters["reported_by"] = ["!=", app_user]
+		else:
+			pass
 
 	page = int(page)
 	page_size = int(page_size)
@@ -388,8 +567,6 @@ def get_lost_found(
 			"status",
 			"reported_date",
 			"description",
-			"matched_report",
-			"returned_to",
 		],
 		order_by="reported_date desc",
 		start=start,
@@ -404,19 +581,12 @@ def get_lost_found(
 		else:
 			item["reported_by_name"] = None
 
-		if item.returned_to:
-			item["returned_to_name"] = frappe.db.get_value(
-				"App User", item.returned_to, "full_name"
-			) or item.returned_to
-		else:
-			item["returned_to_name"] = None
-
 	total = frappe.db.count("Lost And Found", filters=filters)
 
 	locations = frappe.db.get_all("Location", fields=["name"], order_by="name asc")
 
-	user_email = frappe.session.user
-	current_app_user = frappe.db.get_value("App User", {"email": user_email}, "name")
+	user_role = get_session_user_role()
+	is_admin = is_session_user_admin()
 
 	return {
 		"items": items,
@@ -425,27 +595,33 @@ def get_lost_found(
 		"page_size": page_size,
 		"total_pages": (total + page_size - 1) // page_size if total > 0 else 1,
 		"locations": [loc.name for loc in locations],
-		"current_app_user": current_app_user,
+		"current_app_user": app_user,
+		"current_user_role": user_role,
+		"is_admin": is_admin,
 	}
 
 
 @frappe.whitelist()
 def create_lost_found(
-	report_type, item_name, location=None, description=None, image=None
+	report_type, item_name, description=None, image=None
 ):
-	"""Create a lost and found report by the current user."""
-	user_email = frappe.session.user
-	app_user = frappe.db.get_value("App User", {"email": user_email}, "name")
+	"""Create a lost and found report by the current user.
+
+	Location is automatically set from the session user's App User record.
+	"""
+	app_user = get_session_app_user()
 
 	if not app_user:
 		frappe.throw("No App User found for current session user")
+
+	user_location = get_session_user_location()
 
 	doc = frappe.get_doc({
 		"doctype": "Lost And Found",
 		"report_type": report_type,
 		"reported_by": app_user,
 		"item_name": item_name,
-		"location": location,
+		"location": user_location,
 		"description": description,
 		"image": image,
 	})
@@ -461,27 +637,48 @@ def create_lost_found(
 
 @frappe.whitelist()
 def update_lost_found(
-	name, report_type=None, item_name=None, location=None, description=None, image=None
+	name, report_type=None, item_name=None, description=None, image=None, status=None
 ):
-	"""Update a lost and found report. Only the owner can edit."""
-	user_email = frappe.session.user
-	app_user = frappe.db.get_value("App User", {"email": user_email}, "name")
+	"""Update a lost and found report.
+
+	- Owner can edit all fields when status is Open.
+	- Supervisor/Admin can close any item (set status to Closed) even if not owner.
+	- Location is automatically set from the session user's App User record.
+	"""
+	app_user = get_session_app_user()
+	is_admin = is_session_user_admin()
 
 	doc = frappe.get_doc("Lost And Found", name)
 
-	if doc.reported_by != app_user:
+	is_owner = doc.reported_by == app_user
+
+	if status == "Closed" and not is_owner and not is_admin:
+		frappe.throw("Only supervisors or admins can close others' reports")
+
+	if not is_owner and not is_admin:
 		frappe.throw("You can only edit your own reports")
 
-	if report_type is not None:
-		doc.report_type = report_type
-	if item_name is not None:
-		doc.item_name = item_name
-	if location is not None:
-		doc.location = location
-	if description is not None:
-		doc.description = description
-	if image is not None:
-		doc.image = image
+	if not is_owner and status != "Closed":
+		frappe.throw("You can only close others' reports")
+
+	if is_owner and doc.status == "Closed" and status != "Closed":
+		frappe.throw("Closed reports cannot be edited")
+
+	if status == "Closed":
+		doc.status = "Closed"
+
+	if is_owner and doc.status == "Open":
+		if report_type is not None:
+			doc.report_type = report_type
+		if item_name is not None:
+			doc.item_name = item_name
+		user_location = get_session_user_location()
+		if user_location:
+			doc.location = user_location
+		if description is not None:
+			doc.description = description
+		if image is not None:
+			doc.image = image if image else None
 
 	doc.save(ignore_permissions=True)
 
@@ -495,14 +692,16 @@ def update_lost_found(
 
 @frappe.whitelist()
 def delete_lost_found(name):
-	"""Delete a lost and found report. Only the owner can delete."""
-	user_email = frappe.session.user
-	app_user = frappe.db.get_value("App User", {"email": user_email}, "name")
+	"""Delete a lost and found report. Only the owner can delete, and only when status is Open."""
+	app_user = get_session_app_user()
 
 	doc = frappe.get_doc("Lost And Found", name)
 
 	if doc.reported_by != app_user:
 		frappe.throw("You can only delete your own reports")
+
+	if doc.status != "Open":
+		frappe.throw("Only open reports can be deleted")
 
 	frappe.delete_doc("Lost And Found", name, ignore_permissions=True)
 
@@ -510,18 +709,46 @@ def delete_lost_found(name):
 
 
 @frappe.whitelist()
+def close_lost_found(name):
+	"""Close a lost and found report. Supervisors and admins can close any report."""
+	is_admin = is_session_user_admin()
+	app_user = get_session_app_user()
+
+	doc = frappe.get_doc("Lost And Found", name)
+
+	is_owner = doc.reported_by == app_user
+
+	if not is_owner and not is_admin:
+		frappe.throw("You can only close your own reports")
+
+	if doc.status != "Open":
+		frappe.throw("Only open reports can be closed")
+
+	doc.status = "Closed"
+	doc.save(ignore_permissions=True)
+
+	return {"success": True, "status": "Closed"}
+
+
+@frappe.whitelist()
 def get_events(page=1, page_size=10):
 	"""Return upcoming published events, sorted by start_date ascending.
 
 	Only events with start_date >= now and event_status = Published are returned.
+	Events are filtered by the current user's location.
 	The first event is the next upcoming (highlighted) event.
 	"""
 	from frappe.utils import now_datetime
+
+	user_location = get_session_user_location()
 
 	filters = {
 		"event_status": "Published",
 		"start_date": [">=", now_datetime()],
 	}
+
+	if user_location:
+		filters["location"] = user_location
 
 	page = int(page)
 	page_size = int(page_size)
@@ -562,13 +789,8 @@ def get_events(page=1, page_size=10):
 @frappe.whitelist()
 def get_profile():
 	"""Return current user's profile details from App User and Staff doctypes."""
-	user_email = frappe.session.user
-
-	app_user = frappe.db.get_value(
-		"App User",
-		{"email": user_email},
-		["name", "first_name", "last_name", "full_name", "email", "location", "active"],
-		as_dict=True,
+	app_user = get_session_app_user_doc(
+		["name", "first_name", "last_name", "full_name", "email", "location", "active"]
 	)
 
 	if not app_user:
@@ -625,13 +847,17 @@ def change_password(new_password, confirm_password):
 	if len(new_password) < 6:
 		frappe.throw("Password must be at least 6 characters long")
 
-	user_email = frappe.session.user
-	app_user_name = frappe.db.get_value("App User", {"email": user_email}, "name")
+	app_user_name = get_session_app_user()
 
 	if not app_user_name:
 		frappe.throw("No App User found for current session user")
 
 	doc = frappe.get_doc("App User", app_user_name)
+
+	current_password = doc.get_password("password")
+	if current_password and current_password == new_password:
+		frappe.throw("New password cannot be the same as your current password")
+
 	doc.password = new_password
 	doc.save(ignore_permissions=True)
 
@@ -645,33 +871,70 @@ def get_dashboard_stats():
 
 	now = now_datetime()
 
+	user_location = get_session_user_location()
+
+	loc_filter = {"location": user_location} if user_location else {}
+	loc_staff = []
+	loc_asset_names = []
+	loc_user_emails = []
+	if user_location:
+		loc_staff = [s.name for s in frappe.get_all("Staff", filters={"location": user_location, "active": 1}, fields=["name"])]
+		loc_asset_names = [a.name for a in frappe.get_all("Asset", filters={"location": user_location}, fields=["name"])]
+		loc_user_emails = [au.user for au in frappe.get_all("App User", filters={"location": user_location}, fields=["user"]) if au.user]
+
 	# ── Complaints ──
 	complaint_statuses = ["Open", "Scheduled", "In Progress", "Flagged", "Resolved", "Closed"]
 	complaint_counts = {}
 	for s in complaint_statuses:
-		complaint_counts[s] = frappe.db.count("Complaints", {"status": s})
+		base_filter = {"status": s}
+		if user_location:
+			asset_complaints = [c.name for c in frappe.get_all("Complaints", filters={"related_asset": ["in", loc_asset_names]}, fields=["name"])] if loc_asset_names else []
+			user_complaints = [c.name for c in frappe.get_all("Complaints", filters={"raised_by": ["in", loc_user_emails], "related_asset": ["is", "not set"]}, fields=["name"])] if loc_user_emails else []
+			valid = set(asset_complaints + user_complaints)
+			if valid:
+				base_filter["name"] = ["in", list(valid)]
+			else:
+				base_filter["name"] = "__nonexistent__"
+		complaint_counts[s] = frappe.db.count("Complaints", base_filter)
 	complaint_total = sum(complaint_counts.values())
 	complaint_unsolved = complaint_counts["Open"] + complaint_counts["Scheduled"] + complaint_counts["In Progress"] + complaint_counts["Flagged"]
 	complaint_solved = complaint_counts["Resolved"] + complaint_counts["Closed"]
 	complaint_resolution_rate = round((complaint_solved / complaint_total * 100), 1) if complaint_total > 0 else 0
 
 	# Complaints in last 7 days (for trend)
-	complaints_7d = frappe.db.count("Complaints", {"complaint_date": [">=", add_days(now, -7)]})
+	complaints_7d_filter = {"complaint_date": [">=", add_days(now, -7)]}
+	if user_location:
+		asset_complaints_7d = [c.name for c in frappe.get_all("Complaints", filters={"related_asset": ["in", loc_asset_names], "complaint_date": [">=", add_days(now, -7)]}, fields=["name"])] if loc_asset_names else []
+		user_complaints_7d = [c.name for c in frappe.get_all("Complaints", filters={"raised_by": ["in", loc_user_emails], "related_asset": ["is", "not set"], "complaint_date": [">=", add_days(now, -7)]}, fields=["name"])] if loc_user_emails else []
+		valid_7d = set(asset_complaints_7d + user_complaints_7d)
+		if valid_7d:
+			complaints_7d_filter["name"] = ["in", list(valid_7d)]
+		else:
+			complaints_7d_filter["name"] = "__nonexistent__"
+	complaints_7d = frappe.db.count("Complaints", complaints_7d_filter)
 
 	# ── Maintenance Tasks ──
 	task_statuses = ["Open", "In Progress", "Flagged", "Overdue", "Completed"]
 	task_counts = {}
 	for s in task_statuses:
-		task_counts[s] = frappe.db.count("Maintenance Task Allocation", {"status": s})
+		base_filter = {"status": s}
+		if user_location and loc_staff:
+			base_filter["technician"] = ["in", loc_staff]
+		elif user_location:
+			base_filter["technician"] = "__nonexistent__"
+		task_counts[s] = frappe.db.count("Maintenance Task Allocation", base_filter)
 	task_total = sum(task_counts.values())
 	task_completed = task_counts["Completed"]
 	task_active = task_counts["Open"] + task_counts["In Progress"] + task_counts["Flagged"] + task_counts["Overdue"]
 	task_completion_rate = round((task_completed / task_total * 100), 1) if task_total > 0 else 0
 
 	# Technician workload
+	tech_filters = {"staff_type": "Technician", "active": 1}
+	if user_location:
+		tech_filters["location"] = user_location
 	technicians = frappe.get_all(
 		"Staff",
-		filters={"staff_type": "Technician", "active": 1},
+		filters=tech_filters,
 		fields=["name", "full_name"],
 	)
 	tech_workload = []
@@ -696,7 +959,10 @@ def get_dashboard_stats():
 	asset_statuses = ["Available", "Allocated", "Under Maintenance", "Damaged", "Decommissioned"]
 	asset_counts = {}
 	for s in asset_statuses:
-		asset_counts[s] = frappe.db.count("Asset", {"status": s})
+		base_filter = {"status": s}
+		if user_location:
+			base_filter.update(loc_filter)
+		asset_counts[s] = frappe.db.count("Asset", base_filter)
 	asset_total = sum(asset_counts.values())
 	asset_active = asset_counts["Available"] + asset_counts["Allocated"]
 	asset_decommissioned = asset_counts["Decommissioned"]
@@ -705,21 +971,25 @@ def get_dashboard_stats():
 	asset_health_rate = round(((asset_total - asset_decommissioned - asset_damaged) / asset_total * 100), 1) if asset_total > 0 else 0
 
 	# ── Members ──
-	member_total = frappe.db.count("Member")
-	member_active = frappe.db.count("Member", {"active": 1})
+	member_base = loc_filter.copy()
+	member_total = frappe.db.count("Member", member_base)
+	member_active = frappe.db.count("Member", {**member_base, "active": 1})
 	member_inactive = member_total - member_active
-	member_flex = frappe.db.count("Member", {"active": 1, "member_type": "Flex"})
-	member_regular = frappe.db.count("Member", {"active": 1, "member_type": "Regular"})
+	member_flex = frappe.db.count("Member", {**member_base, "active": 1, "member_type": "Flex"})
+	member_regular = frappe.db.count("Member", {**member_base, "active": 1, "member_type": "Regular"})
 	member_active_rate = round((member_active / member_total * 100), 1) if member_total > 0 else 0
 
 	# New members in last 30 days
-	new_members_30d = frappe.db.count("Member", {"join_date": [">=", add_days(now, -30)]})
+	new_members_30d = frappe.db.count("Member", {**member_base, "join_date": [">=", add_days(now, -30)]})
 
 	# ── Parking Slots ──
+	parking_base = {"enabled": 1}
+	if user_location:
+		parking_base.update(loc_filter)
 	parking_statuses = ["Available", "Occupied", "Inactive"]
 	parking_counts = {}
 	for s in parking_statuses:
-		parking_counts[s] = frappe.db.count("Parking Slot", {"status": s, "enabled": 1})
+		parking_counts[s] = frappe.db.count("Parking Slot", {**parking_base, "status": s})
 	parking_total = sum(parking_counts.values())
 	parking_occupancy_rate = round((parking_counts["Occupied"] / parking_total * 100), 1) if parking_total > 0 else 0
 
@@ -727,25 +997,34 @@ def get_dashboard_stats():
 	parking_by_type = {}
 	for t in parking_types:
 		parking_by_type[t] = {
-			"total": frappe.db.count("Parking Slot", {"slot_type": t, "enabled": 1}),
-			"available": frappe.db.count("Parking Slot", {"slot_type": t, "enabled": 1, "status": "Available"}),
-			"occupied": frappe.db.count("Parking Slot", {"slot_type": t, "enabled": 1, "status": "Occupied"}),
+			"total": frappe.db.count("Parking Slot", {**parking_base, "slot_type": t}),
+			"available": frappe.db.count("Parking Slot", {**parking_base, "slot_type": t, "status": "Available"}),
+			"occupied": frappe.db.count("Parking Slot", {**parking_base, "slot_type": t, "status": "Occupied"}),
 		}
 
 	# ── Lost & Found ──
-	lf_open = frappe.db.count("Lost And Found", {"status": "Open"})
-	lf_returned = frappe.db.count("Lost And Found", {"status": "Returned"})
-	lf_closed = frappe.db.count("Lost And Found", {"status": "Closed"})
-	lf_total = lf_open + lf_returned + lf_closed
+	lf_base = loc_filter.copy()
+	lf_open = frappe.db.count("Lost And Found", {**lf_base, "status": "Open"})
+	lf_closed = frappe.db.count("Lost And Found", {**lf_base, "status": "Closed"})
+	lf_total = lf_open + lf_closed
 
 	# ── Events ──
-	event_upcoming = frappe.db.count("Space Event", {"event_status": "Published", "start_date": [">=", now]})
-	event_completed = frappe.db.count("Space Event", {"event_status": "Completed"})
-	event_draft = frappe.db.count("Space Event", {"event_status": "Draft"})
+	event_base = {"event_status": "Published", "start_date": [">=", now]}
+	if user_location:
+		event_base.update(loc_filter)
+	event_upcoming = frappe.db.count("Space Event", event_base)
+	event_completed_filter = {"event_status": "Completed"}
+	if user_location:
+		event_completed_filter.update(loc_filter)
+	event_completed = frappe.db.count("Space Event", event_completed_filter)
+	event_draft_filter = {"event_status": "Draft"}
+	if user_location:
+		event_draft_filter.update(loc_filter)
+	event_draft = frappe.db.count("Space Event", event_draft_filter)
 
 	latest_event = frappe.db.get_list(
 		"Space Event",
-		filters={"event_status": "Published", "start_date": [">=", now]},
+		filters=event_base,
 		fields=["name", "event_name", "event_theme", "location", "start_date", "end_date", "description"],
 		order_by="start_date asc",
 		limit=1,
@@ -753,15 +1032,27 @@ def get_dashboard_stats():
 	latest_event = latest_event[0] if latest_event else None
 
 	# ── Staff ──
-	staff_total = frappe.db.count("Staff", {"active": 1})
-	staff_technicians = frappe.db.count("Staff", {"active": 1, "staff_type": "Technician"})
-	staff_supervisors = frappe.db.count("Staff", {"active": 1, "staff_type": "Supervisor"})
-	staff_security = frappe.db.count("Staff", {"active": 1, "staff_type": "Security"})
+	staff_base = {"active": 1}
+	if user_location:
+		staff_base.update(loc_filter)
+	staff_total = frappe.db.count("Staff", staff_base)
+	staff_technicians = frappe.db.count("Staff", {**staff_base, "staff_type": "Technician"})
+	staff_supervisors = frappe.db.count("Staff", {**staff_base, "staff_type": "Supervisor"})
+	staff_security = frappe.db.count("Staff", {**staff_base, "staff_type": "Security"})
 
 	# ── Recent complaints (for scrollable list) ──
+	recent_comp_filter = {"status": ["in", ["Open", "Scheduled", "In Progress", "Flagged"]]}
+	if user_location:
+		asset_comp_names = [c.name for c in frappe.get_all("Complaints", filters={"related_asset": ["in", loc_asset_names], "status": ["in", ["Open", "Scheduled", "In Progress", "Flagged"]]}, fields=["name"])] if loc_asset_names else []
+		user_comp_names = [c.name for c in frappe.get_all("Complaints", filters={"raised_by": ["in", loc_user_emails], "related_asset": ["is", "not set"], "status": ["in", ["Open", "Scheduled", "In Progress", "Flagged"]]}, fields=["name"])] if loc_user_emails else []
+		valid_comp = set(asset_comp_names + user_comp_names)
+		if valid_comp:
+			recent_comp_filter["name"] = ["in", list(valid_comp)]
+		else:
+			recent_comp_filter["name"] = "__nonexistent__"
 	recent_complaints = frappe.db.get_list(
 		"Complaints",
-		filters={"status": ["in", ["Open", "Scheduled", "In Progress", "Flagged"]]},
+		filters=recent_comp_filter,
 		fields=["name", "status", "complaint_date", "description", "assigned_to"],
 		order_by="complaint_date desc",
 		limit=5,
@@ -770,9 +1061,14 @@ def get_dashboard_stats():
 		c["assigned_to_name"] = frappe.db.get_value("Staff", c.assigned_to, "full_name") if c.assigned_to else None
 
 	# ── Recent tasks (for scrollable list) ──
+	recent_task_filter = {"status": ["in", ["Open", "In Progress", "Flagged", "Overdue"]]}
+	if user_location and loc_staff:
+		recent_task_filter["technician"] = ["in", loc_staff]
+	elif user_location:
+		recent_task_filter["technician"] = "__nonexistent__"
 	recent_tasks = frappe.db.get_list(
 		"Maintenance Task Allocation",
-		filters={"status": ["in", ["Open", "In Progress", "Flagged", "Overdue"]]},
+		filters=recent_task_filter,
 		fields=["name", "status", "priority", "assigned_on", "technician"],
 		order_by="assigned_on desc",
 		limit=5,
@@ -826,7 +1122,6 @@ def get_dashboard_stats():
 		},
 		"lost_found": {
 			"open": lf_open,
-			"returned": lf_returned,
 			"closed": lf_closed,
 			"total": lf_total,
 		},
@@ -903,6 +1198,11 @@ def get_assets(status=None, search=None, page=1, page_size=10):
 	if search:
 		filters["serial_number"] = ["like", f"%{search}%"]
 
+	user_location = get_session_user_location()
+
+	if user_location:
+		filters["location"] = user_location
+
 	page = int(page)
 	page_size = int(page_size)
 	start = (page - 1) * page_size
@@ -946,3 +1246,195 @@ def get_assets(status=None, search=None, page=1, page_size=10):
 		"page_size": page_size,
 		"total_pages": total_pages,
 	}
+
+
+@frappe.whitelist()
+def get_notifications(page=1, page_size=20, unread_only=False):
+	"""Fetch notifications for the current session user from Notification Log."""
+	user = frappe.session.user
+	filters = {"for_user": user}
+
+	if unread_only and unread_only != "false":
+		filters["read"] = 0
+
+	page = int(page)
+	page_size = int(page_size)
+	start = (page - 1) * page_size
+
+	notifications = frappe.db.get_list(
+		"Notification Log",
+		filters=filters,
+		fields=[
+			"name", "subject", "for_user", "type", "email_content",
+			"document_type", "document_name", "read", "attached_file",
+			"from_user", "link", "creation",
+		],
+		order_by="creation desc",
+		start=start,
+		limit=page_size,
+	)
+
+	total = frappe.db.count("Notification Log", filters=filters)
+	unread_count = frappe.db.count("Notification Log", {"for_user": user, "read": 0})
+	total_pages = max(1, (total + page_size - 1) // page_size)
+
+	return {
+		"notifications": notifications,
+		"total": total,
+		"unread_count": unread_count,
+		"page": page,
+		"page_size": page_size,
+		"total_pages": total_pages,
+	}
+
+
+@frappe.whitelist()
+def mark_notification_read(name):
+	"""Mark a single notification as read."""
+	frappe.db.set_value("Notification Log", name, "read", 1)
+	frappe.db.commit()
+	return {"success": True}
+
+
+@frappe.whitelist()
+def mark_all_notifications_read():
+	"""Mark all notifications as read for the current user."""
+	user = frappe.session.user
+	frappe.db.set_value("Notification Log", {"for_user": user, "read": 0}, "read", 1)
+	frappe.db.commit()
+	return {"success": True}
+
+
+# ─── Reservation Management ──────────────────────────────────────────────────
+
+@frappe.whitelist()
+def get_reservations(status=None, search=None, page=1, page_size=20):
+	"""Return reservations with optional status/search filtering.
+
+	Filters by supervisor's location if they have one.
+	"""
+	user_location = get_session_user_location()
+
+	filters = {}
+	if status and status != "All Status":
+		filters["booking_status"] = status
+
+	if user_location:
+		space_names = [s.name for s in frappe.get_all("Space", {"location": user_location}, ["name"])]
+		if space_names:
+			filters["space"] = ["in", space_names]
+		else:
+			filters["space"] = "__NO_MATCH__"
+
+	if search:
+		search = search.strip()
+		app_users = [au.name for au in frappe.get_all("App User", {"full_name": ["like", f"%{search}%"]}, ["name"])]
+		if app_users:
+			filters["app_user"] = ["in", app_users]
+		else:
+			filters["app_user"] = "__NO_MATCH__"
+
+	page = int(page)
+	page_size = int(page_size)
+	start = (page - 1) * page_size
+
+	reservations = frappe.get_all(
+		"Reservation",
+		filters=filters,
+		fields=["name", "app_user", "space", "booking_from", "booking_to",
+				"booking_type", "booking_status", "payment_status", "total_amount",
+				"booking_date", "count", "member_type", "payment"],
+		order_by="booking_date desc",
+		start=start,
+		limit=page_size,
+	)
+
+	total = frappe.db.count("Reservation", filters)
+
+	# Pending count for badge
+	pending_filters = dict(filters)
+	pending_filters["booking_status"] = "Pending"
+	pending_count = frappe.db.count("Reservation", pending_filters)
+
+	# Enrich with user and space info
+	for r in reservations:
+		if r.app_user:
+			r.user_name = frappe.db.get_value("App User", r.app_user, "full_name") or r.app_user
+			r.user_email = frappe.db.get_value("App User", r.app_user, "email") or ""
+		if r.space:
+			space_info = frappe.db.get_value("Space", r.space, ["space_type", "location", "seating_capacity"], as_dict=True)
+			if space_info:
+				r.space_type = space_info.space_type
+				r.location = space_info.location
+				r.seating_capacity = space_info.seating_capacity
+		# Check if member exists
+		r.is_member = bool(frappe.db.exists("Member", {"app_user": r.app_user}))
+
+	return {
+		"reservations": reservations,
+		"total": total,
+		"pending_count": pending_count,
+		"page": page,
+		"page_size": page_size,
+		"total_pages": (total + page_size - 1) // page_size if page_size else 1,
+	}
+
+
+@frappe.whitelist()
+def confirm_reservation(name):
+	"""Confirm a pending reservation — creates Member + Payment."""
+	from smartspace.space_booking.doctype.reservation.reservation import confirm_reservation as _confirm
+
+	reservation = frappe.db.get_value("Reservation", name, ["booking_status", "app_user"], as_dict=True)
+	if not reservation:
+		frappe.throw("Reservation not found")
+	if reservation.booking_status != "Pending":
+		frappe.throw("Only pending reservations can be confirmed")
+
+	result = _confirm(name)
+
+	# Notify the user
+	app_user_email = frappe.db.get_value("App User", reservation.app_user, "user")
+	if app_user_email:
+		create_notification_log(
+			app_user_email,
+			"Reservation Confirmed",
+			f"Your reservation {name} has been confirmed. Please proceed with payment.",
+			"Reservation",
+			name,
+		)
+
+	return {"success": True, "message": result}
+
+
+@frappe.whitelist()
+def cancel_reservation(name, reason=None):
+	"""Cancel a reservation."""
+	reservation = frappe.db.get_value("Reservation", name, ["booking_status", "app_user"], as_dict=True)
+	if not reservation:
+		frappe.throw("Reservation not found")
+	if reservation.booking_status in ["Completed", "Cancelled"]:
+		frappe.throw(f"Cannot cancel a {reservation.booking_status} reservation")
+
+	frappe.db.set_value("Reservation", name, "booking_status", "Cancelled", update_modified=True)
+
+	# Free up the space if it was occupied
+	space = frappe.db.get_value("Reservation", name, "space")
+	if space:
+		frappe.db.set_value("Space", space, "availability_status", "Available")
+
+	# Notify the user
+	app_user_email = frappe.db.get_value("App User", reservation.app_user, "user")
+	if app_user_email:
+		msg = f"Your reservation {name} has been cancelled."
+		if reason:
+			msg += f" Reason: {reason}"
+		create_notification_log(
+			app_user_email,
+			"Reservation Cancelled",
+			msg,
+			"Reservation",
+			name,
+		)
+
+	return {"success": True, "message": "Reservation cancelled"}

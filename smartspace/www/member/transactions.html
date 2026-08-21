@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transactions | SmartSpace</title>
+    <link rel="manifest" href="/assets/smartspace/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/assets/smartspace/favicon.svg">
+    <meta name="theme-color" content="#f97316">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="SmartSpace">
+    <link rel="apple-touch-icon" href="/assets/smartspace/icon-192.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config={theme:{extend:{boxShadow:{card:"0 10px 30px rgba(0,0,0,.08)"}}}}</script>
+</head>
+<body class="bg-slate-50 text-gray-800 min-h-screen">
+{% set active = 'transactions' %}
+{% include "www/nav_footer/portal_header.html" %}
+{% include "www/member/sidebar.html" %}
+<div class="sidebar-content transition-all duration-300">
+    <div class="bg-black text-white px-6 py-8">
+        <h1 class="text-3xl font-bold">Transactions</h1>
+        <p class="text-orange-200 text-sm mt-1">Your payment history for space bookings and event funds</p>
+    </div>
+    <div class="px-6 py-6">
+        <div id="loadingState" class="text-center py-12 text-gray-400">
+            <svg class="animate-spin mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            Loading transactions...
+        </div>
+        <div id="txList" class="space-y-3" style="display:none"></div>
+        <div id="noTx" class="hidden text-center py-20">
+            <div class="text-7xl">💳</div>
+            <h2 class="text-2xl font-bold mt-4">No Transactions Yet</h2>
+            <p class="text-gray-500 mt-2">Your payment history will appear here.</p>
+        </div>
+        <div id="pagination" class="flex items-center justify-center gap-4 mt-10" style="display:none">
+            <button id="btnPrev" class="bg-white border rounded-lg px-5 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-0 disabled:pointer-events-none transition">← Prev</button>
+            <span id="pageInfo" class="text-sm text-gray-600"></span>
+            <button id="btnNext" class="bg-white border rounded-lg px-5 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-0 disabled:pointer-events-none transition">Next →</button>
+        </div>
+    </div>
+</div>
+<script>
+var currentPage = 1;
+var totalPages = 1;
+
+function fmtCurrency(v) { return '₹' + (v || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 }); }
+function fmtDate(d) { if (!d) return '-'; return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
+
+function fetchTransactions(page) {
+    currentPage = page || 1;
+    document.getElementById('loadingState').style.display = '';
+    document.getElementById('txList').style.display = 'none';
+    document.getElementById('pagination').style.display = 'none';
+    document.getElementById('noTx').classList.add('hidden');
+
+    var params = new URLSearchParams({ page: currentPage, page_size: 20 });
+
+    fetch('/api/method/smartspace.frontend_api.member.get_transactions?' + params.toString())
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var result = data.message || data;
+            document.getElementById('loadingState').style.display = 'none';
+
+            if (!result.transactions || result.transactions.length === 0) {
+                document.getElementById('noTx').classList.remove('hidden');
+                return;
+            }
+
+            document.getElementById('txList').style.display = '';
+            document.getElementById('txList').innerHTML = result.transactions.map(function(t) {
+                var sc = t.payment_status === 'Paid' ? '#22c55e' : t.payment_status === 'Pending' ? '#f59e0b' : '#ef4444';
+                var typeIcon = t.is_event_fund ? '🎪' : '🏢';
+                var typeLabel = t.is_event_fund ? 'Event Fund' : 'Space Booking';
+                var refLabel = t.is_event_fund ? (t.event_name || '-') : (t.space_name || t.reference_name || '-');
+                return '<div class="bg-white rounded-xl shadow-card p-5">' +
+                    '<div class="flex items-center justify-between flex-wrap gap-3">' +
+                        '<div class="flex items-center gap-4">' +
+                            '<div class="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-2xl">' + typeIcon + '</div>' +
+                            '<div><p class="font-bold text-sm">' + typeLabel + '</p>' +
+                            '<p class="text-xs text-gray-500 mt-0.5">' + (t.payment_purpose || '-') + '</p>' +
+                            '<p class="text-xs text-gray-400 mt-0.5">' + fmtDate(t.payment_date) + ' • ' + (t.payment_method || '-') + '</p></div>' +
+                        '</div>' +
+                        '<div class="text-right">' +
+                            '<p class="font-bold text-orange-500">' + fmtCurrency(t.amount) + '</p>' +
+                            '<span class="text-xs font-medium px-2 py-0.5 rounded mt-1 inline-block" style="background:' + sc + '20;color:' + sc + '">' + t.payment_status + '</span>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+
+            totalPages = result.total_pages || 1;
+            if (totalPages > 1) {
+                document.getElementById('pagination').style.display = '';
+                document.getElementById('pageInfo').textContent = 'Page ' + currentPage + ' of ' + totalPages;
+                document.getElementById('btnPrev').classList.toggle('opacity-0', currentPage <= 1);
+                document.getElementById('btnNext').classList.toggle('opacity-0', currentPage >= totalPages);
+            }
+        });
+}
+
+document.getElementById('btnPrev').addEventListener('click', function() { if (currentPage > 1) { fetchTransactions(currentPage - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); } });
+document.getElementById('btnNext').addEventListener('click', function() { if (currentPage < totalPages) { fetchTransactions(currentPage + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); } });
+
+fetchTransactions(1);
+</script>
+</body>
+</html>

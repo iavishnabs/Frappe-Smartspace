@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complaints | SmartSpace</title>
+    <link rel="manifest" href="/assets/smartspace/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/assets/smartspace/favicon.svg">
+    <meta name="theme-color" content="#f97316">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="SmartSpace">
+    <link rel="apple-touch-icon" href="/assets/smartspace/icon-192.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config={theme:{extend:{boxShadow:{card:"0 10px 30px rgba(0,0,0,.08)"}}}}</script>
+</head>
+<body class="bg-slate-50 text-gray-800 min-h-screen">
+{% set active = 'complaints' %}
+{% include "www/nav_footer/portal_header.html" %}
+{% include "www/member/sidebar.html" %}
+<div class="sidebar-content transition-all duration-300">
+    <div class="bg-black text-white px-6 py-8">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+            <div>
+                <h1 class="text-3xl font-bold">Complaints</h1>
+                <p class="text-orange-200 text-sm mt-1">Track and manage your complaints</p>
+            </div>
+            <button onclick="openComplaintModal()" class="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition">+ New Complaint</button>
+        </div>
+    </div>
+    <div class="px-6 py-6">
+        <div class="flex flex-wrap gap-3 mb-6">
+            <input id="searchInput" type="text" placeholder="Search complaints..." class="border rounded-xl px-4 py-3 flex-1 min-w-[200px]">
+            <select id="statusFilter" class="border rounded-xl px-4 py-3">
+                <option value="All Status">All Status</option>
+                <option value="Open">Open</option>
+                <option value="Scheduled">Scheduled</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Flagged">Flagged</option>
+                <option value="Resolved">Resolved</option>
+                <option value="Closed">Closed</option>
+            </select>
+        </div>
+        <div id="loadingState" class="text-center py-12 text-gray-400">
+            <svg class="animate-spin mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            Loading complaints...
+        </div>
+        <div id="complaintsList" class="space-y-3" style="display:none"></div>
+        <div id="noComplaints" class="hidden text-center py-20">
+            <div class="text-7xl">📋</div>
+            <h2 class="text-2xl font-bold mt-4">No Complaints Found</h2>
+        </div>
+        <div id="pagination" class="flex items-center justify-center gap-4 mt-10" style="display:none">
+            <button id="btnPrev" class="bg-white border rounded-lg px-5 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-0 disabled:pointer-events-none transition">← Prev</button>
+            <span id="pageInfo" class="text-sm text-gray-600"></span>
+            <button id="btnNext" class="bg-white border rounded-lg px-5 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-0 disabled:pointer-events-none transition">Next →</button>
+        </div>
+    </div>
+</div>
+
+<div id="complaintModal" class="hidden fixed inset-0 z-[70] flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50" onclick="closeComplaintModal()"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+        <h3 class="text-xl font-bold mb-4" id="modalTitle">New Complaint</h3>
+        <input type="hidden" id="editComplaintName">
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Complaint Type</label>
+                <div class="w-full border rounded-xl px-4 py-3 bg-gray-50 text-gray-700">Facility Related</div>
+                <p class="text-xs text-gray-400 mt-1">Asset-related complaints can be raised from your booking details page.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea id="complaintDesc" rows="4" placeholder="Describe your complaint..." class="w-full border rounded-xl px-4 py-3"></textarea>
+            </div>
+        </div>
+        <div id="complaintError" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm mt-4"></div>
+        <div class="flex gap-3 mt-4">
+            <button onclick="closeComplaintModal()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold transition">Cancel</button>
+            <button id="saveComplaintBtn" onclick="saveComplaint()" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-semibold transition">Submit</button>
+        </div>
+    </div>
+</div>
+
+<script>
+var csrfToken = '{{ frappe.session.csrf_token }}';
+var currentPage = 1;
+var totalPages = 1;
+
+function fmtDate(d) { if (!d) return '-'; return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
+function statusColor(s) { var m = { 'Open': '#f59e0b', 'Scheduled': '#3b82f6', 'In Progress': '#a855f7', 'Flagged': '#ef4444', 'Resolved': '#22c55e', 'Closed': '#6b7280' }; return m[s] || '#6b7280'; }
+
+function fetchComplaints(page) {
+    currentPage = page || 1;
+    var search = document.getElementById('searchInput').value.trim();
+    var status = document.getElementById('statusFilter').value;
+    document.getElementById('loadingState').style.display = '';
+    document.getElementById('complaintsList').style.display = 'none';
+    document.getElementById('pagination').style.display = 'none';
+    document.getElementById('noComplaints').classList.add('hidden');
+
+    var params = new URLSearchParams({ page: currentPage, page_size: 10 });
+    if (search) params.set('search', search);
+    if (status && status !== 'All Status') params.set('status', status);
+
+    fetch('/api/method/smartspace.frontend_api.member.get_complaints?' + params.toString())
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var result = data.message || data;
+            document.getElementById('loadingState').style.display = 'none';
+
+            if (!result.complaints || result.complaints.length === 0) {
+                document.getElementById('noComplaints').classList.remove('hidden');
+                return;
+            }
+
+            document.getElementById('complaintsList').style.display = '';
+            document.getElementById('complaintsList').innerHTML = result.complaints.map(function(c) {
+                var sc = statusColor(c.status);
+                var actions = '';
+                if (c.status === 'Open') {
+                    actions = '<button onclick="editComplaint(\'' + c.name + '\',\'' + (c.complaint_type || '') + '\',\'' + encodeURIComponent(c.description || '') + '\')" class="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>' +
+                        '<button onclick="deleteComplaint(\'' + c.name + '\')" class="text-red-500 hover:text-red-700 text-xs font-medium ml-2">Delete</button>';
+                }
+                return '<div class="bg-white rounded-xl shadow-card p-5">' +
+                    '<div class="flex items-center justify-between flex-wrap gap-2">' +
+                        '<div><p class="font-bold text-sm">' + (c.complaint_type || '-') + '</p>' +
+                        '<p class="text-xs text-gray-500 mt-0.5">' + (c.name || '') + ' • ' + fmtDate(c.complaint_date) + '</p></div>' +
+                        '<span class="text-xs font-medium px-2 py-0.5 rounded" style="background:' + sc + '20;color:' + sc + '">' + c.status + '</span>' +
+                    '</div>' +
+                    '<p class="text-sm text-gray-600 mt-3">' + (c.description || '-') + '</p>' +
+                    (c.assigned_to_name ? '<p class="text-xs text-gray-400 mt-2">Assigned to: ' + c.assigned_to_name + '</p>' : '') +
+                    '<div class="mt-3">' + actions + '</div>' +
+                '</div>';
+            }).join('');
+
+            totalPages = result.total_pages || 1;
+            if (totalPages > 1) {
+                document.getElementById('pagination').style.display = '';
+                document.getElementById('pageInfo').textContent = 'Page ' + currentPage + ' of ' + totalPages;
+                document.getElementById('btnPrev').classList.toggle('opacity-0', currentPage <= 1);
+                document.getElementById('btnNext').classList.toggle('opacity-0', currentPage >= totalPages);
+            }
+        });
+}
+
+function openComplaintModal() {
+    document.getElementById('modalTitle').textContent = 'New Complaint';
+    document.getElementById('editComplaintName').value = '';
+    document.getElementById('complaintDesc').value = '';
+    document.getElementById('complaintError').classList.add('hidden');
+    document.getElementById('complaintModal').classList.remove('hidden');
+}
+
+function editComplaint(name, type, desc) {
+    document.getElementById('modalTitle').textContent = 'Edit Complaint';
+    document.getElementById('editComplaintName').value = name;
+    document.getElementById('complaintDesc').value = decodeURIComponent(desc);
+    document.getElementById('complaintError').classList.add('hidden');
+    document.getElementById('complaintModal').classList.remove('hidden');
+}
+
+function closeComplaintModal() {
+    document.getElementById('complaintModal').classList.add('hidden');
+}
+
+function saveComplaint() {
+    var name = document.getElementById('editComplaintName').value;
+    var desc = document.getElementById('complaintDesc').value.trim();
+    var errDiv = document.getElementById('complaintError');
+    errDiv.classList.add('hidden');
+
+    if (!desc) { errDiv.textContent = 'Please enter a description'; errDiv.classList.remove('hidden'); return; }
+
+    var btn = document.getElementById('saveComplaintBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    var endpoint, body;
+    if (name) {
+        endpoint = '/api/method/smartspace.frontend_api.member.update_complaint';
+        body = new URLSearchParams({ name: name, complaint_type: 'Facility Related', description: desc });
+    } else {
+        endpoint = '/api/method/smartspace.frontend_api.member.create_complaint';
+        body = new URLSearchParams({ complaint_type: 'Facility Related', description: desc });
+    }
+
+    fetch(endpoint, {
+        method: 'POST',
+        headers: { 'X-Frappe-CSRF-Token': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString()
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        closeComplaintModal();
+        fetchComplaints(currentPage);
+        btn.disabled = false;
+        btn.textContent = 'Submit';
+    })
+    .catch(function() {
+        errDiv.textContent = 'Failed to save complaint. Please try again.';
+        errDiv.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Submit';
+    });
+}
+
+function deleteComplaint(name) {
+    if (!confirm('Delete this complaint?')) return;
+    fetch('/api/method/smartspace.frontend_api.member.delete_complaint', {
+        method: 'POST',
+        headers: { 'X-Frappe-CSRF-Token': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'name=' + encodeURIComponent(name)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function() { fetchComplaints(currentPage); });
+}
+
+document.getElementById('searchInput').addEventListener('input', function() { clearTimeout(window._searchTimer); window._searchTimer = setTimeout(function() { fetchComplaints(1); }, 300); });
+document.getElementById('statusFilter').addEventListener('change', function() { fetchComplaints(1); });
+document.getElementById('btnPrev').addEventListener('click', function() { if (currentPage > 1) { fetchComplaints(currentPage - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); } });
+document.getElementById('btnNext').addEventListener('click', function() { if (currentPage < totalPages) { fetchComplaints(currentPage + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); } });
+
+fetchComplaints(1);
+</script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+<!-- Admin Portal Sidebar -->
+<aside id="adminSidebar" class="w-64 bg-white border-r border-gray-200 fixed left-0 top-0 bottom-0 z-40 flex flex-col transition-all duration-300 overflow-hidden">
+    <div class="px-4 py-4 border-b border-gray-200 bg-gray-200">
+        <span class="sidebar-label font-bold text-sm text-gray-900">Admin Portal</span>
+    </div>
+    <nav class="p-4 space-y-1 flex-1 overflow-y-auto">
+        <a href="/app" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition text-white bg-gray-700 hover:bg-gray-600">
+            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            <span class="sidebar-label">Back to Desk</span>
+        </a>
+        <a href="/admin-portal/analytics" id="nav-analytics" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition text-gray-700 bg-gray-100 hover:bg-gray-200">
+            <span class="sidebar-label">Analytics</span>
+        </a>
+        <a href="/admin-portal/event-suggestions" id="nav-suggestions" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition text-gray-700 bg-gray-100 hover:bg-gray-200">
+            <span class="sidebar-label">Event Suggestions</span>
+        </a>
+    </nav>
+    <div class="border-t border-gray-100 p-3 shrink-0">
+        <button id="sidebarCollapseBtn" class="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition text-sm font-medium">
+            <span class="sidebar-label">Collapse</span>
+        </button>
+    </div>
+</aside>
+
+<script>
+(function() {
+    var sidebar = document.getElementById('adminSidebar');
+    var collapseBtn = document.getElementById('sidebarCollapseBtn');
+    var content = document.getElementById('adminContent');
+
+    function applyCollapsed() {
+        sidebar.classList.remove('w-64');
+        sidebar.classList.add('w-16');
+        var labels = sidebar.querySelectorAll('.sidebar-label');
+        labels.forEach(function(l) { l.style.display = 'none'; });
+        if (content) content.style.marginLeft = '4rem';
+    }
+
+    function applyExpanded() {
+        sidebar.classList.remove('w-16');
+        sidebar.classList.add('w-64');
+        var labels = sidebar.querySelectorAll('.sidebar-label');
+        labels.forEach(function(l) { l.style.display = ''; });
+        if (content) content.style.marginLeft = '16rem';
+    }
+
+    function init() {
+        var isCollapsed = localStorage.getItem('admin_sidebar_collapsed') === 'true';
+        if (isCollapsed) { applyCollapsed(); }
+
+        collapseBtn.addEventListener('click', function() {
+            isCollapsed = !isCollapsed;
+            localStorage.setItem('admin_sidebar_collapsed', isCollapsed);
+            if (isCollapsed) { applyCollapsed(); } else { applyExpanded(); }
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+</script>
