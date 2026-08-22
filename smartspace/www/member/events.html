@@ -259,6 +259,84 @@
             </div>
         </div>
 
+        <!-- Past Events (Completed) -->
+        <div v-if="!loading && pastEvents.length > 0" class="mt-8">
+            <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Past Events — Rate Your Experience</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div v-for="event in pastEvents" :key="event.name" class="bg-white rounded-xl shadow-card p-5">
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="flex-1 min-w-0">
+                            <h3 class="font-bold text-gray-800 text-base mb-0.5 truncate">{{ event.event_name }}</h3>
+                            <p v-if="event.event_theme" class="text-xs text-gray-500">{{ event.event_theme }}</p>
+                        </div>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500 whitespace-nowrap ml-2">Ended</span>
+                    </div>
+                    <div class="space-y-1.5 text-sm">
+                        <div class="flex items-center gap-2 text-gray-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            <span>{{ formatDate(event.end_date) }}</span>
+                        </div>
+                        <div v-if="event.location" class="flex items-center gap-2 text-gray-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                            <span>{{ event.location_name || event.location }}</span>
+                        </div>
+                    </div>
+                    <div class="mt-3 pt-3 border-t border-gray-100">
+                        <div v-if="event.has_rated" class="flex items-center justify-between">
+                            <div>
+                                <div class="flex items-center gap-1">
+                                    <span v-for="n in 5" :key="n" class="text-lg" :class="n <= event.my_rating ? 'text-orange-500' : 'text-gray-300'">★</span>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Your rating: {{ event.my_rating }}/5</p>
+                            </div>
+                            <button @click="openRatingModal(event)" class="text-xs font-medium text-orange-600 hover:text-orange-700">Edit Rating</button>
+                        </div>
+                        <div v-else class="flex items-center justify-between">
+                            <div v-if="event.rating_count > 0" class="text-xs text-gray-500">
+                                Avg: <span class="font-semibold text-orange-600">{{ event.avg_rating }}/5</span> ({{ event.rating_count }} ratings)
+                            </div>
+                            <div v-else class="text-xs text-gray-400">No ratings yet</div>
+                            <button @click="openRatingModal(event)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                Rate Event
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div v-if="pastTotalPages > 1" class="mt-4 flex items-center justify-center gap-2">
+                <button @click="goToPastPage(pastPage - 1)" :disabled="pastPage <= 1" :class="pastPage <= 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50 border-gray-200'" class="px-3 py-2 rounded-lg border text-sm font-medium transition">Prev</button>
+                <span class="px-3 py-2 text-sm font-medium bg-gray-200 text-gray-700 rounded-lg">{{ pastPage }} / {{ pastTotalPages }}</span>
+                <button @click="goToPastPage(pastPage + 1)" :disabled="pastPage >= pastTotalPages" :class="pastPage >= pastTotalPages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50 border-gray-200'" class="px-3 py-2 rounded-lg border text-sm font-medium transition">Next</button>
+            </div>
+        </div>
+
+        <!-- Rating Modal -->
+        <div v-if="ratingModalEvent" class="fixed inset-0 z-[70]" @click.self="ratingModalEvent = null">
+            <div class="absolute inset-0 bg-black/50"></div>
+            <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-xl shadow-xl p-6">
+                <h3 class="text-xl font-bold mb-1">Rate This Event</h3>
+                <p class="text-sm text-gray-500 mb-4">{{ ratingModalEvent.event_name }}</p>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Your Rating</label>
+                    <div class="flex items-center gap-1">
+                        <button v-for="n in 5" :key="n" @click="setRating(n)" @mouseover="hoverRating = n" @mouseleave="hoverRating = 0" class="text-3xl transition" :class="n <= (hoverRating || ratingValue) ? 'text-orange-500' : 'text-gray-300'">★</button>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">Click a star to rate (1-5)</p>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Review (Optional)</label>
+                    <textarea v-model="ratingReview" rows="3" placeholder="Share your experience..." class="w-full border rounded-xl px-4 py-3"></textarea>
+                </div>
+                <div v-if="ratingError" class="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm mb-4">{{ ratingError }}</div>
+                <div v-if="ratingSuccess" class="bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 text-sm mb-4">{{ ratingSuccess }}</div>
+                <div class="flex gap-3">
+                    <button @click="closeRatingModal" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold transition">Close</button>
+                    <button @click="submitRating" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-semibold transition">Submit Rating</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Fund Modal -->
         <div v-if="fundModalEvent" class="fixed inset-0 z-[65]" @click.self="fundModalEvent = null">
             <div class="absolute inset-0 bg-black/50"></div>
@@ -297,6 +375,16 @@ createApp({
         const fundModalEvent = ref(null);
         const fundAmount = ref('');
         const fundError = ref('');
+
+        const pastEvents = ref([]);
+        const pastPage = ref(1);
+        const pastTotalPages = ref(1);
+        const ratingModalEvent = ref(null);
+        const ratingValue = ref(0);
+        const hoverRating = ref(0);
+        const ratingReview = ref('');
+        const ratingError = ref('');
+        const ratingSuccess = ref('');
 
         const today = new Date();
         const currentMonth = ref(today.getMonth());
@@ -477,6 +565,81 @@ createApp({
                 });
         }
 
+        function fetchPastEvents() {
+            var params = new URLSearchParams({
+                page: pastPage.value,
+                page_size: 6
+            });
+            fetch('/api/method/smartspace.frontend_api.event_rating.get_completed_events?' + params.toString())
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    var result = data.message || data;
+                    pastEvents.value = result.events || [];
+                    pastTotalPages.value = result.total_pages || 1;
+                })
+                .catch(function() {
+                    pastEvents.value = [];
+                });
+        }
+
+        function goToPastPage(p) {
+            if (p < 1 || p > pastTotalPages.value) return;
+            pastPage.value = p;
+            fetchPastEvents();
+        }
+
+        function openRatingModal(event) {
+            ratingModalEvent.value = event;
+            ratingValue.value = event.my_rating || 0;
+            hoverRating.value = 0;
+            ratingReview.value = event.my_review || '';
+            ratingError.value = '';
+            ratingSuccess.value = '';
+        }
+
+        function closeRatingModal() {
+            ratingModalEvent.value = null;
+            ratingError.value = '';
+            ratingSuccess.value = '';
+        }
+
+        function setRating(n) {
+            ratingValue.value = n;
+        }
+
+        function submitRating() {
+            if (ratingValue.value < 1) {
+                ratingError.value = 'Please select a rating (1-5 stars)';
+                return;
+            }
+            ratingError.value = '';
+            ratingSuccess.value = '';
+            var body = new URLSearchParams({
+                event: ratingModalEvent.value.name,
+                rating: ratingValue.value,
+                review: ratingReview.value
+            });
+            fetch('/api/method/smartspace.frontend_api.event_rating.submit_event_rating', {
+                method: 'POST',
+                headers: { 'X-Frappe-CSRF-Token': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body.toString()
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var result = data.message || data;
+                if (result.success) {
+                    ratingSuccess.value = result.message || 'Rating submitted successfully';
+                    fetchPastEvents();
+                    setTimeout(function() { closeRatingModal(); }, 1500);
+                } else {
+                    ratingError.value = result.message || 'Failed to submit rating';
+                }
+            })
+            .catch(function() {
+                ratingError.value = 'Failed to submit rating. Please try again.';
+            });
+        }
+
         function goToPage(p) {
             if (p < 1 || p > totalPages.value) return;
             page.value = p;
@@ -485,20 +648,25 @@ createApp({
 
         onMounted(function() {
             fetchEvents();
+            fetchPastEvents();
         });
 
         return {
             loading, events, total, page, pageSize, totalPages,
             nextEvent, otherEvents, detailEvent,
             fundModalEvent, fundAmount, fundError,
+            pastEvents, pastPage, pastTotalPages,
+            ratingModalEvent, ratingValue, hoverRating, ratingReview, ratingError, ratingSuccess,
             currentMonth, currentYear, monthNames, dayHeaders,
             calendarDays, selectedDayEvents, formatSelectedDay,
             formatDateTime, formatDate, formatTime, formatCurrency, getCountdown,
             isEventOver, getDayClass, prevMonth, nextMonth, prevYear, nextYear, goToToday,
-            openDayEvents, openDetail, openFundModal, closeFundModal, submitFund, goToPage
+            openDayEvents, openDetail, openFundModal, closeFundModal, submitFund, goToPage,
+            goToPastPage, openRatingModal, closeRatingModal, setRating, submitRating
         };
     }
 }).mount('#eventsApp');
 </script>
+{% include "www/includes/chat-widget.html" %}
 </body>
 </html>

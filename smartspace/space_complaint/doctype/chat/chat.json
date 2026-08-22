@@ -8,30 +8,38 @@
  "field_order": [
   "sender",
   "receiver",
+  "is_admin_reply",
   "message",
   "column_break_piwb",
   "related_doctype",
   "related_name",
-  "message_date"
+  "message_date",
+  "is_read"
  ],
  "fields": [
   {
    "fieldname": "sender",
    "fieldtype": "Link",
    "label": "Sender",
-   "options": "User"
+   "options": "App User"
   },
   {
    "fieldname": "receiver",
    "fieldtype": "Link",
    "label": "Receiver",
-   "options": "User"
+   "options": "App User"
+  },
+  {
+   "fieldname": "is_admin_reply",
+   "fieldtype": "Check",
+   "label": "Is Admin Reply",
+   "default": "0"
   },
   {
    "fieldname": "related_doctype",
    "fieldtype": "Link",
    "label": "Related Doctype",
-   "link_filters": "[[\"DocType\",\"name\",\"in\",[\"Complaints\",\"Lost And Found\"]]]",
+   "link_filters": "[[\"DocType\",\"name\",\"in\",[\"Complaints\",\"Lost And Found\",\"Reservation\",\"Space Event\",\"Parking Allocation\"]]]",
    "options": "DocType"
   },
   {
@@ -52,7 +60,14 @@
   {
    "fieldname": "message_date",
    "fieldtype": "Datetime",
-   "label": "Message Date"
+   "label": "Message Date",
+   "default": "Now"
+  },
+  {
+   "fieldname": "is_read",
+   "fieldtype": "Check",
+   "label": "Is Read",
+   "default": "0"
   }
  ],
  "grid_page_length": 50,
@@ -74,6 +89,17 @@
    "read": 1,
    "report": 1,
    "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "All",
    "share": 1,
    "write": 1
   }

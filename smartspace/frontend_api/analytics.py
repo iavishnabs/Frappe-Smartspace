@@ -87,6 +87,18 @@ def get_analytics_overview(from_date=None, to_date=None, location=None):
 		event_filters["location"] = location
 	total_events = frappe.db.count("Space Event", filters=event_filters)
 
+	# ── Event Ratings ──
+	rating_filters = {}
+	if from_date or to_date:
+		rating_filters["rating_date"] = ["between", [fd, td]]
+	all_ratings = frappe.get_all("Event Rating", filters=rating_filters, fields=["rating", "event"])
+	if location:
+		loc_event_names = set(s.name for s in frappe.get_all("Space Event", {"location": location}, ["name"]))
+		all_ratings = [r for r in all_ratings if r.event in loc_event_names]
+	total_ratings = len(all_ratings)
+	rated_events = len(set(r.event for r in all_ratings))
+	avg_event_rating = round(sum(r.rating for r in all_ratings) / total_ratings, 1) if total_ratings else 0
+
 	# ── Vendors ──
 	vendor_purchases = frappe.get_all(
 		"Asset Purchase",
@@ -116,6 +128,9 @@ def get_analytics_overview(from_date=None, to_date=None, location=None):
 		"damaged_assets": damaged_assets,
 		"asset_purchase_cost": asset_purchase_cost,
 		"total_events": total_events,
+		"total_ratings": total_ratings,
+		"rated_events": rated_events,
+		"avg_event_rating": avg_event_rating,
 		"vendor_count": vendor_count,
 		"vendor_total_spend": vendor_total_spend,
 		"total_members": total_members,

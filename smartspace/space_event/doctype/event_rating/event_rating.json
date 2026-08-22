@@ -7,7 +7,7 @@
  "engine": "InnoDB",
  "field_order": [
   "event",
-  "member",
+  "app_user",
   "column_break_ymlc",
   "rating",
   "rating_date",
@@ -22,10 +22,10 @@
    "options": "Space Event"
   },
   {
-   "fieldname": "member",
+   "fieldname": "app_user",
    "fieldtype": "Link",
-   "label": "Member",
-   "options": "Member"
+   "label": "App User",
+   "options": "App User"
   },
   {
    "fieldname": "column_break_ymlc",
@@ -70,6 +70,17 @@
    "read": 1,
    "report": 1,
    "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "All",
    "share": 1,
    "write": 1
   }
