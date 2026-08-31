@@ -726,10 +726,7 @@ def get_my_parking():
 @frappe.whitelist()
 def get_events(page=1, page_size=10):
 	"""Return upcoming published events for the member."""
-	user_location = get_session_user_location()
 	filters = {"event_status": "Published", "start_date": [">=", now_datetime()]}
-	if user_location:
-		filters["location"] = user_location
 
 	page = int(page)
 	page_size = int(page_size)

@@ -1,5 +1,5 @@
 <!-- Admin Portal Sidebar -->
-<aside id="adminSidebar" class="w-64 bg-white border-r border-gray-200 fixed left-0 top-0 bottom-0 z-40 flex flex-col transition-all duration-300 overflow-hidden">
+<aside id="adminSidebar" class="w-64 bg-white border-r border-gray-200 fixed left-0 top-0 bottom-0 z-40 flex flex-col overflow-hidden transition-all duration-300">
     <div class="px-4 py-4 border-b border-gray-200 bg-gray-200">
         <span class="sidebar-label font-bold text-sm text-gray-900">Admin Portal</span>
     </div>
@@ -9,59 +9,30 @@
             <span class="sidebar-label">Back to Desk</span>
         </a>
         <a href="/admin-portal/analytics" id="nav-analytics" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition text-gray-700 bg-gray-100 hover:bg-gray-200">
+            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
             <span class="sidebar-label">Analytics</span>
         </a>
         <a href="/admin-portal/event-suggestions" id="nav-suggestions" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition text-gray-700 bg-gray-100 hover:bg-gray-200">
+            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.5.8a2 2 0 11-3.536 0z"/></svg>
             <span class="sidebar-label">Event Suggestions</span>
         </a>
         <a href="/admin-portal/chat" id="nav-chat" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition text-gray-700 bg-gray-100 hover:bg-gray-200">
+            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             <span class="sidebar-label">Chat Support</span>
         </a>
     </nav>
     <div class="border-t border-gray-100 p-3 shrink-0">
         <button id="sidebarCollapseBtn" class="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition text-sm font-medium">
+            <svg id="collapseIcon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             <span class="sidebar-label">Collapse</span>
         </button>
     </div>
 </aside>
 
-<script>
-(function() {
-    var sidebar = document.getElementById('adminSidebar');
-    var collapseBtn = document.getElementById('sidebarCollapseBtn');
-    var content = document.getElementById('adminContent');
+<!-- Mobile sidebar overlay backdrop -->
+<div id="adminSidebarBackdrop" class="hidden fixed inset-0 bg-black/40 z-30"></div>
 
-    function applyCollapsed() {
-        sidebar.classList.remove('w-64');
-        sidebar.classList.add('w-16');
-        var labels = sidebar.querySelectorAll('.sidebar-label');
-        labels.forEach(function(l) { l.style.display = 'none'; });
-        if (content) content.style.marginLeft = '4rem';
-    }
-
-    function applyExpanded() {
-        sidebar.classList.remove('w-16');
-        sidebar.classList.add('w-64');
-        var labels = sidebar.querySelectorAll('.sidebar-label');
-        labels.forEach(function(l) { l.style.display = ''; });
-        if (content) content.style.marginLeft = '16rem';
-    }
-
-    function init() {
-        var isCollapsed = localStorage.getItem('admin_sidebar_collapsed') === 'true';
-        if (isCollapsed) { applyCollapsed(); }
-
-        collapseBtn.addEventListener('click', function() {
-            isCollapsed = !isCollapsed;
-            localStorage.setItem('admin_sidebar_collapsed', isCollapsed);
-            if (isCollapsed) { applyCollapsed(); } else { applyExpanded(); }
-        });
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
-})();
-</script>
+<!-- Mobile sidebar toggle -->
+<button id="adminSidebarToggle" class="md:hidden fixed bottom-4 left-4 z-50 w-12 h-12 rounded-full bg-gray-800 text-white flex items-center justify-center shadow-lg">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+</button>

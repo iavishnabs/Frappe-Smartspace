@@ -1,5 +1,5 @@
 // SmartSpace Service Worker
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v4";
 const STATIC_CACHE = `smartspace-static-${CACHE_VERSION}`;
 const PAGE_CACHE = `smartspace-pages-${CACHE_VERSION}`;
 const API_CACHE = `smartspace-api-${CACHE_VERSION}`;

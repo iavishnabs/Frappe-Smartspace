@@ -1,5 +1,5 @@
 <!-- Shared Chat Widget — include on every portal page -->
-<!-- Usage: {% include "www/includes/chat-widget.html" %} -->
+<!-- Usage: include www/includes/chat-widget.html -->
 <div id="chatWidgetApp">
     {% raw %}
     <!-- Floating Admin Icon -->
@@ -8,7 +8,6 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
         </svg>
-        <span v-if="unreadCount > 0" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">{{ unreadCount }}</span>
     </div>
 
     <!-- Chat Panel -->
@@ -94,7 +93,8 @@
     // Don't mount on admin portal pages
     if (window.location.pathname.indexOf('/admin-portal/') !== -1) return;
 
-    var chatApp = Vue.createApp({
+    function mountChat() {
+        var chatApp = Vue.createApp({
         setup: function() {
             var ref = Vue.ref;
             var onMounted = Vue.onMounted;
@@ -105,7 +105,6 @@
             var newMessage = ref('');
             var sending = ref(false);
             var sendError = ref('');
-            var unreadCount = ref(0);
             var messagesContainer = ref(null);
             var historyLoaded = ref(false);
 
@@ -122,16 +121,6 @@
                 if (messagesContainer.value) {
                     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
                 }
-            }
-
-            function fetchUnreadCount() {
-                fetch('/api/method/smartspace.frontend_api.chat.get_unread_count')
-                    .then(function(r) { return r.json(); })
-                    .then(function(data) {
-                        var result = data.message || data;
-                        unreadCount.value = result.unread_count || 0;
-                    })
-                    .catch(function() {});
             }
 
             function fetchHistory() {
@@ -155,7 +144,6 @@
                 if (!historyLoaded.value) {
                     fetchHistory();
                 }
-                unreadCount.value = 0;
             }
 
             function closeChat() {
@@ -202,17 +190,26 @@
             }
 
             onMounted(function() {
-                fetchUnreadCount();
-                setInterval(fetchUnreadCount, 30000);
             });
 
             return {
                 chatOpen, messages, loadingHistory, newMessage, sending,
-                sendError, unreadCount, messagesContainer,
+                sendError, messagesContainer,
                 formatTime, openChat, closeChat, sendMessage
             };
         }
     });
     chatApp.mount('#chatWidgetApp');
+    }
+
+    // Load Vue if not already present, then mount
+    if (typeof Vue !== 'undefined') {
+        mountChat();
+    } else {
+        var vueScript = document.createElement('script');
+        vueScript.src = '/assets/smartspace/js/vue.global.prod.js';
+        vueScript.onload = function() { mountChat(); };
+        document.head.appendChild(vueScript);
+    }
 })();
 </script>

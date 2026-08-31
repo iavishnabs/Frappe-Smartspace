@@ -13,8 +13,7 @@
   "column_break_piwb",
   "related_doctype",
   "related_name",
-  "message_date",
-  "is_read"
+  "message_date"
  ],
  "fields": [
   {
@@ -62,12 +61,6 @@
    "fieldtype": "Datetime",
    "label": "Message Date",
    "default": "Now"
-  },
-  {
-   "fieldname": "is_read",
-   "fieldtype": "Check",
-   "label": "Is Read",
-   "default": "0"
   }
  ],
  "grid_page_length": 50,

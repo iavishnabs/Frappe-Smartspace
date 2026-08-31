@@ -109,16 +109,6 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Space Allocation",
-   "link_count": 0,
-   "link_to": "Space Allocation",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
    "label": "Reservation",
    "link_count": 0,
    "link_to": "Reservation",
@@ -161,16 +151,6 @@
    "label": "Payment",
    "link_count": 0,
    "link_to": "Payment",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Payment Purpose",
-   "link_count": 0,
-   "link_to": "Payment Purpose",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -322,7 +302,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-08-22 01:20:47.196114",
+ "modified": "2026-08-30 19:37:19.101069",
  "modified_by": "Administrator",
  "module": "smartspace",
  "name": "Smart Space Master",
@@ -331,7 +311,14 @@
  "parent_page": "",
  "public": 1,
  "quick_lists": [],
- "roles": [],
+ "roles": [
+  {
+   "role": "App Admin"
+  },
+  {
+   "role": "System Manager"
+  }
+ ],
  "sequence_id": 28.0,
  "shortcuts": [
   {

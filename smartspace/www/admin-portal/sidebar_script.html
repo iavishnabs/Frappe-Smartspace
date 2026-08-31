@@ -1,0 +1,110 @@
+<script>
+(function() {
+    var sidebar = document.getElementById('adminSidebar');
+    var collapseBtn = document.getElementById('sidebarCollapseBtn');
+    var collapseIcon = document.getElementById('collapseIcon');
+    var mobileToggle = document.getElementById('adminSidebarToggle');
+    var backdrop = document.getElementById('adminSidebarBackdrop');
+    var content = document.getElementById('adminContent');
+    var isMobile = window.innerWidth < 768;
+    var isCollapsed = false;
+
+    function applyDesktopCollapsed() {
+        sidebar.classList.remove('w-64');
+        sidebar.classList.add('w-16');
+        sidebar.style.transform = '';
+        sidebar.style.left = '0';
+        var labels = sidebar.querySelectorAll('.sidebar-label');
+        labels.forEach(function(l) { l.style.display = 'none'; });
+        if (content) { content.style.marginLeft = '4rem'; }
+        collapseIcon.innerHTML = '<polyline points="9 18 15 12 9 6"/>';
+    }
+
+    function applyDesktopExpanded() {
+        sidebar.classList.remove('w-16');
+        sidebar.classList.add('w-64');
+        sidebar.style.transform = '';
+        sidebar.style.left = '0';
+        var labels = sidebar.querySelectorAll('.sidebar-label');
+        labels.forEach(function(l) { l.style.display = ''; });
+        if (content) { content.style.marginLeft = '16rem'; }
+        collapseIcon.innerHTML = '<polyline points="15 18 9 12 15 6"/>';
+    }
+
+    function openMobileSidebar() {
+        sidebar.style.transform = 'translateX(0)';
+        sidebar.style.left = '0';
+        backdrop.classList.remove('hidden');
+        var labels = sidebar.querySelectorAll('.sidebar-label');
+        labels.forEach(function(l) { l.style.display = ''; });
+    }
+
+    function closeMobileSidebar() {
+        sidebar.style.transform = 'translateX(-100%)';
+        backdrop.classList.add('hidden');
+    }
+
+    function init() {
+        isMobile = window.innerWidth < 768;
+
+        if (isMobile) {
+            sidebar.classList.remove('w-16');
+            sidebar.classList.add('w-64');
+            sidebar.style.transform = 'translateX(-100%)';
+            if (content) { content.style.marginLeft = '0'; }
+        } else {
+            sidebar.style.transform = '';
+            if (!isCollapsed) {
+                applyDesktopExpanded();
+            } else {
+                applyDesktopCollapsed();
+            }
+        }
+
+        collapseBtn.addEventListener('click', function() {
+            if (isMobile) {
+                closeMobileSidebar();
+                return;
+            }
+            isCollapsed = !isCollapsed;
+            if (isCollapsed) { applyDesktopCollapsed(); } else { applyDesktopExpanded(); }
+        });
+
+        mobileToggle.addEventListener('click', function() {
+            if (isMobile) {
+                if (sidebar.style.transform === 'translateX(-100%)' || sidebar.style.transform === '') {
+                    openMobileSidebar();
+                } else {
+                    closeMobileSidebar();
+                }
+            }
+        });
+
+        backdrop.addEventListener('click', closeMobileSidebar);
+
+        window.addEventListener('resize', function() {
+            var wasMobile = isMobile;
+            isMobile = window.innerWidth < 768;
+            if (wasMobile !== isMobile) {
+                if (isMobile) {
+                    sidebar.style.transform = 'translateX(-100%)';
+                    if (content) { content.style.marginLeft = '0'; }
+                    backdrop.classList.add('hidden');
+                } else {
+                    sidebar.classList.remove('w-16');
+                    sidebar.classList.add('w-64');
+                    sidebar.style.transform = '';
+                    if (!isCollapsed) { applyDesktopExpanded(); } else { applyDesktopCollapsed(); }
+                    backdrop.classList.add('hidden');
+                }
+            }
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+</script>
