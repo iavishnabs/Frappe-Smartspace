@@ -1,109 +1,17 @@
 {
  "add_total_row": 1,
  "add_translate_data": 0,
- "columns": [
-  {
-   "fieldname": "event_name",
-   "fieldtype": "Data",
-   "label": "Event Name",
-   "width": 300
-  },
-  {
-   "fieldname": "event_theme",
-   "fieldtype": "Data",
-   "label": "Event Theme",
-   "width": 150
-  },
-  {
-   "fieldname": "location",
-   "fieldtype": "Link",
-   "label": "Location",
-   "options": "Location",
-   "width": 120
-  },
-  {
-   "fieldname": "event_status",
-   "fieldtype": "Data",
-   "label": "Event Status",
-   "width": 100
-  },
-  {
-   "fieldname": "start_date",
-   "fieldtype": "Datetime",
-   "label": "Start Date",
-   "width": 140
-  },
-  {
-   "fieldname": "end_date",
-   "fieldtype": "Datetime",
-   "label": "End Date",
-   "width": 140
-  },
-  {
-   "fieldname": "budget_amount",
-   "fieldtype": "Currency",
-   "label": "Budget",
-   "width": 120
-  },
-  {
-   "fieldname": "total_collected",
-   "fieldtype": "Currency",
-   "label": "Collected",
-   "width": 120
-  },
-  {
-   "fieldname": "total_spent",
-   "fieldtype": "Currency",
-   "label": "Spent",
-   "width": 120
-  },
-  {
-   "fieldname": "fund_balance",
-   "fieldtype": "Currency",
-   "label": "Balance",
-   "width": 120
-  },
-  {
-   "fieldname": "contributors",
-   "fieldtype": "Int",
-   "label": "Contributors",
-   "width": 100
-  }
- ],
+ "columns": [],
  "creation": "2026-08-29 16:52:06.088499",
  "disable_prepared_report_automation": 0,
  "disabled": 0,
  "docstatus": 0,
  "doctype": "Report",
- "filters": [
-  {
-   "fieldname": "location",
-   "fieldtype": "Link",
-   "label": "Location",
-   "options": "Location"
-  },
-  {
-   "fieldname": "event_status",
-   "fieldtype": "Select",
-   "label": "Event Status",
-   "options": "\nDraft\nPublished\nCompleted\nCancelled"
-  },
-  {
-   "fieldname": "from_date",
-   "fieldtype": "Date",
-   "label": "From Date"
-  },
-  {
-   "fieldname": "to_date",
-   "fieldtype": "Date",
-   "label": "To Date"
-  }
- ],
+ "filters": [],
  "idx": 0,
  "is_standard": "Yes",
- "json": "{}",
  "letter_head": null,
- "modified": "2026-08-29 16:53:10.993594",
+ "modified": "2026-09-03 12:10:10.391724",
  "modified_by": "Administrator",
  "module": "Space Event",
  "name": "Event Summary Report",

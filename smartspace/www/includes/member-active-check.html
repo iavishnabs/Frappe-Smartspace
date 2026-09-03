@@ -1,0 +1,24 @@
+<script>
+window.memberActive = true;
+window.memberActivePromise = (function() {
+    return fetch('/api/method/smartspace.frontend_api.member.get_profile')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var profile = data.message || data;
+            var member = profile.member;
+            var isActive = member && member.active;
+            window.memberActive = !!isActive;
+            if (!isActive) {
+                document.querySelectorAll('[data-requires-active]').forEach(function(el) {
+                    el.style.display = 'none';
+                });
+                var banner = document.createElement('div');
+                banner.className = 'bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-sm mb-4';
+                banner.innerHTML = '<strong>Membership Inactive:</strong> You can book spaces, but other features are disabled. Book a space to reactivate your membership.';
+                var content = document.querySelector('.sidebar-content') || document.body;
+                content.insertBefore(banner, content.firstChild.nextSibling);
+            }
+        })
+        .catch(function() {});
+})();
+</script>

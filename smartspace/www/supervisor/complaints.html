@@ -613,6 +613,14 @@ function openDetailModal(complaintName) {
     if (c.assigned_to_name && c.complaint_type === 'Asset Related') {
         html += '<div class="border-t pt-3"><span class="text-gray-400 text-sm block mb-1">Assigned To</span><p class="text-gray-700 text-sm font-medium">' + c.assigned_to_name + '</p></div>';
     }
+    if (c.maintenance_task) {
+        html += '<div class="border-t pt-3"><span class="text-gray-400 text-sm block mb-1">Maintenance Task</span>';
+        html += '<div class="flex items-center justify-between"><span class="text-gray-700 text-sm font-medium">' + c.maintenance_task.name + '</span>' + statusBadge(c.maintenance_task.status) + '</div>';
+        if (c.maintenance_task.priority) {
+            html += '<div class="text-xs text-gray-500 mt-1">Priority: ' + c.maintenance_task.priority + '</div>';
+        }
+        html += '</div>';
+    }
     if (c.closed_date) {
         html += '<div class="border-t pt-3"><span class="text-gray-400 text-sm block mb-1">Closed Date</span><p class="text-gray-700 text-sm">' + formatDate(c.closed_date) + '</p></div>';
         if (c.closed_reason) {

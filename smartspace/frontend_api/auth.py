@@ -38,6 +38,34 @@ def is_session_user_admin():
 	return role in ("App Admin", "Administrator")
 
 
+def require_active_member():
+	"""Check if current member is active, throw if not."""
+	app_user = get_session_app_user()
+	if not app_user:
+		frappe.throw("No App User found for current session user")
+	active = frappe.db.get_value("Member", {"app_user": app_user}, "active")
+	if active is None:
+		frappe.throw("No Member record found")
+	if not active:
+		frappe.throw("Your membership is inactive. Please book a space to reactivate your membership.")
+
+
+def require_regular_member():
+	"""Check if current member is active and Regular type, throw if not."""
+	app_user = get_session_app_user()
+	if not app_user:
+		frappe.throw("No App User found for current session user")
+	member_type, active = frappe.db.get_value(
+		"Member", {"app_user": app_user}, ["member_type", "active"]
+	)
+	if member_type is None:
+		frappe.throw("No Member record found")
+	if not active:
+		frappe.throw("Your membership is inactive. Please book a space to reactivate your membership.")
+	if member_type != "Regular":
+		frappe.throw("AI Booking Assistant is only available for Regular members.")
+
+
 def get_session_app_user_doc(fields=None):
 	"""Get app user doc."""
 	user_id = frappe.session.user

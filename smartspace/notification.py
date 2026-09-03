@@ -48,16 +48,17 @@ def on_lost_found_insert(doc, method=None):
     if not report_location:
         return
 
+    notified_users = set()
+    subject = f"New {doc.report_type} Report: {doc.item_name}"
+
+    # notify app users whose profile location matches
     active_users = frappe.get_all(
         "App User",
         filters={"active": 1, "location": report_location},
         fields=["user"],
     )
-
-    subject = f"New {doc.report_type} Report: {doc.item_name}"
-
     for au in active_users:
-        if not au.user or au.user == owner_user:
+        if not au.user or au.user == owner_user or au.user in notified_users:
             continue
         create_notification_log(
             subject=subject,
@@ -65,6 +66,44 @@ def on_lost_found_insert(doc, method=None):
             document_type="Lost And Found",
             document_name=doc.name,
         )
+        notified_users.add(au.user)
+
+    # notify members who have booked reservations at this location (multi-location support)
+    members_with_bookings = frappe.db.sql("""
+        SELECT DISTINCT au.user
+        FROM `tabReservation` r
+        JOIN `tabSpace` s ON r.space = s.name
+        JOIN `tabApp User` au ON r.app_user = au.name
+        WHERE s.location = %s
+        AND r.booking_status = 'Booked'
+        AND au.user IS NOT NULL
+    """, (report_location,), as_dict=True)
+    for row in members_with_bookings:
+        if not row.user or row.user == owner_user or row.user in notified_users:
+            continue
+        create_notification_log(
+            subject=subject,
+            for_user=row.user,
+            document_type="Lost And Found",
+            document_name=doc.name,
+        )
+        notified_users.add(row.user)
+
+    # notify staff at this location
+    staff = frappe.get_all("Staff", filters={"active": 1, "location": report_location}, fields=["app_user"])
+    for s in staff:
+        if not s.app_user:
+            continue
+        user = frappe.db.get_value("App User", s.app_user, "user")
+        if not user or user == owner_user or user in notified_users:
+            continue
+        create_notification_log(
+            subject=subject,
+            for_user=user,
+            document_type="Lost And Found",
+            document_name=doc.name,
+        )
+        notified_users.add(user)
 
 
 def notify_supervisor_on_new_complaint(complaint):

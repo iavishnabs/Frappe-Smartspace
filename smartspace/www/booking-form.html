@@ -305,7 +305,21 @@ function submitBooking() {
                 window.location.href = '/member/booking-detail?name=' + encodeURIComponent(result.reservation);
             }
         } else {
-            throw new Error(data.message || data._server_messages || 'Failed to create booking');
+            var msg = 'Failed to create booking';
+            if (data._server_messages) {
+                try {
+                    var msgs = JSON.parse(data._server_messages);
+                    if (msgs.length > 0) {
+                        var first = JSON.parse(msgs[0]);
+                        msg = first.message || first.title || msgs[0];
+                    }
+                } catch(e) {}
+            } else if (typeof data.message === 'string') {
+                msg = data.message;
+            } else if (data.message && data.message.message) {
+                msg = data.message.message;
+            }
+            throw new Error(msg);
         }
     })
     .catch(function(err) {

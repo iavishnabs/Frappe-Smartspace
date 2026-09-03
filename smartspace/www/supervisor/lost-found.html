@@ -420,6 +420,12 @@ function openDetailModal(itemName) {
     html += '<div class="flex items-center gap-2">' + typeBadge(item.report_type) + statusBadge(item.status) + '</div>';
     html += '<div class="flex items-center justify-between"><span class="text-gray-400 text-sm">Item Name</span><span class="font-medium">' + (item.item_name || '-') + '</span></div>';
     html += '<div class="flex items-center justify-between"><span class="text-gray-400 text-sm">Reported By</span><span class="font-medium">' + (item.reported_by_name || '-') + '</span></div>';
+    if (item.reported_by_phone) {
+        html += '<div class="flex items-center justify-between"><span class="text-gray-400 text-sm">Contact Number</span><span class="font-medium">' + item.reported_by_phone + '</span></div>';
+    }
+    if (item.reported_by_id) {
+        html += '<div class="flex items-center justify-between"><span class="text-gray-400 text-sm">' + (item.reported_by_id_type || 'ID') + ' ID</span><span class="font-medium">' + item.reported_by_id + '</span></div>';
+    }
     html += '<div class="flex items-center justify-between"><span class="text-gray-400 text-sm">Location</span><span class="font-medium">' + (item.location || '-') + '</span></div>';
     html += '<div class="flex items-center justify-between"><span class="text-gray-400 text-sm">Reported Date</span><span class="font-medium">' + formatDateTime(item.reported_date) + '</span></div>';
 

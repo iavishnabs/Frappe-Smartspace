@@ -8,10 +8,8 @@
  "field_order": [
   "enabled",
   "floor_name",
-  "location",
   "column_break_wauz",
-  "floor_code",
-  "floor_number"
+  "location"
  ],
  "fields": [
   {
@@ -34,22 +32,12 @@
   {
    "fieldname": "column_break_wauz",
    "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "floor_code",
-   "fieldtype": "Data",
-   "label": "Floor Code"
-  },
-  {
-   "fieldname": "floor_number",
-   "fieldtype": "Int",
-   "label": "Floor Number"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-15 23:31:41.055547",
+ "modified": "2026-09-03 11:51:56.163437",
  "modified_by": "Administrator",
  "module": "smartspace",
  "name": "Floor",

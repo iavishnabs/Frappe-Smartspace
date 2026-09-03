@@ -17,6 +17,11 @@
     <style>[v-cloak]{display:none}</style>
 </head>
 <body class="bg-slate-50 text-gray-800 min-h-screen">
+{% set _app_user = frappe.db.get_value('App User', {'user': frappe.session.user}, 'name') %}
+{% set _member_data = frappe.db.get_value('Member', {'app_user': _app_user}, ['active', 'member_type'], as_dict=True) if _app_user else None %}
+{% if not _member_data or not _member_data.active or _member_data.member_type != 'Regular' %}
+<script>window.location.href = '/member/dashboard';</script>
+{% endif %}
 {% set active = 'ai-chatbot' %}
 {% include "www/nav_footer/portal_header.html" %}
 {% include "www/member/sidebar.html" %}

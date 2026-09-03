@@ -2,8 +2,8 @@
  {
   "docstatus": 0,
   "doctype": "Custom HTML Block",
-  "html": "<button id=\"admin-portal-link-btn\">Portal</button>",
-  "modified": "2026-08-22 01:29:20.844592",
+  "html": "<button id=\"admin-portal-link-btn\" style=\"background-color: #f97316; color: white; border: none; padding: 8px 16px; border-radius: 5px;\">Portal</button>",
+  "modified": "2026-09-03 17:31:50.899380",
   "name": "Portal Link Button",
   "private": 0,
   "roles": [],

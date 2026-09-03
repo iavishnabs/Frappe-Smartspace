@@ -188,7 +188,9 @@ function fetchStats() {
                     '<div class="flex items-center gap-3">' +
                         '<div class="w-12 h-12 rounded-full bg-white flex items-center justify-center font-bold text-lg">' + (d.member.full_name ? d.member.full_name.charAt(0).toUpperCase() : 'M') + '</div>' +
                         '<div><p class="font-bold">' + (d.member.full_name || 'Member') + '</p>' +
-                        '<p class="text-xs">Type: <span class="font-semibold">' + (d.member.member_type || 'N/A') + '</span> | Expires: <span class="font-semibold">' + expiry + daysLabel + '</span></p></div>' +
+                        '<p class="text-xs">Type: <span class="font-semibold">' + (d.member.member_type || 'N/A') + '</span> | Expires: <span class="font-semibold">' + expiry + daysLabel + '</span></p>' +
+                        (d.member_locations && d.member_locations.length > 0 ? '<p class="text-xs mt-0.5">Locations: <span class="font-semibold">' + d.member_locations.map(function(l) { return l.location_name; }).join(', ') + '</span></p>' : '') +
+                        '</div>' +
                     '</div>' +
                     '<span class="px-3 py-1 rounded-full text-xs font-bold ' + (d.member.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') + '">' + (d.member.active ? 'Active' : 'Inactive') + '</span>' +
                 '</div>';
@@ -223,7 +225,7 @@ function fetchStats() {
                     var sc = statusColor(b.booking_status);
                     return '<a href="/member/booking-detail?name=' + encodeURIComponent(b.name) + '" class="block bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition">' +
                         '<div class="flex items-center justify-between">' +
-                            '<div><p class="font-semibold text-sm">' + (b.space || 'N/A') + '</p><p class="text-xs text-gray-500 mt-0.5">' + fmtDate(b.booking_from) + ' • ' + (b.booking_type || '') + '</p></div>' +
+                            '<div><p class="font-semibold text-sm">' + (b.space || 'N/A') + '</p><p class="text-xs text-gray-500 mt-0.5">' + fmtDate(b.booking_from) + ' • ' + (b.booking_type || '') + (b.location_name ? ' • ' + b.location_name : '') + '</p></div>' +
                             '<div class="text-right"><span class="text-xs font-medium px-2 py-0.5 rounded" style="background:' + sc + '20;color:' + sc + '">' + b.booking_status + '</span><p class="text-xs text-gray-500 mt-1">' + fmtCurrency(b.total_amount) + '</p></div>' +
                         '</div></a>';
                 }).join('');

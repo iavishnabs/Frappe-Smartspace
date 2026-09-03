@@ -1,7 +1,8 @@
 import frappe
 from frappe.utils import now_datetime, get_datetime, today
 
-from smartspace.frontend_api.auth import get_session_app_user, get_session_user_location
+from smartspace.frontend_api.auth import get_session_app_user, require_active_member
+from smartspace.frontend_api.member import _get_member_locations
 
 
 @frappe.whitelist()
@@ -11,12 +12,12 @@ def get_completed_events(page=1, page_size=10):
 	if not app_user:
 		frappe.throw("No App User found for current session user")
 
-	user_location = get_session_user_location()
+	member_locations = _get_member_locations()
 	now = now_datetime()
 
 	filters = {"event_status": "Published", "end_date": ["<", now]}
-	if user_location:
-		filters["location"] = user_location
+	if member_locations:
+		filters["location"] = ["in", member_locations]
 
 	page = int(page)
 	page_size = int(page_size)
@@ -76,6 +77,7 @@ def get_completed_events(page=1, page_size=10):
 @frappe.whitelist()
 def submit_event_rating(event, rating, review=None):
 	"""Submit event rating."""
+	require_active_member()
 	app_user = get_session_app_user()
 	if not app_user:
 		frappe.throw("No App User found for current session user")

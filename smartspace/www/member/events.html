@@ -111,7 +111,7 @@
                                 <div v-if="nextEvent.description" class="mt-4 text-orange-50 text-sm line-clamp-2 event-description" v-html="nextEvent.description"></div>
                                 <div class="mt-4 flex gap-3">
                                     <button @click="openDetail(nextEvent)" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white text-orange-600 font-medium text-sm hover:bg-orange-50 transition">View Details</button>
-                                    <button v-if="nextEvent.event_fund && !isEventOver(nextEvent)" @click="openFundModal(nextEvent)" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/20 text-white font-medium text-sm hover:bg-white/30 transition">Add Fund</button>
+                                    <button v-if="nextEvent.event_fund && !isEventOver(nextEvent) && memberActive" @click="openFundModal(nextEvent)" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/20 text-white font-medium text-sm hover:bg-white/30 transition">Add Fund</button>
                                 </div>
                             </div>
                         </div>
@@ -139,7 +139,7 @@
                                         <span>{{ event.location_name || event.location }}</span>
                                     </div>
                                 </div>
-                                <div v-if="event.event_fund && !isEventOver(event)" class="mt-3 pt-3 border-t border-gray-100">
+                                <div v-if="event.event_fund && !isEventOver(event) && memberActive" class="mt-3 pt-3 border-t border-gray-100">
                                     <button @click.stop="openFundModal(event)" class="text-xs font-medium text-orange-600 hover:text-orange-700">Add Fund</button>
                                 </div>
                             </div>
@@ -252,7 +252,7 @@
                         <div class="text-gray-700 text-sm event-description" v-html="detailEvent.description"></div>
                     </div>
                     <div v-if="detailEvent.event_fund" class="border-t pt-3">
-                        <button v-if="!isEventOver(detailEvent)" @click="openFundModal(detailEvent)" class="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-lg font-semibold text-sm transition">Add Fund</button>
+                        <button v-if="!isEventOver(detailEvent) && memberActive" @click="openFundModal(detailEvent)" class="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-lg font-semibold text-sm transition">Add Fund</button>
                         <p v-else class="text-center text-xs text-gray-400 mt-2">Event has ended. Funding is closed.</p>
                     </div>
                 </div>
@@ -289,14 +289,14 @@
                                 </div>
                                 <p class="text-xs text-gray-500 mt-1">Your rating: {{ event.my_rating }}/5</p>
                             </div>
-                            <button @click="openRatingModal(event)" class="text-xs font-medium text-orange-600 hover:text-orange-700">Edit Rating</button>
+                            <button v-if="memberActive" @click="openRatingModal(event)" class="text-xs font-medium text-orange-600 hover:text-orange-700">Edit Rating</button>
                         </div>
                         <div v-else class="flex items-center justify-between">
                             <div v-if="event.rating_count > 0" class="text-xs text-gray-500">
                                 Avg: <span class="font-semibold text-orange-600">{{ event.avg_rating }}/5</span> ({{ event.rating_count }} ratings)
                             </div>
                             <div v-else class="text-xs text-gray-400">No ratings yet</div>
-                            <button @click="openRatingModal(event)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition">
+                            <button v-if="memberActive" @click="openRatingModal(event)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                                 Rate Event
                             </button>
@@ -375,6 +375,7 @@ createApp({
         const fundModalEvent = ref(null);
         const fundAmount = ref('');
         const fundError = ref('');
+        const memberActive = ref(true);
 
         const pastEvents = ref([]);
         const pastPage = ref(1);
@@ -647,6 +648,13 @@ createApp({
         }
 
         onMounted(function() {
+            fetch('/api/method/smartspace.frontend_api.member.get_profile')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    var p = data.message || data;
+                    memberActive.value = !!(p.member && p.member.active);
+                })
+                .catch(function() {});
             fetchEvents();
             fetchPastEvents();
         });
@@ -654,7 +662,7 @@ createApp({
         return {
             loading, events, total, page, pageSize, totalPages,
             nextEvent, otherEvents, detailEvent,
-            fundModalEvent, fundAmount, fundError,
+            fundModalEvent, fundAmount, fundError, memberActive,
             pastEvents, pastPage, pastTotalPages,
             ratingModalEvent, ratingValue, hoverRating, ratingReview, ratingError, ratingSuccess,
             currentMonth, currentYear, monthNames, dayHeaders,

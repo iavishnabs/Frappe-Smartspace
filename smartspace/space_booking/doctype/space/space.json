@@ -28,6 +28,7 @@
   {
    "fieldname": "location",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "Location",
    "options": "Location"
   },
@@ -45,6 +46,8 @@
    "default": "Available",
    "fieldname": "availability_status",
    "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Availability Status",
    "options": "\nAvailable\nOccupied\nReserved\nUnder Maintenance\nInactive"
   },
@@ -88,7 +91,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-28 23:18:19.541714",
+ "modified": "2026-09-03 22:25:38.333849",
  "modified_by": "Administrator",
  "module": "Space Booking",
  "name": "Space",

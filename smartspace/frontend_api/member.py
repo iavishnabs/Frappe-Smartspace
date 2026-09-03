@@ -6,6 +6,8 @@ from smartspace.frontend_api.auth import (
 	get_session_app_user_doc,
 	get_session_user_location,
 	get_session_user_role,
+	require_active_member,
+	require_regular_member,
 )
 
 
@@ -55,6 +57,7 @@ def get_profile():
 @frappe.whitelist()
 def update_profile(phone=None, date_of_birth=None, gender=None, profile_image=None,
                    address_line_1=None, city=None, state=None, country=None, pincode=None):
+	require_active_member()
 	app_user = get_session_app_user()
 	if not app_user:
 		frappe.throw("No App User found for current session user")
@@ -90,6 +93,7 @@ def update_profile(phone=None, date_of_birth=None, gender=None, profile_image=No
 
 @frappe.whitelist()
 def change_password(new_password, confirm_password):
+	require_active_member()
 	if not new_password or not confirm_password:
 		frappe.throw("Both new password and confirm password are required")
 	if new_password != confirm_password:
@@ -132,6 +136,14 @@ def get_dashboard_stats():
 		order_by="booking_from asc",
 		limit=5,
 	)
+	for b in active_bookings:
+		if b.get("space"):
+			space_info = frappe.db.get_value("Space", b["space"], ["space_type", "location"], as_dict=True)
+			if space_info:
+				b["space_type"] = space_info.space_type
+				b["location"] = space_info.location
+				if space_info.location:
+					b["location_name"] = frappe.db.get_value("Location", space_info.location, "location_name") or space_info.location
 	active_booking_count = frappe.db.count("Reservation", {
 		"app_user": app_user, "booking_status": ["in", ["Pending", "Booked"]]
 	})
@@ -182,10 +194,10 @@ def get_dashboard_stats():
 	})
 
 	# events
-	user_location = get_session_user_location()
+	member_locations = _get_member_locations()
 	event_filters = {"event_status": "Published", "start_date": [">=", now]}
-	if user_location:
-		event_filters["location"] = user_location
+	if member_locations:
+		event_filters["location"] = ["in", member_locations]
 	upcoming_events = frappe.db.count("Space Event", event_filters)
 	latest_event = frappe.db.get_list(
 		"Space Event",
@@ -198,6 +210,15 @@ def get_dashboard_stats():
 
 	# lost & found
 	lf_open = frappe.db.count("Lost And Found", {"reported_by": app_user, "status": "Open"})
+
+	# member locations
+	member_locations = _get_member_locations()
+	locations_list = []
+	for loc in member_locations:
+		locations_list.append({
+			"location": loc,
+			"location_name": frappe.db.get_value("Location", loc, "location_name") or loc,
+		})
 
 	return {
 		"member": member,
@@ -215,6 +236,7 @@ def get_dashboard_stats():
 			"latest": latest_event,
 		},
 		"lost_found_open": lf_open,
+		"member_locations": locations_list,
 	}
 
 
@@ -431,7 +453,7 @@ def renew_reservation(reservation_name, booking_type, booking_from, count, parki
 
 
 @frappe.whitelist()
-def get_my_bookings(status=None, page=1, page_size=10):
+def get_my_bookings(status=None, page=1, page_size=10, location=None):
 	"""Get member bookings."""
 	app_user = get_session_app_user()
 	if not app_user:
@@ -440,6 +462,13 @@ def get_my_bookings(status=None, page=1, page_size=10):
 	filters = {"app_user": app_user}
 	if status and status != "All Status":
 		filters["booking_status"] = status
+
+	if location and location != "All Locations":
+		spaces_at_loc = frappe.db.get_list("Space", {"location": location}, pluck="name")
+		if spaces_at_loc:
+			filters["space"] = ["in", spaces_at_loc]
+		else:
+			filters["space"] = "__NONEXISTENT__"
 
 	page = int(page)
 	page_size = int(page_size)
@@ -458,8 +487,11 @@ def get_my_bookings(status=None, page=1, page_size=10):
 
 	for b in bookings:
 		if b.space:
-			space_type = frappe.db.get_value("Space", b.space, "space_type")
-			b["space_type"] = space_type
+			space_info = frappe.db.get_value("Space", b.space, ["space_type", "location"], as_dict=True)
+			b["space_type"] = space_info.space_type if space_info else None
+			b["location"] = space_info.location if space_info else None
+			if b["location"]:
+				b["location_name"] = frappe.db.get_value("Location", b["location"], "location_name") or b["location"]
 
 	total = frappe.db.count("Reservation", filters)
 
@@ -631,7 +663,7 @@ def pay_for_booking(reservation_name, payment_method="Card"):
 
 
 @frappe.whitelist()
-def get_transactions(page=1, page_size=20):
+def get_transactions(page=1, page_size=20, location=None):
 	"""Get member transactions."""
 	app_user = get_session_app_user()
 	if not app_user:
@@ -641,9 +673,24 @@ def get_transactions(page=1, page_size=20):
 	page_size = int(page_size)
 	start = (page - 1) * page_size
 
+	payment_filters = {"user": app_user}
+
+	if location and location != "All Locations":
+		spaces_at_loc = frappe.db.get_list("Space", {"location": location}, pluck="name")
+		reservation_names = []
+		if spaces_at_loc:
+			reservation_names = frappe.db.get_list(
+				"Reservation", {"space": ["in", spaces_at_loc]}, pluck="name"
+			)
+		payment_filters["transaction_reference"] = "Reservation"
+		if reservation_names:
+			payment_filters["reference_name"] = ["in", reservation_names]
+		else:
+			payment_filters["reference_name"] = "__NONEXISTENT__"
+
 	payments = frappe.db.get_list(
 		"Payment",
-		filters={"user": app_user},
+		filters=payment_filters,
 		fields=["name", "payment_type", "payment_purpose", "payment_method",
 				"amount", "payment_status", "payment_date",
 				"transaction_reference", "reference_name"],
@@ -663,7 +710,7 @@ def get_transactions(page=1, page_size=20):
 			space = frappe.db.get_value("Reservation", p.reference_name, "space")
 			p["space_name"] = space
 
-	total = frappe.db.count("Payment", {"user": app_user})
+	total = frappe.db.count("Payment", payment_filters)
 
 	return {
 		"transactions": payments,
@@ -678,7 +725,7 @@ def get_transactions(page=1, page_size=20):
 
 
 @frappe.whitelist()
-def get_my_parking():
+def get_my_parking(location=None):
 	"""Get member parking."""
 	app_user = get_session_app_user()
 	if not app_user:
@@ -686,9 +733,22 @@ def get_my_parking():
 
 	member = frappe.db.get_value("Member", {"app_user": app_user}, "name")
 
+	alloc_filters = {"allocation_status": "Active"}
+	if member:
+		alloc_filters["member"] = member
+	else:
+		alloc_filters["app_user"] = app_user
+
+	if location and location != "All Locations":
+		slots_at_loc = frappe.db.get_list("Parking Slot", {"location": location}, pluck="name")
+		if slots_at_loc:
+			alloc_filters["parking_slot"] = ["in", slots_at_loc]
+		else:
+			alloc_filters["parking_slot"] = "__NONEXISTENT__"
+
 	allocations = frappe.db.get_list(
 		"Parking Allocation",
-		filters={"member": member, "allocation_status": "Active"} if member else {"app_user": app_user, "allocation_status": "Active"},
+		filters=alloc_filters,
 		fields=["name", "parking_slot", "vehicle_number", "allocation_type",
 				"allocated_from", "allocated_to", "allocation_status", "reservation"],
 		order_by="allocated_from desc",
@@ -706,6 +766,45 @@ def get_my_parking():
 	return {"allocations": allocations}
 
 
+# member locations
+
+
+def _get_member_locations():
+	"""Get all distinct locations from member's booked reservations."""
+	app_user = get_session_app_user()
+	if not app_user:
+		return []
+
+	reservations = frappe.db.get_list(
+		"Reservation",
+		filters={"app_user": app_user, "booking_status": ["in", ["Booked", "Paid", "Completed"]]},
+		fields=["space"],
+	)
+	space_names = [r.space for r in reservations if r.space]
+	if not space_names:
+		profile_loc = frappe.db.get_value("App User", app_user, "location")
+		return [profile_loc] if profile_loc else []
+
+	locations = frappe.db.get_values(
+		"Space",
+		{"name": ["in", space_names]},
+		"location",
+	)
+	locations = list(set([l[0] for l in locations if l[0]]))
+	return locations
+
+
+@frappe.whitelist()
+def get_member_locations():
+	"""Get all locations the member has booked at, with names."""
+	loc_ids = _get_member_locations()
+	result = []
+	for loc in loc_ids:
+		name = frappe.db.get_value("Location", loc, "location_name") or loc
+		result.append({"location": loc, "location_name": name})
+	return result
+
+
 # events & funding
 
 
@@ -713,6 +812,10 @@ def get_my_parking():
 def get_events(page=1, page_size=10):
 	"""Get upcoming events."""
 	filters = {"event_status": "Published", "start_date": [">=", now_datetime()]}
+
+	member_locations = _get_member_locations()
+	if member_locations:
+		filters["location"] = ["in", member_locations]
 
 	page = int(page)
 	page_size = int(page_size)
@@ -749,6 +852,7 @@ def get_events(page=1, page_size=10):
 @frappe.whitelist()
 def fund_event(event_name, amount, payment_method="Card"):
 	"""Fund an event."""
+	require_active_member()
 	app_user = get_session_app_user()
 	if not app_user:
 		frappe.throw("No App User found for current session user")
@@ -822,7 +926,7 @@ def fund_event(event_name, amount, payment_method="Card"):
 
 
 @frappe.whitelist()
-def get_complaints(status=None, search=None, page=1, page_size=10):
+def get_complaints(status=None, search=None, page=1, page_size=10, location=None):
 	filters = {"raised_by": frappe.session.user}
 
 	if status and status != "All Status":
@@ -830,6 +934,9 @@ def get_complaints(status=None, search=None, page=1, page_size=10):
 
 	if search:
 		filters["description"] = ["like", f"%{search}%"]
+
+	if location and location != "All Locations":
+		filters["location"] = location
 
 	page = int(page)
 	page_size = int(page_size)
@@ -864,15 +971,19 @@ def get_complaints(status=None, search=None, page=1, page_size=10):
 
 
 @frappe.whitelist()
-def create_complaint(complaint_type, description, related_asset=None, attachment=None):
+def create_complaint(complaint_type, description, related_asset=None, attachment=None, location=None):
+	require_active_member()
 	user_id = frappe.session.user
+
+	if not location:
+		location = get_session_user_location()
 
 	doc = frappe.get_doc({
 		"doctype": "Complaints",
 		"complaint_type": complaint_type,
 		"raised_by": user_id,
 		"related_asset": related_asset if complaint_type == "Asset Related" else None,
-		"location": get_session_user_location(),
+		"location": location,
 		"description": description,
 		"attachment": attachment,
 		"status": "Open",
@@ -913,6 +1024,7 @@ def update_complaint(name, complaint_type=None, description=None, related_asset=
 
 @frappe.whitelist()
 def delete_complaint(name):
+	require_active_member()
 	user_id = frappe.session.user
 	doc = frappe.get_doc("Complaints", name)
 
@@ -929,7 +1041,7 @@ def delete_complaint(name):
 
 
 @frappe.whitelist()
-def get_lost_found(search=None, status=None, page=1, page_size=10):
+def get_lost_found(status=None, search=None, page=1, page_size=10, location=None):
 	app_user = get_session_app_user()
 	filters = {"reported_by": app_user} if app_user else {}
 
@@ -937,6 +1049,9 @@ def get_lost_found(search=None, status=None, page=1, page_size=10):
 		filters["status"] = status
 	if search:
 		filters["item_name"] = ["like", f"%{search}%"]
+
+	if location and location != "All Locations":
+		filters["location"] = location
 
 	page = int(page)
 	page_size = int(page_size)
@@ -964,17 +1079,21 @@ def get_lost_found(search=None, status=None, page=1, page_size=10):
 
 
 @frappe.whitelist()
-def create_lost_found(report_type, item_name, description=None, image=None):
+def create_lost_found(report_type, item_name, description=None, image=None, location=None):
+	require_active_member()
 	app_user = get_session_app_user()
 	if not app_user:
 		frappe.throw("No App User found for current session user")
+
+	if not location:
+		location = get_session_user_location()
 
 	doc = frappe.get_doc({
 		"doctype": "Lost And Found",
 		"report_type": report_type,
 		"reported_by": app_user,
 		"item_name": item_name,
-		"location": get_session_user_location(),
+		"location": location,
 		"description": description,
 		"image": image,
 	})
@@ -1017,6 +1136,7 @@ def update_lost_found(name, report_type=None, item_name=None, description=None, 
 
 @frappe.whitelist()
 def delete_lost_found(name):
+	require_active_member()
 	app_user = get_session_app_user()
 	doc = frappe.get_doc("Lost And Found", name)
 
@@ -1031,6 +1151,7 @@ def delete_lost_found(name):
 
 @frappe.whitelist()
 def close_lost_found(name):
+	require_active_member()
 	app_user = get_session_app_user()
 	doc = frappe.get_doc("Lost And Found", name)
 
@@ -1105,6 +1226,7 @@ def mark_all_notifications_read():
 @frappe.whitelist()
 def check_space_availability(space, booking_from, booking_type, count):
 	"""Check space availability."""
+	require_regular_member()
 	from frappe.utils import getdate, add_to_date, flt
 
 	try:
@@ -1190,6 +1312,7 @@ def check_space_availability(space, booking_from, booking_type, count):
 @frappe.whitelist()
 def chatbot_create_booking(space, booking_type, booking_from, count, purpose=None, attendees=None):
 	"""Chatbot booking creation."""
+	require_regular_member()
 	app_user = get_session_app_user()
 	if not app_user:
 		frappe.throw("No App User found for current session user")
@@ -1234,6 +1357,7 @@ def chatbot_create_booking(space, booking_type, booking_from, count, purpose=Non
 @frappe.whitelist()
 def get_chatbot_spaces(space_type=None):
 	"""Get chatbot spaces."""
+	require_regular_member()
 	filters = {"availability_status": "Available"}
 
 	if space_type and space_type in ("Conference Room", "Event Hall"):
@@ -1306,10 +1430,10 @@ def member_ask_question(question):
 		})
 
 	# events
-	user_location = get_session_user_location()
+	member_locations = _get_member_locations()
 	event_filters = {"event_status": "Published"}
-	if user_location:
-		event_filters["location"] = user_location
+	if member_locations:
+		event_filters["location"] = ["in", member_locations]
 	upcoming_events = frappe.db.get_all(
 		"Space Event",
 		filters={**event_filters, "start_date": [">=", now_datetime()]},

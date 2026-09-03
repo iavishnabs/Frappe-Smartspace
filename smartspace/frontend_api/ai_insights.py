@@ -147,14 +147,123 @@ def get_insights_summary(from_date=None, to_date=None, location=None):
     return {"insights": insights}
 
 
+def _extract_location_from_question(q):
+	"""Extract a location name from the question text."""
+	all_locations = frappe.get_all("Location", filters={"status": "Active"}, fields=["name", "location_name"])
+	for loc in all_locations:
+		if loc.location_name and loc.location_name.lower() in q:
+			return loc.name
+		if loc.name and loc.name.lower() in q:
+			return loc.name
+	# try matching individual significant words from location_name
+	common_words = {"smart", "space", "the", "branch", "office", "center", "centre"}
+	for loc in all_locations:
+		ln = (loc.location_name or loc.name or "").lower()
+		words = [w for w in ln.split() if len(w) > 2 and w not in common_words]
+		for w in words:
+			if w in q:
+				return loc.name
+	return None
+
+
+def _extract_date_range_from_question(q):
+	"""Extract date range from question text."""
+	from frappe.utils import getdate, nowdate, add_months, get_first_day, get_last_day, add_days
+	import re
+	now = getdate(nowdate())
+	if "this month" in q:
+		return str(get_first_day(now)), str(get_last_day(now))
+	if "last month" in q:
+		prev = add_months(now, -1)
+		return str(get_first_day(prev)), str(get_last_day(prev))
+	if "this year" in q:
+		return str(now.replace(month=1, day=1)), str(now.replace(month=12, day=31))
+	m = re.search(r'last (\d+) month', q)
+	if m:
+		return str(add_months(now, -int(m.group(1)))), str(now)
+	m = re.search(r'last (\d+) day', q)
+	if m:
+		return str(add_days(now, -int(m.group(1)))), str(now)
+	m = re.search(r'last (\d+) year', q)
+	if m:
+		return str(add_months(now, -int(m.group(1)) * 12)), str(now)
+	return None, None
+
+
+def _match_specific_patterns(q, extracted_location, from_date, to_date, location):
+	"""Match specific question patterns for precise answers."""
+	if not extracted_location:
+		return None
+	loc_name = frappe.db.get_value("Location", extracted_location, "location_name") or extracted_location
+
+	# event fund / collection questions
+	fund_kws = ["event fund", "fund collected", "total collected", "event collection", "fund raised", "how much collected"]
+	if any(kw in q for kw in fund_kws):
+		events = get_events_list(from_date, to_date, extracted_location).get("events", [])
+		if not events:
+			return f"No events found in {loc_name} for the selected period."
+		total_collected = sum(e.get("total_collected", 0) for e in events)
+		total_spent = sum(e.get("total_spent", 0) for e in events)
+		balance = total_collected - total_spent
+		parts = [f"Event fund details in {loc_name}:", f"\n  • Total collected: ₹{total_collected:,.0f}", f"\n  • Total spent: ₹{total_spent:,.0f}", f"\n  • Fund balance: ₹{balance:,.0f}", f"\n  • Events: {len(events)}"]
+		if len(events) <= 5:
+			parts.append("\n\nPer-event breakdown:")
+			for e in events:
+				parts.append(f"\n  • {e.get('event_name', 'Unnamed')}: Collected ₹{e.get('total_collected', 0):,.0f}, Spent ₹{e.get('total_spent', 0):,.0f}")
+		return "".join(parts)
+
+	# revenue in a specific location
+	if any(kw in q for kw in ["how much revenue", "revenue in", "revenue from", "total revenue"]) and "revenue" in q:
+		overview = get_analytics_overview(from_date, to_date, extracted_location)
+		total = overview.get("total_revenue", 0)
+		bookings = overview.get("total_bookings", 0)
+		return f"Total revenue in {loc_name}: ₹{total:,.0f} from {bookings} bookings."
+
+	# bookings in a specific location
+	if any(kw in q for kw in ["how many booking", "bookings in", "total booking"]) and "booking" in q:
+		overview = get_analytics_overview(from_date, to_date, extracted_location)
+		total = overview.get("total_bookings", 0)
+		return f"Total bookings in {loc_name}: {total} (Completed: {overview.get('completed_bookings', 0)}, Pending: {overview.get('pending_bookings', 0)})."
+
+	# members in a specific location
+	if any(kw in q for kw in ["how many member", "members in", "total member"]) and "member" in q:
+		overview = get_analytics_overview(from_date, to_date, extracted_location)
+		total = overview.get("total_members", 0)
+		active = overview.get("active_members", 0)
+		return f"Total members in {loc_name}: {total} ({active} active)."
+
+	# assets in a specific location
+	if any(kw in q for kw in ["how many asset", "assets in", "total asset"]) and "asset" in q:
+		overview = get_analytics_overview(from_date, to_date, extracted_location)
+		total = overview.get("total_assets", 0)
+		return f"Total assets in {loc_name}: {total} (Allocated: {overview.get('allocated_assets', 0)}, Available: {overview.get('available_assets', 0)})."
+
+	return None
+
+
 @frappe.whitelist()
 def ask_question(question, from_date=None, to_date=None, location=None):
-    """Answer admin questions."""
+    """Answer admin questions with entity extraction and cross-referencing."""
     _check_admin_role()
     if not question or not question.strip():
         return {"answer": "Please ask a question."}
 
     q = question.lower().strip()
+
+    # --- Entity extraction ---
+    extracted_location = _extract_location_from_question(q)
+    extracted_from, extracted_to = _extract_date_range_from_question(q)
+    if extracted_location and not location:
+        location = extracted_location
+    if extracted_from and not from_date:
+        from_date = extracted_from
+    if extracted_to and not to_date:
+        to_date = extracted_to
+
+    # --- Specific pattern matching ---
+    specific = _match_specific_patterns(q, extracted_location, from_date, to_date, location)
+    if specific:
+        return {"answer": specific}
 
     # grab all the data we need
     overview = get_analytics_overview(from_date, to_date, location)
@@ -167,6 +276,17 @@ def ask_question(question, from_date=None, to_date=None, location=None):
     events = get_events_list(from_date, to_date, location).get("events", [])
     bookings = get_recent_bookings(from_date, to_date, location, limit=200).get("bookings", [])
 
+    # if a specific location was extracted, filter events and loc_stats for that location
+    if extracted_location:
+        events = [e for e in events if e.get("location") == extracted_location]
+        locations = [l for l in locations if l.get("location") == extracted_location]
+
+    # location context label for answers
+    loc_label = ""
+    if extracted_location:
+        loc_name = frappe.db.get_value("Location", extracted_location, "location_name") or extracted_location
+        loc_label = f" in {loc_name}"
+
     # figure out what topics the question is about
     topic_keywords = {
         "profit": ["profit", "loss", "margin", "net", "surplus", "deficit", "bottom line", "earnings after"],
@@ -175,7 +295,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
         "booking": ["booking", "reservation", "book", "reserve", "slot", "appointment"],
         "location": ["location", "branch", "office", "place", "where", "which location", "best location", "top location", "perform"],
         "asset": ["asset", "equipment", "inventory", "laptop", "chair", "desk", "furniture", "device"],
-        "event": ["event", "gather", "meetup", "party", "celebration", "function", "theme", "community"],
+        "event": ["event", "gather", "meetup", "party", "celebration", "function", "theme", "community", "fund", "collected", "collection", "raised"],
         "member": ["member", "user", "customer", "people", "client", "engagement", "active"],
         "vendor": ["vendor", "supplier", "purchase", "procurement"],
         "space": ["space", "room", "cabin", "conference", "private office", "workspace", "coworking"],
@@ -206,13 +326,13 @@ def ask_question(question, from_date=None, to_date=None, location=None):
                     "• Bookings and reservations\n"
                     "• Location performance\n"
                     "• Assets and inventory\n"
-                    "• Events and themes\n"
+                    "• Events, themes, and event funds\n"
                     "• Members and engagement\n"
                     "• Vendors and purchases\n"
                     "• Spaces and utilization\n"
                     "• Growth trends\n"
                     "• Suggestions to improve\n\n"
-                    "Try: \"Share profit details\" or \"Which location performs best?\""
+                    "Try: \"How much event fund collected in Kochi?\" or \"Which location performs best?\""
                 )
             }
 
@@ -246,7 +366,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
         margin = (profit / total_revenue * 100) if total_revenue > 0 else 0
 
         if is_suggestion:
-            parts = [f"Current profit: ₹{profit:,.0f} (margin: {margin:.0f}%)."]
+            parts = [f"Current profit{loc_label}: ₹{profit:,.0f} (margin: {margin:.0f}%)."]
             if total_revenue > 0 and total_expenses > 0:
                 if profit < 0:
                     parts.append(f"You're operating at a loss. Expenses (₹{total_expenses:,.0f}) exceed revenue (₹{total_revenue:,.0f}). Urgently reduce costs or increase revenue.")
@@ -265,7 +385,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
             answer_parts.append("Profit Strategy: " + " ".join(parts))
         else:
             parts = [
-                f"Here's your profit breakdown:",
+                f"Here's your profit breakdown{loc_label}:",
                 f"\n  • Total Revenue: ₹{total_revenue:,.0f}",
                 f"\n  • Vendor Expenses: ₹{vendor_spend:,.0f}",
                 f"\n  • Event Expenses: ₹{event_spend:,.0f}",
@@ -275,11 +395,11 @@ def ask_question(question, from_date=None, to_date=None, location=None):
             if total_revenue > 0:
                 parts.append(f"\n  • Profit Margin: {margin:.0f}%")
             if profit > 0:
-                parts.append(f"\n\nYou're operating at a profit of ₹{profit:,.0f}.")
+                parts.append(f"\n\nYou're operating at a profit of ₹{profit:,.0f}{loc_label}.")
             elif profit < 0:
-                parts.append(f"\n\nYou're operating at a loss of ₹{abs(profit):,.0f}. Expenses exceed revenue.")
+                parts.append(f"\n\nYou're operating at a loss of ₹{abs(profit):,.0f}{loc_label}. Expenses exceed revenue.")
             else:
-                parts.append(f"\n\nRevenue and expenses break even.")
+                parts.append(f"\n\nRevenue and expenses break even{loc_label}.")
             answer_parts.append("".join(parts))
 
     # expense
@@ -290,7 +410,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
         total_revenue = overview.get("total_revenue", 0)
 
         if is_suggestion:
-            parts = [f"Total expenses: ₹{total_expenses:,.0f} (Vendor: ₹{vendor_spend:,.0f}, Events: ₹{event_spend:,.0f})."]
+            parts = [f"Total expenses{loc_label}: ₹{total_expenses:,.0f} (Vendor: ₹{vendor_spend:,.0f}, Events: ₹{event_spend:,.0f})."]
             if vendor_spend > 0 and total_revenue > 0:
                 vendor_pct = vendor_spend / total_revenue * 100
                 if vendor_pct > 30:
@@ -304,7 +424,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
             answer_parts.append("Expense Strategy: " + " ".join(parts))
         else:
             parts = [
-                f"Expense breakdown:",
+                f"Expense breakdown{loc_label}:",
                 f"\n  • Vendor/Purchase spend: ₹{vendor_spend:,.0f}",
                 f"\n  • Event spend: ₹{event_spend:,.0f}",
                 f"\n  • Total expenses: ₹{total_expenses:,.0f}",
@@ -322,7 +442,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
         if is_suggestion:
             answer_parts.append(_revenue_suggestions(overview, locations, revenue_trend, events, bookings))
         else:
-            parts = [f"Total revenue is ₹{total:,.0f}."]
+            parts = [f"Total revenue{loc_label} is ₹{total:,.0f}."]
             if len(rev_values) >= 2:
                 prev_rev = rev_values[-2]
                 curr_rev = rev_values[-1]
@@ -336,7 +456,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
                         parts.append(f"It's {direction} {abs(change):.0f}% compared to last month (₹{prev_rev:,.0f} → ₹{curr_rev:,.0f}).")
                 else:
                     parts.append(f"Previous month had ₹0 revenue, current month is ₹{curr_rev:,.0f}.")
-            if locations:
+            if not extracted_location and locations:
                 top = max(locations, key=lambda x: x.get("revenue", 0))
                 low = min(locations, key=lambda x: x.get("revenue", 0))
                 parts.append(f"Top location: {top['location_name']} (₹{top['revenue']:,.0f})")
@@ -354,7 +474,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
         if is_suggestion:
             answer_parts.append(_booking_suggestions(overview, booking_trend, bookings))
         else:
-            parts = [f"Total bookings: {total} (Completed: {completed}, Pending: {pending}, Cancelled: {cancelled})."]
+            parts = [f"Total bookings{loc_label}: {total} (Completed: {completed}, Pending: {pending}, Cancelled: {cancelled})."]
             bk_totals = booking_trend.get("totals", [])
             if len(bk_totals) >= 2:
                 prev_bk = bk_totals[-2]
@@ -426,20 +546,40 @@ def ask_question(question, from_date=None, to_date=None, location=None):
         if is_suggestion:
             answer_parts.append(_event_suggestions_text(overview, events, locations, bookings, space_dist))
         elif not events:
-            answer_parts.append("No events were organized in this period. Consider planning community events to boost engagement.")
+            answer_parts.append(f"No events were organized{loc_label} in this period. Consider planning community events to boost engagement.")
         else:
             completed = [e for e in events if e.get("event_status") == "Completed"]
             total_collected = sum(e.get("total_collected", 0) for e in events)
             total_spent = sum(e.get("total_spent", 0) for e in events)
+            fund_balance = total_collected - total_spent
             themes = Counter(e.get("event_theme") for e in events if e.get("event_theme"))
             theme_str = ", ".join(f"'{t}' ({c}x)" for t, c in themes.most_common(3))
-            parts = [
-                f"{len(events)} events organized ({len(completed)} completed).",
-                f"Total collected: ₹{total_collected:,.0f}, spent: ₹{total_spent:,.0f}.",
-            ]
-            if themes:
-                parts.append(f"Themes used: {theme_str}.")
-            answer_parts.append(" ".join(parts))
+
+            fund_kws = ["fund", "collected", "collection", "raised", "money"]
+            asks_about_funds = any(kw in q for kw in fund_kws)
+
+            if asks_about_funds:
+                parts = [f"Event fund details{loc_label}:"]
+                parts.append(f"\n  • Total collected: ₹{total_collected:,.0f}")
+                parts.append(f"\n  • Total spent: ₹{total_spent:,.0f}")
+                parts.append(f"\n  • Fund balance: ₹{fund_balance:,.0f}")
+                parts.append(f"\n  • Number of events: {len(events)} ({len(completed)} completed)")
+                if themes:
+                    parts.append(f"\n  • Themes: {theme_str}")
+                if len(events) <= 5:
+                    parts.append("\n\nPer-event breakdown:")
+                    for e in events:
+                        e_loc = f" ({e['location_name']})" if e.get("location_name") else ""
+                        parts.append(f"\n  • {e.get('event_name', 'Unnamed')}{e_loc}: Collected ₹{e.get('total_collected', 0):,.0f}, Spent ₹{e.get('total_spent', 0):,.0f}")
+                answer_parts.append("".join(parts))
+            else:
+                parts = [
+                    f"{len(events)} events organized{loc_label} ({len(completed)} completed).",
+                    f"Total collected: ₹{total_collected:,.0f}, spent: ₹{total_spent:,.0f}.",
+                ]
+                if themes:
+                    parts.append(f"Themes used: {theme_str}.")
+                answer_parts.append(" ".join(parts))
 
     # member
     if "member" in top_topics:
@@ -457,7 +597,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
                 parts.append(f"{active} out of {total} members are active ({pct:.0f}% engagement) — good engagement rate.")
             answer_parts.append(" ".join(parts))
         else:
-            answer_parts.append(f"{total} members in this period, {active} active ({pct:.0f}% engagement).")
+            answer_parts.append(f"{total} members{loc_label} in this period, {active} active ({pct:.0f}% engagement).")
 
     # vendor
     if "vendor" in top_topics:
@@ -473,7 +613,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
                 parts.append(f"{count} vendors registered but no purchases recorded in this period.")
             answer_parts.append(" ".join(parts))
         else:
-            answer_parts.append(f"{count} vendors with total spend of ₹{spend:,.0f} in this period.")
+            answer_parts.append(f"{count} vendors with total spend of ₹{spend:,.0f}{loc_label} in this period.")
 
     # space
     if "space" in top_topics:
@@ -484,7 +624,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
         elif is_suggestion:
             answer_parts.append(_space_suggestions_text(labels, values, bookings))
         else:
-            parts = ["Space distribution:"]
+            parts = [f"Space distribution{loc_label}:"]
             for i, label in enumerate(labels):
                 parts.append(f"{label}: {values[i]}")
             answer_parts.append(" ".join(parts))
@@ -496,17 +636,17 @@ def ask_question(question, from_date=None, to_date=None, location=None):
         bk_totals = booking_trend.get("totals", [])
         if len(rev_values) >= 2:
             rev_diff = rev_values[-1] - rev_values[-2]
-            parts.append(f"Revenue: ₹{rev_values[-2]:,.0f} → ₹{rev_values[-1]:,.0f} ({'up' if rev_diff > 0 else 'down'} by ₹{abs(rev_diff):,.0f}).")
+            parts.append(f"Revenue{loc_label}: ₹{rev_values[-2]:,.0f} → ₹{rev_values[-1]:,.0f} ({'up' if rev_diff > 0 else 'down'} by ₹{abs(rev_diff):,.0f}).")
         if len(bk_totals) >= 2:
             bk_diff = bk_totals[-1] - bk_totals[-2]
-            parts.append(f"Bookings: {bk_totals[-2]} → {bk_totals[-1]} ({'up' if bk_diff > 0 else 'down'} by {abs(bk_diff)}).")
+            parts.append(f"Bookings{loc_label}: {bk_totals[-2]} → {bk_totals[-1]} ({'up' if bk_diff > 0 else 'down'} by {abs(bk_diff)}).")
         if parts:
             answer_parts.append("Growth trends: " + " ".join(parts))
 
     # overview (only if it's the only topic)
     if "overview" in top_topics and len(top_topics) == 1:
         answer_parts.append(
-            f"Overview: Revenue ₹{overview.get('total_revenue', 0):,.0f}, "
+            f"Overview{loc_label}: Revenue ₹{overview.get('total_revenue', 0):,.0f}, "
             f"{overview.get('total_bookings', 0)} bookings, "
             f"{overview.get('total_assets', 0)} assets, "
             f"{overview.get('total_events', 0)} events, "

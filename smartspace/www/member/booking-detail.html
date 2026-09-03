@@ -83,6 +83,7 @@
         </div>
     </div>
 </div>
+{% include "www/includes/member-active-check.html" %}
 <script>
 var csrfToken = '{{ frappe.session.csrf_token }}';
 var urlParams = new URLSearchParams(window.location.search);
@@ -180,7 +181,7 @@ function openAssetsModal() {
             '<div class="flex items-start justify-between">' +
                 '<div><p class="font-medium text-sm">' + (a.asset_item_name || a.serial_number || a.name) + '</p>' +
                 '<p class="text-xs text-gray-500 mt-1">S/N: ' + (a.serial_number || '-') + ' • Status: ' + (a.status || '-') + '</p></div>' +
-                '<button onclick="openAssetComplaint(\'' + a.name + '\', \'' + encodeURIComponent(a.asset_item_name || a.serial_number || a.name) + '\')" class="text-xs font-medium text-red-500 hover:text-red-700 whitespace-nowrap ml-2">Complaint</button>' +
+                (window.memberActive ? '<button onclick="openAssetComplaint(\'' + a.name + '\', \'' + encodeURIComponent(a.asset_item_name || a.serial_number || a.name) + '\')" class="text-xs font-medium text-red-500 hover:text-red-700 whitespace-nowrap ml-2">Complaint</button>' : '') +
             '</div>' +
         '</div>';
     }).join('');
@@ -228,7 +229,7 @@ function submitAssetComplaint() {
     .then(function(r) { return r.json(); })
     .then(function(data) {
         closeAssetComplaint();
-        alert('Complaint submitted successfully');
+        showToast('Complaint submitted successfully', 'success');
         btn.disabled = false;
         btn.textContent = 'Submit Complaint';
     })
@@ -270,6 +271,22 @@ function submitAssetComplaint() {
         </div>
     </div>
 </div>
+<!-- Toast -->
+<div id="toast" class="fixed bottom-6 right-6 z-[100] hidden">
+    <div id="toastInner" class="px-5 py-3 rounded-lg shadow-lg text-sm font-medium text-white"></div>
+</div>
+
+<script>
+function showToast(message, type) {
+    var toast = document.getElementById('toast');
+    var inner = document.getElementById('toastInner');
+    inner.textContent = message;
+    inner.className = 'px-5 py-3 rounded-lg shadow-lg text-sm font-medium text-white ' + (type === 'error' ? 'bg-red-500' : 'bg-green-500');
+    toast.classList.remove('hidden');
+    setTimeout(function() { toast.classList.add('hidden'); }, 3000);
+}
+</script>
+
 {% include "www/includes/chat-widget.html" %}
 </body>
 </html>

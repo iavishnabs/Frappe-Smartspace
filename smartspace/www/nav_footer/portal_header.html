@@ -199,7 +199,7 @@ function fetchNotifications() {
         page_size: notifPageSize
     });
 
-    fetch(notifApiBase() + '/get_notifications?' + params.toString())
+    fetch(notifApiBase() + '.get_notifications?' + params.toString())
         .then(function(r) { return r.json(); })
         .then(function(data) {
             var result = data.message || data;
@@ -248,7 +248,7 @@ function loadMoreNotifications() {
         page_size: notifPageSize
     });
 
-    fetch(notifApiBase() + '/get_notifications?' + params.toString())
+    fetch(notifApiBase() + '.get_notifications?' + params.toString())
         .then(function(r) { return r.json(); })
         .then(function(data) {
             var result = data.message || data;
@@ -274,7 +274,7 @@ function updateNotifBadge(count) {
 }
 
 function markNotifRead(name) {
-    fetch(notifApiBase() + '/mark_notification_read', {
+    fetch(notifApiBase() + '.mark_notification_read', {
         method: 'POST',
         headers: {
             'X-Frappe-CSRF-Token': csrfToken,
@@ -290,7 +290,7 @@ function markNotifRead(name) {
 }
 
 function markAllNotificationsRead() {
-    fetch(notifApiBase() + '/mark_all_notifications_read', {
+    fetch(notifApiBase() + '.mark_all_notifications_read', {
         method: 'POST',
         headers: {
             'X-Frappe-CSRF-Token': csrfToken
@@ -305,7 +305,7 @@ function markAllNotificationsRead() {
 }
 
 function fetchUnreadCount() {
-    fetch(notifApiBase() + '/get_notifications?page=1&page_size=1')
+    fetch(notifApiBase() + '.get_notifications?page=1&page_size=1')
         .then(function(r) { return r.json(); })
         .then(function(data) {
             var result = data.message || data;

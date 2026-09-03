@@ -83,7 +83,7 @@
                 </div>
                 <div id="profileError" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm mt-4"></div>
                 <div id="profileSuccess" class="hidden bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 text-sm mt-4"></div>
-                <button id="saveProfileBtn" onclick="saveProfile()" class="mt-4 bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-semibold transition">Save Changes</button>
+                <button id="saveProfileBtn" onclick="saveProfile()" data-requires-active class="mt-4 bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-semibold transition">Save Changes</button>
             </div>
 
             <div class="bg-white rounded-xl shadow-card p-6 mb-6">
@@ -112,7 +112,7 @@
                 </div>
                 <div id="addressError" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm mt-4"></div>
                 <div id="addressSuccess" class="hidden bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 text-sm mt-4"></div>
-                <button id="saveAddressBtn" onclick="saveAddress()" class="mt-4 bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-semibold transition">Save Address</button>
+                <button id="saveAddressBtn" onclick="saveAddress()" data-requires-active class="mt-4 bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-semibold transition">Save Address</button>
             </div>
 
             <div class="bg-white rounded-xl shadow-card p-6">
@@ -120,20 +120,31 @@
                 <div class="grid sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">New Password</label>
-                        <input type="password" id="newPassword" placeholder="Enter new password" class="w-full border rounded-xl px-4 py-3">
+                        <div class="relative">
+                            <input type="password" id="newPassword" placeholder="Enter new password" class="w-full border rounded-xl px-4 py-3 pr-10">
+                            <button type="button" onclick="togglePassword('newPassword', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </button>
+                        </div>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
-                        <input type="password" id="confirmPassword" placeholder="Confirm new password" class="w-full border rounded-xl px-4 py-3">
+                        <div class="relative">
+                            <input type="password" id="confirmPassword" placeholder="Confirm new password" class="w-full border rounded-xl px-4 py-3 pr-10">
+                            <button type="button" onclick="togglePassword('confirmPassword', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div id="pwdError" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm mt-4"></div>
                 <div id="pwdSuccess" class="hidden bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 text-sm mt-4"></div>
-                <button id="changePwdBtn" onclick="changePassword()" class="mt-4 bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-semibold transition">Change Password</button>
+                <button id="changePwdBtn" onclick="changePassword()" data-requires-active class="mt-4 bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-semibold transition">Change Password</button>
             </div>
         </div>
     </div>
 </div>
+{% include "www/includes/member-active-check.html" %}
 <script>
 var csrfToken = '{{ frappe.session.csrf_token }}';
 
@@ -176,7 +187,10 @@ fetch('/api/method/smartspace.frontend_api.member.get_profile')
         var badge = document.getElementById('memberBadge');
         if (m) {
             badge.textContent = m.member_type ? m.member_type + ' Member' : 'Member';
-            badge.className = 'inline-block mt-2 px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700';
+            badge.className = 'inline-block mt-2 px-3 py-1 rounded-full text-xs font-bold ' + (m.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700');
+            if (!m.active) {
+                badge.textContent = (m.member_type ? m.member_type + ' Member' : 'Member') + ' (Inactive)';
+            }
         } else {
             badge.textContent = 'Pending Membership';
             badge.className = 'inline-block mt-2 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700';
@@ -186,8 +200,8 @@ fetch('/api/method/smartspace.frontend_api.member.get_profile')
             '<div class="flex justify-between"><span class="text-gray-500">First Name</span><span class="font-medium">' + (au.first_name || '-') + '</span></div>' +
             '<div class="flex justify-between"><span class="text-gray-500">Last Name</span><span class="font-medium">' + (au.last_name || '-') + '</span></div>' +
             '<div class="flex justify-between"><span class="text-gray-500">Email</span><span class="font-medium">' + (au.email || '-') + '</span></div>' +
-            '<div class="flex justify-between"><span class="text-gray-500">Location</span><span class="font-medium">' + (au.location || '-') + '</span></div>' +
-            '<div class="flex justify-between"><span class="text-gray-500">Status</span><span class="font-medium">' + (au.active ? 'Active' : 'Inactive') + '</span></div>';
+            '<div class="flex justify-between"><span class="text-gray-500">Primary Location</span><span class="font-medium">' + ((m && m.location) ? m.location : (au.location || '-')) + '</span></div>' +
+            '<div class="flex justify-between"><span class="text-gray-500">Status</span><span class="font-medium ' + (m && m.active ? 'text-green-600' : 'text-red-600') + '">' + (m ? (m.active ? 'Active' : 'Inactive') : 'Pending') + '</span></div>';
 
         if (m) {
             document.getElementById('memberInfoSection').style.display = '';
@@ -359,6 +373,17 @@ function changePassword() {
         btn.disabled = false;
         btn.textContent = 'Change Password';
     });
+}
+
+function togglePassword(inputId, btn) {
+    var input = document.getElementById(inputId);
+    if (input.type === 'password') {
+        input.type = 'text';
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+    } else {
+        input.type = 'password';
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+    }
 }
 </script>
 {% include "www/includes/chat-widget.html" %}

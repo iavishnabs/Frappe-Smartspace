@@ -141,12 +141,16 @@ function fetchTechnicians() {
             if (locations.length === 0 && result.locations) {
                 locations = result.locations;
                 var locFilter = document.getElementById('locationFilter');
-                locations.forEach(function(loc) {
-                    var opt = document.createElement('option');
-                    opt.value = loc;
-                    opt.textContent = loc;
-                    locFilter.appendChild(opt);
-                });
+                if (result.is_admin) {
+                    locations.forEach(function(loc) {
+                        var opt = document.createElement('option');
+                        opt.value = loc;
+                        opt.textContent = loc;
+                        locFilter.appendChild(opt);
+                    });
+                } else {
+                    locFilter.parentElement.style.display = 'none';
+                }
             }
 
             if (result.technicians.length === 0) {

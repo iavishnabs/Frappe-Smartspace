@@ -52,13 +52,22 @@ def notify_members_and_staff(event):
 	from smartspace.notification import create_notification_log
 
 	subject = f"New Event: {event.event_name}"
+	event_location = event.location
 
-	members = frappe.get_all("Member", filters={"active": 1}, fields=["app_user"])
+	if not event_location:
+		return
+
+	notified_users = set()
+
+	members = frappe.get_all("Member", filters={"active": 1}, fields=["app_user", "name"])
 	for member in members:
 		if not member.app_user:
 			continue
+		au_location = frappe.db.get_value("App User", member.app_user, "location")
+		if au_location != event_location:
+			continue
 		user = frappe.db.get_value("App User", member.app_user, "user")
-		if not user:
+		if not user or user in notified_users:
 			continue
 		create_notification_log(
 			subject=subject,
@@ -66,13 +75,34 @@ def notify_members_and_staff(event):
 			document_type="Space Event",
 			document_name=event.name,
 		)
+		notified_users.add(user)
 
-	staff = frappe.get_all("Staff", filters={"active": 1}, fields=["app_user"])
+	members_with_bookings = frappe.db.sql("""
+		SELECT DISTINCT au.user
+		FROM `tabReservation` r
+		JOIN `tabSpace` s ON r.space = s.name
+		JOIN `tabApp User` au ON r.app_user = au.name
+		WHERE s.location = %s
+		AND r.booking_status = 'Booked'
+		AND au.user IS NOT NULL
+	""", (event_location,), as_dict=True)
+	for row in members_with_bookings:
+		if row.user in notified_users:
+			continue
+		create_notification_log(
+			subject=subject,
+			for_user=row.user,
+			document_type="Space Event",
+			document_name=event.name,
+		)
+		notified_users.add(row.user)
+
+	staff = frappe.get_all("Staff", filters={"active": 1, "location": event_location}, fields=["app_user"])
 	for s in staff:
 		if not s.app_user:
 			continue
 		user = frappe.db.get_value("App User", s.app_user, "user")
-		if not user:
+		if not user or user in notified_users:
 			continue
 		create_notification_log(
 			subject=subject,
@@ -80,6 +110,7 @@ def notify_members_and_staff(event):
 			document_type="Space Event",
 			document_name=event.name,
 		)
+		notified_users.add(user)
 
 
 @frappe.whitelist()

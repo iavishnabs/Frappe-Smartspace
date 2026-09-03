@@ -47,11 +47,13 @@
    "label": "Allocated To"
   },
   {
+   "allow_on_submit": 1,
    "default": "Active",
    "fieldname": "allocation_status",
    "fieldtype": "Select",
    "label": "Allocation Status",
-   "options": "\nActive\nCancelled"
+   "options": "\nActive\nCancelled\nExpired",
+   "read_only": 1
   },
   {
    "fieldname": "section_break_uhxa",
@@ -91,7 +93,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-28 23:03:23.212778",
+ "modified": "2026-09-03 13:52:02.375003",
  "modified_by": "Administrator",
  "module": "Space Asset",
  "name": "Asset Allocation",

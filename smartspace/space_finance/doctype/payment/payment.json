@@ -46,6 +46,7 @@
    "fieldtype": "Column Break"
   },
   {
+   "default": "now",
    "fieldname": "payment_date",
    "fieldtype": "Datetime",
    "label": "Payment Date"
@@ -78,7 +79,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-17 12:50:40.892731",
+ "modified": "2026-09-03 11:57:11.048924",
  "modified_by": "Administrator",
  "module": "Space Finance",
  "name": "Payment",

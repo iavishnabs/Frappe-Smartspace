@@ -25,12 +25,13 @@
                 <h1 class="text-3xl font-bold">Lost & Found</h1>
                 <p class="text-orange-200 text-sm mt-1">Report lost or found items</p>
             </div>
-            <button onclick="openLFModal()" class="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition">+ New Report</button>
+            <button onclick="openLFModal()" data-requires-active class="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition">+ New Report</button>
         </div>
     </div>
     <div class="px-6 py-6">
         <div class="flex flex-wrap gap-3 mb-6">
             <input id="searchInput" type="text" placeholder="Search items..." class="border rounded-xl px-4 py-3 flex-1 min-w-[200px]">
+            <select id="locationFilter" class="border rounded-xl px-4 py-3"><option value="All Locations">All Locations</option></select>
             <select id="statusFilter" class="border rounded-xl px-4 py-3">
                 <option value="All Status">All Status</option>
                 <option value="Open">Open</option>
@@ -68,6 +69,10 @@
                 </select>
             </div>
             <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                <select id="lfLocation" class="w-full border rounded-xl px-4 py-3"></select>
+            </div>
+            <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Item Name</label>
                 <input type="text" id="lfItemName" placeholder="e.g. Black Wallet" class="w-full border rounded-xl px-4 py-3">
             </div>
@@ -93,6 +98,7 @@
     </div>
 </div>
 
+{% include "www/includes/member-active-check.html" %}
 <script>
 var csrfToken = '{{ frappe.session.csrf_token }}';
 var currentPage = 1;
@@ -103,8 +109,13 @@ function fmtDate(d) { if (!d) return '-'; return new Date(d).toLocaleDateString(
 
 function fetchLF(page) {
     currentPage = page || 1;
+    window.memberActivePromise.then(function() { _fetchLF(page); });
+}
+
+function _fetchLF(page) {
     var search = document.getElementById('searchInput').value.trim();
     var status = document.getElementById('statusFilter').value;
+    var location = document.getElementById('locationFilter').value;
     document.getElementById('loadingState').style.display = '';
     document.getElementById('lfList').style.display = 'none';
     document.getElementById('pagination').style.display = 'none';
@@ -113,6 +124,7 @@ function fetchLF(page) {
     var params = new URLSearchParams({ page: currentPage, page_size: 10 });
     if (search) params.set('search', search);
     if (status && status !== 'All Status') params.set('status', status);
+    if (location && location !== 'All Locations') params.set('location', location);
 
     fetch('/api/method/smartspace.frontend_api.member.get_lost_found?' + params.toString())
         .then(function(r) { return r.json(); })
@@ -131,7 +143,7 @@ function fetchLF(page) {
                 var typeColor = item.report_type === 'Lost' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700';
                 var statusColor = item.status === 'Open' ? '#f59e0b' : '#6b7280';
                 var actions = '';
-                if (item.status === 'Open') {
+                if (item.status === 'Open' && window.memberActive) {
                     actions = '<button onclick="editLF(\'' + item.name + '\')" class="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>' +
                         '<button onclick="closeLF(\'' + item.name + '\')" class="text-gray-500 hover:text-gray-700 text-xs font-medium ml-2">Close</button>' +
                         '<button onclick="deleteLF(\'' + item.name + '\')" class="text-red-500 hover:text-red-700 text-xs font-medium ml-2">Delete</button>';
@@ -270,7 +282,7 @@ function doSaveLF(name, type, itemName, desc, imageUrl, btn, errDiv) {
         body = new URLSearchParams({ name: name, report_type: type, item_name: itemName, description: desc, image: imageUrl });
     } else {
         endpoint = '/api/method/smartspace.frontend_api.member.create_lost_found';
-        body = new URLSearchParams({ report_type: type, item_name: itemName, description: desc, image: imageUrl });
+        body = new URLSearchParams({ report_type: type, item_name: itemName, description: desc, image: imageUrl, location: document.getElementById('lfLocation').value });
     }
 
     fetch(endpoint, {
@@ -317,8 +329,25 @@ function deleteLF(name) {
 
 document.getElementById('searchInput').addEventListener('input', function() { clearTimeout(window._searchTimer); window._searchTimer = setTimeout(function() { fetchLF(1); }, 300); });
 document.getElementById('statusFilter').addEventListener('change', function() { fetchLF(1); });
+document.getElementById('locationFilter').addEventListener('change', function() { fetchLF(1); });
 document.getElementById('btnPrev').addEventListener('click', function() { if (currentPage > 1) { fetchLF(currentPage - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); } });
 document.getElementById('btnNext').addEventListener('click', function() { if (currentPage < totalPages) { fetchLF(currentPage + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); } });
+
+fetch('/api/method/smartspace.frontend_api.member.get_member_locations')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        var locations = data.message || data;
+        var filterSel = document.getElementById('locationFilter');
+        var formSel = document.getElementById('lfLocation');
+        locations.forEach(function(loc) {
+            var opt1 = document.createElement('option');
+            opt1.value = loc.location; opt1.textContent = loc.location_name;
+            filterSel.appendChild(opt1);
+            var opt2 = document.createElement('option');
+            opt2.value = loc.location; opt2.textContent = loc.location_name;
+            formSel.appendChild(opt2);
+        });
+    });
 
 fetchLF(1);
 </script>

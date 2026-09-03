@@ -57,10 +57,14 @@
             <h2 class="text-2xl font-bold mt-4">No Spaces Found</h2>
             <p class="text-gray-500 mt-2">Try changing your filters.</p>
         </div>
+        {% set _app_user = frappe.db.get_value('App User', {'user': frappe.session.user}, 'name') %}
+        {% set _member_data = frappe.db.get_value('Member', {'app_user': _app_user}, ['active', 'member_type'], as_dict=True) if _app_user else None %}
+        {% if _member_data and _member_data.active and _member_data.member_type == 'Regular' %}
         <div class="mt-8 bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-center gap-3">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
             <div><p class="text-sm font-medium text-orange-800">Need a Conference Room or Event Hall?</p><p class="text-xs text-orange-600 mt-0.5">These are booked via our AI Assistant. <a href="/member/chatbot-booking" class="font-semibold underline">Start chatbot booking →</a></p></div>
         </div>
+        {% endif %}
     </div>
 </div>
 <script>

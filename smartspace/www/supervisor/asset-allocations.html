@@ -110,6 +110,32 @@
             <div id="paginationControls" class="flex items-center gap-2"></div>
         </div>
     </div>
+
+    <!-- Available Spaces Section -->
+    <div class="px-6 pb-6">
+        <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center mb-4">
+            <h2 class="text-xl font-bold">Spaces in Your Location</h2>
+            <div class="relative flex-1 sm:max-w-xs sm:ml-auto">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input id="spaceSearchInput" type="text" placeholder="Search spaces..." class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm bg-white">
+            </div>
+        </div>
+        <div id="spacesLoading" class="text-center py-8 text-gray-400">
+            <svg class="animate-spin mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+            </svg>
+            Loading spaces...
+        </div>
+        <div id="spacesEmpty" class="hidden text-center py-8 text-gray-400">
+            <p>No spaces found in your location.</p>
+        </div>
+        <div id="spacesGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3" style="display:none"></div>
+        <!-- Spaces Pagination -->
+        <div id="spacesPagination" class="hidden mt-4 flex items-center justify-between">
+            <div id="spacesPageInfo" class="text-sm text-gray-500"></div>
+            <div id="spacesPageControls" class="flex items-center gap-2"></div>
+        </div>
+    </div>
 </div>
 
 <!-- Assets Popup Modal -->
@@ -146,6 +172,20 @@
                 <tbody id="modalTableBody" class="divide-y divide-gray-100"></tbody>
             </table>
         </div>
+    </div>
+</div>
+
+<!-- Space Detail Modal -->
+<div id="spaceModal" class="fixed inset-0 z-[60] hidden">
+    <div class="absolute inset-0 bg-black/50" onclick="closeSpaceModal()"></div>
+    <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md max-h-[80vh] bg-white rounded-xl shadow-xl flex flex-col">
+        <div class="flex items-center justify-between px-6 py-4 border-b">
+            <h3 class="font-bold text-lg">Space Details</h3>
+            <button onclick="closeSpaceModal()" class="text-gray-400 hover:text-gray-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div id="spaceModalContent" class="overflow-y-auto flex-1 px-6 py-4"></div>
     </div>
 </div>
 
@@ -378,6 +418,151 @@ document.getElementById('pageSizeSelect').addEventListener('change', function() 
 });
 
 fetchAllocations();
+
+var allSpaces = [];
+var spacePage = 1;
+var spacePageSize = 20;
+
+function fetchSpaces() {
+    fetch('/api/method/smartspace.frontend_api.supervisor.get_spaces')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var result = data.message || data;
+            allSpaces = result.spaces || [];
+            renderSpaces();
+        })
+        .catch(function() {
+            document.getElementById('spacesLoading').classList.add('hidden');
+            document.getElementById('spacesEmpty').classList.remove('hidden');
+        });
+}
+
+function spaceStatusBadge(status) {
+    var colors = {
+        'Available': 'bg-green-50 text-green-600',
+        'Occupied': 'bg-red-50 text-red-600',
+        'Reserved': 'bg-blue-50 text-blue-600',
+        'Under Maintenance': 'bg-yellow-50 text-yellow-600',
+        'Inactive': 'bg-gray-50 text-gray-500'
+    };
+    var cls = colors[status] || 'bg-gray-50 text-gray-600';
+    return '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ' + cls + '">' + (status || '-') + '</span>';
+}
+
+function getFilteredSpaces() {
+    var search = (document.getElementById('spaceSearchInput').value || '').toLowerCase().trim();
+    return allSpaces.filter(function(s) {
+        if (!search) return true;
+        return (s.name || '').toLowerCase().indexOf(search) !== -1 ||
+               (s.space_type || '').toLowerCase().indexOf(search) !== -1 ||
+               (s.floor || '').toLowerCase().indexOf(search) !== -1 ||
+               (s.availability_status || '').toLowerCase().indexOf(search) !== -1;
+    });
+}
+
+function renderSpaces() {
+    var loading = document.getElementById('spacesLoading');
+    var empty = document.getElementById('spacesEmpty');
+    var grid = document.getElementById('spacesGrid');
+    var pagination = document.getElementById('spacesPagination');
+
+    loading.classList.add('hidden');
+    var filtered = getFilteredSpaces();
+
+    if (filtered.length === 0) {
+        empty.classList.remove('hidden');
+        grid.style.display = 'none';
+        pagination.classList.add('hidden');
+        return;
+    }
+
+    var totalPages = Math.ceil(filtered.length / spacePageSize);
+    if (spacePage > totalPages) spacePage = 1;
+    var start = (spacePage - 1) * spacePageSize;
+    var pageItems = filtered.slice(start, start + spacePageSize);
+
+    grid.innerHTML = pageItems.map(function(s) {
+        var dotColor = s.availability_status === 'Available' ? 'bg-green-500' : s.availability_status === 'Occupied' ? 'bg-red-500' : s.availability_status === 'Reserved' ? 'bg-blue-500' : s.availability_status === 'Under Maintenance' ? 'bg-yellow-500' : 'bg-gray-400';
+        var cardMap = {
+            'Available': 'from-green-50 to-white border-t-2 border-t-green-300',
+            'Occupied': 'from-red-50 to-white border-t-2 border-t-red-300',
+            'Reserved': 'from-blue-50 to-white border-t-2 border-t-blue-300',
+            'Under Maintenance': 'from-yellow-50 to-white border-t-2 border-t-yellow-300',
+            'Inactive': 'from-gray-50 to-white border-t-2 border-t-gray-300'
+        };
+        var cardCls = cardMap[s.availability_status] || 'from-slate-50 to-white border-t-2 border-t-gray-200';
+        return '<div class="bg-gradient-to-b ' + cardCls + ' rounded-lg shadow-sm p-3 cursor-pointer hover:shadow-md transition border border-gray-100" onclick="openSpaceModal(\'' + s.name + '\')">' +
+            '<div class="flex items-center justify-between mb-1.5">' +
+                '<span class="text-sm font-medium text-gray-800 truncate">' + (s.name) + '</span>' +
+                '<span class="w-2 h-2 rounded-full flex-shrink-0 ' + dotColor + '"></span>' +
+            '</div>' +
+            '<div class="text-xs text-gray-500 truncate">' + (s.space_type || '-') + '</div>' +
+            '<div class="text-xs text-gray-400 truncate">' +
+                (s.floor || '') + (s.seating_capacity ? ' \u2022 Cap ' + s.seating_capacity : '') +
+            '</div>' +
+        '</div>';
+    }).join('');
+    grid.style.display = '';
+
+    if (totalPages > 1) {
+        var info = document.getElementById('spacesPageInfo');
+        var controls = document.getElementById('spacesPageControls');
+        info.textContent = 'Showing ' + (start + 1) + '-' + Math.min(start + spacePageSize, filtered.length) + ' of ' + filtered.length + ' spaces';
+
+        var html = '';
+        html += '<button onclick="spaceGoToPage(' + (spacePage - 1) + ')" ' + (spacePage <= 1 ? 'disabled' : '') + ' class="px-3 py-1.5 rounded-lg border text-xs font-medium transition ' + (spacePage <= 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50 border-gray-200') + '">Prev</button>';
+        html += '<span class="text-sm text-gray-600 px-2">' + spacePage + ' / ' + totalPages + '</span>';
+        html += '<button onclick="spaceGoToPage(' + (spacePage + 1) + ')" ' + (spacePage >= totalPages ? 'disabled' : '') + ' class="px-3 py-1.5 rounded-lg border text-xs font-medium transition ' + (spacePage >= totalPages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50 border-gray-200') + '">Next</button>';
+        controls.innerHTML = html;
+        pagination.classList.remove('hidden');
+    } else {
+        pagination.classList.add('hidden');
+    }
+}
+
+function spaceGoToPage(page) {
+    var filtered = getFilteredSpaces();
+    var totalPages = Math.ceil(filtered.length / spacePageSize);
+    if (page < 1 || page > totalPages) return;
+    spacePage = page;
+    renderSpaces();
+}
+
+var spaceSearchDebounce;
+document.getElementById('spaceSearchInput').addEventListener('input', function() {
+    clearTimeout(spaceSearchDebounce);
+    spaceSearchDebounce = setTimeout(function() { spacePage = 1; renderSpaces(); }, 200);
+});
+
+function openSpaceModal(spaceName) {
+    var s = allSpaces.find(function(x) { return x.name === spaceName; });
+    if (!s) return;
+
+    var html = '<div class="space-y-3">';
+    html += '<div class="flex items-center gap-2">' + spaceStatusBadge(s.availability_status) + '</div>';
+    html += '<div class="flex items-center justify-between"><span class="text-gray-400 text-sm">Space Name</span><span class="font-medium">' + (s.name || '-') + '</span></div>';
+    html += '<div class="flex items-center justify-between"><span class="text-gray-400 text-sm">Space Type</span><span class="font-medium">' + (s.space_type || '-') + '</span></div>';
+    html += '<div class="flex items-center justify-between"><span class="text-gray-400 text-sm">Location</span><span class="font-medium">' + (s.location || '-') + '</span></div>';
+    html += '<div class="flex items-center justify-between"><span class="text-gray-400 text-sm">Floor</span><span class="font-medium">' + (s.floor || '-') + '</span></div>';
+    html += '<div class="flex items-center justify-between"><span class="text-gray-400 text-sm">Seating Capacity</span><span class="font-medium">' + (s.seating_capacity || '-') + '</span></div>';
+    html += '<div class="flex items-center justify-between"><span class="text-gray-400 text-sm">Hourly Rate</span><span class="font-medium">' + (s.hourly_rate ? '\u20B9' + Number(s.hourly_rate).toLocaleString('en-IN') : '-') + '</span></div>';
+    if (s.amenities) {
+        html += '<div class="border-t pt-3"><span class="text-gray-400 text-sm block mb-1">Amenities</span><p class="text-gray-700 text-sm">' + s.amenities + '</p></div>';
+    }
+    if (s.description) {
+        html += '<div class="border-t pt-3"><span class="text-gray-400 text-sm block mb-1">Description</span><p class="text-gray-700 text-sm">' + s.description + '</p></div>';
+    }
+    html += '</div>';
+
+    document.getElementById('spaceModalContent').innerHTML = html;
+    document.getElementById('spaceModal').classList.remove('hidden');
+}
+
+function closeSpaceModal() {
+    document.getElementById('spaceModal').classList.add('hidden');
+}
+
+fetchSpaces();
 
 window.addEventListener('resize', function() {
     var table = document.getElementById('tableContainer');

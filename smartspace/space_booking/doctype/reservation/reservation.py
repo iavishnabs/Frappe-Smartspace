@@ -3,7 +3,7 @@
 
 import frappe
 from frappe.utils import flt, today, get_datetime, add_days, add_months, add_years, now_datetime
-from datetime import timedelta
+from datetime import timedelta, datetime
 from frappe.model.document import Document
 
 
@@ -100,6 +100,11 @@ class Reservation(Document):
 		end = frappe.db.get_single_value("App Settings", "office_end_time")
 		if not start or not end:
 			return
+
+		if isinstance(start, timedelta):
+			start = (datetime.min + start).time()
+		if isinstance(end, timedelta):
+			end = (datetime.min + end).time()
 
 		from_time = get_datetime(self.booking_from).time()
 		to_time = get_datetime(self.booking_to).time()
@@ -206,7 +211,8 @@ def auto_assign_parking(reservation_doc):
 		return
 
 	member_name = frappe.db.get_value("Member", {"app_user": reservation_doc.app_user}, "name")
-	member_location = frappe.db.get_value("Member", member_name, "location") if member_name else None
+
+	space_location = frappe.db.get_value("Space", reservation_doc.space, "location") if reservation_doc.space else None
 
 	for row in reservation_doc.parking_details:
 		if row.parking_allocation:
@@ -219,9 +225,10 @@ def auto_assign_parking(reservation_doc):
 			"status": "Available",
 			"enabled": 1,
 			"slot_type": row.vehicle_type,
+			"parking_category": "Member",
 		}
-		if member_location:
-			slot_filters["location"] = member_location
+		if space_location:
+			slot_filters["location"] = space_location
 
 		available_slot = frappe.db.get_value(
 			"Parking Slot",

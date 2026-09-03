@@ -1,7 +1,7 @@
 import frappe
 from frappe.utils import now_datetime
 
-from smartspace.frontend_api.auth import get_session_app_user, is_session_user_admin
+from smartspace.frontend_api.auth import get_session_app_user, is_session_user_admin, get_session_user_role
 
 
 def _get_admin_app_user():

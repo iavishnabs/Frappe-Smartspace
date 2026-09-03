@@ -15,10 +15,13 @@ def get_technicians(search=None, location=None, page=1, page_size=10):
 	"""Get active technicians."""
 	filters = {"staff_type": "Technician", "active": 1}
 
-	if location and location != "All Locations":
-		filters["location"] = location
+	is_admin = is_session_user_admin()
+	user_location = get_session_user_location()
+
+	if is_admin:
+		if location and location != "All Locations":
+			filters["location"] = location
 	else:
-		user_location = get_session_user_location()
 		if user_location:
 			filters["location"] = user_location
 
@@ -49,6 +52,7 @@ def get_technicians(search=None, location=None, page=1, page_size=10):
 		"page_size": page_size,
 		"total_pages": (total + page_size - 1) // page_size if total > 0 else 1,
 		"locations": [loc.name for loc in locations],
+		"is_admin": is_admin,
 	}
 
 
@@ -125,14 +129,38 @@ def get_allocation_assets(allocation_name):
 
 
 @frappe.whitelist()
+def get_spaces():
+	"""Get spaces for the supervisor's location."""
+	user_location = get_session_user_location()
+	if not user_location:
+		return {"spaces": [], "location": None}
+
+	spaces = frappe.db.get_list(
+		"Space",
+		filters={"location": user_location},
+		fields=[
+			"name", "location", "floor", "space_type",
+			"seating_capacity", "availability_status",
+			"hourly_rate", "amenities", "description",
+		],
+		order_by="space_type asc, name asc",
+	)
+
+	return {"spaces": spaces, "location": user_location}
+
+
+@frappe.whitelist()
 def get_maintenance_tasks(
-	status=None, date_from=None, date_to=None, page=1, page_size=10
+	status=None, search=None, date_from=None, date_to=None, page=1, page_size=10
 ):
 	"""Get maintenance tasks."""
 	filters = {}
 
 	if status and status != "All Status":
 		filters["status"] = status
+
+	if search:
+		filters["name"] = ["like", f"%{search}%"]
 
 	if date_from:
 		filters["assigned_on"] = [">=", date_from]
@@ -333,6 +361,20 @@ def get_complaints(status=None, search=None, complaint_type=None, scope="all", p
 		else:
 			c["asset"] = None
 
+		# lookup maintenance task for this complaint
+		c["maintenance_task"] = None
+		am_name = frappe.db.get_value("Asset Maintenance", {"complaint": c.name}, "name")
+		if am_name:
+			task = frappe.db.get_value(
+				"Maintenance Task Allocation",
+				{"asset_maintenance_request": am_name},
+				["name", "status", "priority", "technician"],
+				as_dict=True,
+			)
+			if task:
+				task["technician_name"] = frappe.db.get_value("Staff", task.technician, "full_name") if task.technician else None
+				c["maintenance_task"] = task
+
 	total = frappe.db.count("Complaints", filters=filters)
 
 	return {
@@ -521,8 +563,28 @@ def get_lost_found(
 			item["reported_by_name"] = frappe.db.get_value(
 				"App User", item.reported_by, "full_name"
 			) or item.reported_by
+
+			# lookup phone and ID from Member or Staff linked to this App User
+			item["reported_by_phone"] = None
+			item["reported_by_id"] = None
+			item["reported_by_id_type"] = None
+
+			member = frappe.db.get_value("Member", {"app_user": item.reported_by}, ["name", "phone"])
+			if member:
+				item["reported_by_id"] = member[0]
+				item["reported_by_phone"] = member[1]
+				item["reported_by_id_type"] = "Member"
+			else:
+				staff = frappe.db.get_value("Staff", {"app_user": item.reported_by}, ["name", "phone"])
+				if staff:
+					item["reported_by_id"] = staff[0]
+					item["reported_by_phone"] = staff[1]
+					item["reported_by_id_type"] = "Staff"
 		else:
 			item["reported_by_name"] = None
+			item["reported_by_phone"] = None
+			item["reported_by_id"] = None
+			item["reported_by_id_type"] = None
 
 	total = frappe.db.count("Lost And Found", filters=filters)
 
@@ -654,7 +716,9 @@ def close_lost_found(name):
 	is_owner = doc.reported_by == app_user
 
 	if not is_owner and not is_admin:
-		frappe.throw("You can only close your own reports")
+		role = get_session_user_role()
+		if role != "Supervisor":
+			frappe.throw("You can only close your own reports")
 
 	if doc.status != "Open":
 		frappe.throw("Only open reports can be closed")

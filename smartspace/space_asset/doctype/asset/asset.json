@@ -15,7 +15,9 @@
   "location",
   "asset_purchase",
   "section_break_frrc",
-  "description"
+  "description",
+  "asset_movement_tab",
+  "asset_allocation"
  ],
  "fields": [
   {
@@ -73,6 +75,16 @@
    "label": "Asset Purchase",
    "options": "Asset Purchase",
    "read_only": 1
+  },
+  {
+   "fieldname": "asset_movement_tab",
+   "fieldtype": "Tab Break",
+   "label": "Asset Movement"
+  },
+  {
+   "fieldname": "asset_allocation",
+   "fieldtype": "HTML",
+   "label": "Asset allocation"
   }
  ],
  "grid_page_length": 50,
@@ -85,9 +97,13 @@
   {
    "link_doctype": "Complaints",
    "link_fieldname": "related_asset"
+  },
+  {
+   "link_doctype": "Asset Allocation",
+   "link_fieldname": "asset"
   }
  ],
- "modified": "2026-09-03 11:10:31.376495",
+ "modified": "2026-09-03 22:19:54.836408",
  "modified_by": "Administrator",
  "module": "Space Asset",
  "name": "Asset",

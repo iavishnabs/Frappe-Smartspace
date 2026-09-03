@@ -51,7 +51,6 @@
                 <option value="Completed">Completed</option>
                 <option value="Cancelled">Cancelled</option>
             </select>
-            <button onclick="loadReservations()" class="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-lg font-medium text-sm transition">Apply</button>
         </div>
     </div>
 
@@ -326,6 +325,12 @@ document.getElementById('confirmCancelBtn').addEventListener('click', function()
 // Search on Enter
 document.getElementById('searchInput').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') { currentPage = 1; loadReservations(); }
+});
+// Live search as user types (debounced)
+var searchDebounce;
+document.getElementById('searchInput').addEventListener('input', function() {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(function() { currentPage = 1; loadReservations(); }, 300);
 });
 document.getElementById('statusFilter').addEventListener('change', function() { currentPage = 1; loadReservations(); });
 

@@ -24,6 +24,9 @@
         <p class="text-orange-200 text-sm mt-1">Your payment history for space bookings and event funds</p>
     </div>
     <div class="px-6 py-6">
+        <div class="flex flex-wrap gap-3 mb-6">
+            <select id="locationFilter" class="border rounded-xl px-4 py-3"><option value="All Locations">All Locations</option></select>
+        </div>
         <div id="loadingState" class="text-center py-12 text-gray-400">
             <svg class="animate-spin mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
             Loading transactions...
@@ -50,12 +53,14 @@ function fmtDate(d) { if (!d) return '-'; return new Date(d).toLocaleDateString(
 
 function fetchTransactions(page) {
     currentPage = page || 1;
+    var location = document.getElementById('locationFilter').value;
     document.getElementById('loadingState').style.display = '';
     document.getElementById('txList').style.display = 'none';
     document.getElementById('pagination').style.display = 'none';
     document.getElementById('noTx').classList.add('hidden');
 
     var params = new URLSearchParams({ page: currentPage, page_size: 20 });
+    if (location && location !== 'All Locations') params.set('location', location);
 
     fetch('/api/method/smartspace.frontend_api.member.get_transactions?' + params.toString())
         .then(function(r) { return r.json(); })
@@ -100,8 +105,21 @@ function fetchTransactions(page) {
         });
 }
 
+document.getElementById('locationFilter').addEventListener('change', function() { fetchTransactions(1); });
 document.getElementById('btnPrev').addEventListener('click', function() { if (currentPage > 1) { fetchTransactions(currentPage - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); } });
 document.getElementById('btnNext').addEventListener('click', function() { if (currentPage < totalPages) { fetchTransactions(currentPage + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); } });
+
+fetch('/api/method/smartspace.frontend_api.member.get_member_locations')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        var locations = data.message || data;
+        var sel = document.getElementById('locationFilter');
+        locations.forEach(function(loc) {
+            var opt = document.createElement('option');
+            opt.value = loc.location; opt.textContent = loc.location_name;
+            sel.appendChild(opt);
+        });
+    });
 
 fetchTransactions(1);
 </script>

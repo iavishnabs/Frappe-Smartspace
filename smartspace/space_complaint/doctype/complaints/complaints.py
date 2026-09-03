@@ -35,7 +35,19 @@ def assign_technician(
 
     # use selected technician or find least busy
     if technician:
-        technician = technician
+        # validate technician location matches asset location
+        asset_location = frappe.db.get_value("Asset", complaint_doc.related_asset, "location")
+        tech_location = frappe.db.get_value("Staff", technician, "location")
+        if asset_location and tech_location and asset_location != tech_location:
+            return {
+                "success": False,
+                "message": f"Technician is at {tech_location}, but asset is at {asset_location}. Assign a technician from the same location."
+            }
+        if not frappe.db.get_value("Staff", {"name": technician, "active": 1}):
+            return {
+                "success": False,
+                "message": "Selected technician is not active."
+            }
     else:
         technician = get_least_busy_technician(complaint_doc)
 

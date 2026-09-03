@@ -40,6 +40,11 @@
     <!-- Filters Bar -->
     <div class="bg-white shadow-sm border-b px-6 py-4 sticky top-20 z-30">
         <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+            <!-- Search -->
+            <div class="relative flex-1 sm:max-w-xs">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input id="searchInput" type="text" placeholder="Search by task ID..." class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm bg-white">
+            </div>
             <!-- Status Filter -->
             <select id="statusFilter" class="px-4 py-2.5 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm bg-white">
                 <option value="All Status">All Status</option>
@@ -167,6 +172,7 @@ var currentPageSize = 10;
 var currentStatus = 'All Status';
 var currentDateFrom = '';
 var currentDateTo = '';
+var currentSearch = '';
 
 function fetchTasks() {
     var loadingState = document.getElementById('loadingState');
@@ -183,6 +189,7 @@ function fetchTasks() {
 
     var params = new URLSearchParams({
         status: currentStatus,
+        search: currentSearch,
         date_from: currentDateFrom,
         date_to: currentDateTo,
         page: currentPage,
@@ -492,10 +499,12 @@ document.getElementById('clearFilters').addEventListener('click', function() {
     currentStatus = 'All Status';
     currentDateFrom = '';
     currentDateTo = '';
+    currentSearch = '';
     currentPage = 1;
     document.getElementById('statusFilter').value = 'All Status';
     document.getElementById('dateFrom').value = '';
     document.getElementById('dateTo').value = '';
+    document.getElementById('searchInput').value = '';
     fetchTasks();
 });
 
@@ -506,6 +515,24 @@ document.getElementById('pageSizeSelect').addEventListener('change', function() 
 });
 
 fetchTasks();
+
+var searchDebounce;
+document.getElementById('searchInput').addEventListener('input', function() {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(function() {
+        currentSearch = document.getElementById('searchInput').value.trim();
+        currentPage = 1;
+        fetchTasks();
+    }, 300);
+});
+
+document.getElementById('searchInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        currentSearch = this.value.trim();
+        currentPage = 1;
+        fetchTasks();
+    }
+});
 
 window.addEventListener('resize', function() {
     var table = document.getElementById('tableContainer');

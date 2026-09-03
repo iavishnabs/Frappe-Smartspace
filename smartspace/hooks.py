@@ -153,7 +153,9 @@ doc_events = {
 scheduler_events = {
 	"daily": [
 		"smartspace.space_booking.doctype.reservation.reservation.expire_bookings",
-		"smartspace.space_event.doctype.space_event.space_event.close_expired_events"
+		"smartspace.space_event.doctype.space_event.space_event.close_expired_events",
+		"smartspace.space_asset.doctype.asset_allocation.asset_allocation.expire_asset_allocations",
+		"smartspace.space_asset.doctype.asset_allocation.asset_allocation.update_asset_locations"
 	]
 }
 
