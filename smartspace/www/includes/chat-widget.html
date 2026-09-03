@@ -107,6 +107,7 @@
             var sendError = ref('');
             var messagesContainer = ref(null);
             var historyLoaded = ref(false);
+            var pollTimer = null;
 
             function formatTime(dateStr) {
                 if (!dateStr) return '';
@@ -139,15 +140,35 @@
                     });
             }
 
+            function refreshHistory() {
+                fetch('/api/method/smartspace.frontend_api.chat.get_chat_history?limit=50')
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        var result = data.message || data;
+                        var wasAtBottom = messagesContainer.value && (messagesContainer.value.scrollHeight - messagesContainer.value.scrollTop - messagesContainer.value.clientHeight < 50);
+                        messages.value = result.messages || [];
+                        if (wasAtBottom) {
+                            setTimeout(scrollToBottom, 50);
+                        }
+                    })
+                    .catch(function() {});
+            }
+
             function openChat() {
                 chatOpen.value = true;
                 if (!historyLoaded.value) {
                     fetchHistory();
                 }
+                if (pollTimer) clearInterval(pollTimer);
+                pollTimer = setInterval(refreshHistory, 10000);
             }
 
             function closeChat() {
                 chatOpen.value = false;
+                if (pollTimer) {
+                    clearInterval(pollTimer);
+                    pollTimer = null;
+                }
             }
 
             function sendMessage() {

@@ -2,7 +2,7 @@ import frappe
 
 
 def create_notification_log(subject, for_user, document_type=None, document_name=None):
-    """Create a Notification Log entry, skipping if a duplicate already exists."""
+    """Create notification log."""
     if not for_user:
         return
 
@@ -35,10 +35,10 @@ def create_notification_log(subject, for_user, document_type=None, document_name
 
 
 def on_lost_found_insert(doc, method=None):
-    """Create Notification Log for active app users at the same location as the report."""
+    """Notify users about lost found."""
     owner_user = frappe.db.get_value("App User", doc.reported_by, "user") if doc.reported_by else None
 
-    # Determine the report location: use the LAF location, or fall back to reporter's location
+    # figure out the report location
     report_location = doc.location
     if not report_location and doc.reported_by:
         report_location = frappe.db.get_value("App User", doc.reported_by, "location")
@@ -68,7 +68,7 @@ def on_lost_found_insert(doc, method=None):
 def notify_supervisor_on_new_complaint(complaint):
     location = None
     
-    # Asset Related Complaint
+    # asset related complaint
     if complaint.related_asset:
 
         location = frappe.db.get_value(
@@ -77,7 +77,7 @@ def notify_supervisor_on_new_complaint(complaint):
             "location"
         )
 
-    # Faculty / General Complaint
+    # faculty / general complaint
     elif complaint.raised_by:
 
         location = frappe.db.get_value(
@@ -138,7 +138,7 @@ def notify_supervisor_on_new_complaint(complaint):
 
 
 def on_notification_log_insert(doc, method=None):
-    """Publish realtime event when a Notification Log is created."""
+    """Publish realtime notification."""
     if not doc.for_user:
         return
 
@@ -161,7 +161,7 @@ def on_notification_log_insert(doc, method=None):
 
 @frappe.whitelist()
 def get_notifications(page=1, page_size=20, unread_only=False):
-    """Fetch notifications for the current session user from Notification Log."""
+    """Get user notifications."""
     user = frappe.session.user
     filters = {"for_user": user}
 
@@ -214,7 +214,7 @@ def get_notifications(page=1, page_size=20, unread_only=False):
 
 @frappe.whitelist()
 def mark_notification_read(name):
-    """Mark a single notification as read."""
+    """Mark notification read."""
     frappe.db.set_value("Notification Log", name, "read", 1)
     frappe.db.commit()
     return {"success": True}
@@ -222,7 +222,7 @@ def mark_notification_read(name):
 
 @frappe.whitelist()
 def mark_all_notifications_read():
-    """Mark all notifications as read for the current user."""
+    """Mark all notifications read."""
     user = frappe.session.user
     frappe.db.set_value(
         "Notification Log",

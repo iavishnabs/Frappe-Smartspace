@@ -2,7 +2,7 @@ import frappe
 
 
 def add_analytics_shortcut():
-	"""Add Analytics Portal shortcut to Smart Space Master workspace."""
+	"""Add analytics shortcut."""
 	workspace_name = "Smart Space Master"
 
 	if not frappe.db.exists("Workspace", workspace_name):

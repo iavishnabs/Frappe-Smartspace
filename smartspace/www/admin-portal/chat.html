@@ -120,6 +120,7 @@ createApp({
         var sendingReply = ref(false);
         var replyError = ref('');
         var msgContainer = ref(null);
+        var pollTimer = null;
 
         function formatTime(dateStr) {
             if (!dateStr) return '';
@@ -144,6 +145,25 @@ createApp({
                 });
         }
 
+        function refreshConversation() {
+            if (!selectedUser.value) return;
+            fetch('/api/method/smartspace.frontend_api.chat.get_admin_conversation?user_app=' + encodeURIComponent(selectedUser.value))
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    var result = data.message || data;
+                    var wasAtBottom = msgContainer.value && (msgContainer.value.scrollHeight - msgContainer.value.scrollTop - msgContainer.value.clientHeight < 50);
+                    conversation.value = result.messages || [];
+                    if (wasAtBottom) {
+                        nextTick(function() {
+                            if (msgContainer.value) {
+                                msgContainer.value.scrollTop = msgContainer.value.scrollHeight;
+                            }
+                        });
+                    }
+                })
+                .catch(function() {});
+        }
+
         function openConversation(userApp, userName) {
             selectedUser.value = userApp;
             selectedUserName.value = userName || 'Unknown';
@@ -160,6 +180,8 @@ createApp({
                         }
                     });
                     fetchChatList();
+                    if (pollTimer) clearInterval(pollTimer);
+                    pollTimer = setInterval(refreshConversation, 10000);
                 })
                 .catch(function() {
                     loadingMessages.value = false;
@@ -169,6 +191,10 @@ createApp({
         function closeConversation() {
             selectedUser.value = null;
             conversation.value = [];
+            if (pollTimer) {
+                clearInterval(pollTimer);
+                pollTimer = null;
+            }
         }
 
         function sendReply() {
@@ -217,7 +243,6 @@ createApp({
 
         onMounted(function() {
             fetchChatList();
-            setInterval(fetchChatList, 30000);
         });
 
         return {

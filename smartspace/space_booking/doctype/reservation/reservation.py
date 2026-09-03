@@ -130,7 +130,7 @@ class Reservation(Document):
 			current_expiry = frappe.db.get_value("Member", existing, "expiry_date")
 			if not current_expiry or new_expiry > current_expiry:
 				updates["expiry_date"] = new_expiry
-			# Apply member details from booking form
+			# apply member details from booking form
 			for k in ["phone", "gender", "date_of_birth", "address_line_1", "city", "state", "country", "pincode", "vehicle_numbers"]:
 				if member_details.get(k):
 					updates[k] = member_details[k]
@@ -152,7 +152,7 @@ class Reservation(Document):
 			"active": 1
 		}
 
-		# Apply member details from booking form
+		# apply member details from booking form
 		for k in ["phone", "gender", "date_of_birth", "address_line_1", "city", "state", "country", "pincode", "vehicle_numbers"]:
 			if member_details.get(k):
 				member_data[k] = member_details[k]
@@ -201,7 +201,7 @@ def confirm_reservation(name):
 
 
 def auto_assign_parking(reservation_doc):
-	"""Auto-assign parking slots for each row in the reservation's parking_details child table."""
+	"""Auto-assign parking slots."""
 	if not reservation_doc.parking_details:
 		return
 
@@ -300,7 +300,7 @@ def expire_bookings():
 
 
 def release_reservation_parking(reservation_name):
-	"""Release all active parking allocations linked to a reservation."""
+	"""Release reservation parking."""
 	allocations = frappe.get_all(
 		"Parking Allocation",
 		filters={"reservation": reservation_name, "allocation_status": "Active"},

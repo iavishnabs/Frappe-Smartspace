@@ -12,14 +12,7 @@ from smartspace.notification import create_notification_log
 
 @frappe.whitelist()
 def get_technicians(search=None, location=None, page=1, page_size=10):
-	"""Return active technicians with filtering and pagination.
-
-	Filters:
-	- search: text search on full_name or email
-	- location: Location name
-	- page: page number (1-based)
-	- page_size: items per page
-	"""
+	"""Get active technicians."""
 	filters = {"staff_type": "Technician", "active": 1}
 
 	if location and location != "All Locations":
@@ -63,17 +56,7 @@ def get_technicians(search=None, location=None, page=1, page_size=10):
 def get_asset_allocations(
 	status=None, allocated_from=None, allocated_to=None, page=1, page_size=10
 ):
-	"""Return submitted asset allocations with filtering and pagination.
-
-	Filters:
-	- status: allocation status (Active, Cancelled)
-	- allocated_from: date range start (allocated_from >= this)
-	- allocated_to: date range end (allocated_to <= this)
-	- page: page number (1-based)
-	- page_size: items per page
-
-	Always filtered by the session user's location.
-	"""
+	"""Get asset allocations."""
 	filters = {"docstatus": 1}
 
 	user_location = get_session_user_location()
@@ -124,10 +107,7 @@ def get_asset_allocations(
 
 @frappe.whitelist()
 def get_allocation_assets(allocation_name):
-	"""Return assets linked to a specific asset allocation.
-
-	Returns list of {asset_id, asset_item, serial_number, status, location}.
-	"""
+	"""Get allocation assets."""
 	doc = frappe.get_doc("Asset Allocation", allocation_name)
 
 	assets = []
@@ -148,15 +128,7 @@ def get_allocation_assets(allocation_name):
 def get_maintenance_tasks(
 	status=None, date_from=None, date_to=None, page=1, page_size=10
 ):
-	"""Return maintenance task allocations with filtering and pagination.
-
-	Filters:
-	- status: task status (Open, In Progress, Flagged, Overdue, Completed)
-	- date_from: assigned_on >= this date
-	- date_to: assigned_on <= this date
-	- page: page number (1-based)
-	- page_size: items per page
-	"""
+	"""Get maintenance tasks."""
 	filters = {}
 
 	if status and status != "All Status":
@@ -236,14 +208,7 @@ def get_maintenance_tasks(
 
 @frappe.whitelist()
 def get_members(search=None, member_type=None, page=1, page_size=10):
-	"""Return active members with filtering and pagination.
-
-	Filters:
-	- search: text search on full_name, email, or phone
-	- member_type: Flex or Regular
-	- page: page number (1-based)
-	- page_size: items per page
-	"""
+	"""Get active members."""
 	filters = {"active": 1}
 
 	if member_type and member_type != "All Types":
@@ -294,16 +259,7 @@ def get_members(search=None, member_type=None, page=1, page_size=10):
 
 @frappe.whitelist()
 def get_complaints(status=None, search=None, complaint_type=None, scope="all", page=1, page_size=10):
-	"""Return complaints with filtering and pagination.
-
-	Filters:
-	- status: complaint status (Open, Scheduled, In Progress, Flagged, Resolved, Closed)
-	- search: text search on complaint name or description
-	- complaint_type: General, Asset Related, Facility Related
-	- scope: "all", "mine", or "others" (filter by current user's raised_by)
-	- page: page number (1-based)
-	- page_size: items per page
-	"""
+	"""Get complaints."""
 	filters = {}
 
 	if status and status != "All Status":
@@ -391,7 +347,7 @@ def get_complaints(status=None, search=None, complaint_type=None, scope="all", p
 
 @frappe.whitelist()
 def resolve_complaint(name):
-	"""Mark a non-asset complaint as resolved by supervisor."""
+	"""Resolve a complaint."""
 	complaint = frappe.get_doc("Complaints", name)
 
 	if complaint.complaint_type == "Asset Related":
@@ -410,7 +366,7 @@ def resolve_complaint(name):
 def update_complaint(
 	name, complaint_type=None, description=None, related_asset=None, attachment=None
 ):
-	"""Update a complaint. Only the owner can edit, and only when status is Open."""
+	"""Update a complaint."""
 	user_id = frappe.session.user
 
 	doc = frappe.get_doc("Complaints", name)
@@ -446,7 +402,7 @@ def update_complaint(
 
 @frappe.whitelist()
 def delete_complaint(name):
-	"""Delete a complaint. Only the owner can delete, and only when status is Open."""
+	"""Delete a complaint."""
 	user_id = frappe.session.user
 
 	doc = frappe.get_doc("Complaints", name)
@@ -464,11 +420,7 @@ def delete_complaint(name):
 
 @frappe.whitelist()
 def create_complaint(complaint_type, description, related_asset=None, attachment=None):
-	"""Create a complaint by the supervisor.
-
-	The complaint's raised_by is automatically set to the current session user.
-	Notification is sent to all App Admin users.
-	"""
+	"""Create a complaint."""
 	user_id = frappe.session.user
 
 	doc = frappe.get_doc({
@@ -512,16 +464,7 @@ def create_complaint(complaint_type, description, related_asset=None, attachment
 def get_lost_found(
 	report_type=None, status=None, search=None, scope="all", page=1, page_size=10
 ):
-	"""Return lost and found items with filtering and pagination.
-
-	Filters:
-	- report_type: Lost or Found
-	- status: Open, Closed
-	- search: text search on item_name or description
-	- scope: "all", "mine", or "others" (filter by current user's App User)
-	- page: page number (1-based)
-	- page_size: items per page
-	"""
+	"""Get lost and found."""
 	filters = {}
 
 	if report_type and report_type != "All Types":
@@ -605,10 +548,7 @@ def get_lost_found(
 def create_lost_found(
 	report_type, item_name, description=None, image=None
 ):
-	"""Create a lost and found report by the current user.
-
-	Location is automatically set from the session user's App User record.
-	"""
+	"""Create lost and found."""
 	app_user = get_session_app_user()
 
 	if not app_user:
@@ -639,12 +579,7 @@ def create_lost_found(
 def update_lost_found(
 	name, report_type=None, item_name=None, description=None, image=None, status=None
 ):
-	"""Update a lost and found report.
-
-	- Owner can edit all fields when status is Open.
-	- Supervisor/Admin can close any item (set status to Closed) even if not owner.
-	- Location is automatically set from the session user's App User record.
-	"""
+	"""Update lost and found."""
 	app_user = get_session_app_user()
 	is_admin = is_session_user_admin()
 
@@ -692,7 +627,7 @@ def update_lost_found(
 
 @frappe.whitelist()
 def delete_lost_found(name):
-	"""Delete a lost and found report. Only the owner can delete, and only when status is Open."""
+	"""Delete lost and found."""
 	app_user = get_session_app_user()
 
 	doc = frappe.get_doc("Lost And Found", name)
@@ -710,7 +645,7 @@ def delete_lost_found(name):
 
 @frappe.whitelist()
 def close_lost_found(name):
-	"""Close a lost and found report. Supervisors and admins can close any report."""
+	"""Close lost and found."""
 	is_admin = is_session_user_admin()
 	app_user = get_session_app_user()
 
@@ -732,12 +667,7 @@ def close_lost_found(name):
 
 @frappe.whitelist()
 def get_events(page=1, page_size=10):
-	"""Return upcoming published events, sorted by start_date ascending.
-
-	Only events with start_date >= now and event_status = Published are returned.
-	Events are filtered by the current user's location.
-	The first event is the next upcoming (highlighted) event.
-	"""
+	"""Get upcoming events."""
 	from frappe.utils import now_datetime
 
 	user_location = get_session_user_location()
@@ -788,7 +718,7 @@ def get_events(page=1, page_size=10):
 
 @frappe.whitelist()
 def get_profile():
-	"""Return current user's profile details from App User and Staff doctypes."""
+	"""Get user profile."""
 	app_user = get_session_app_user_doc(
 		["name", "first_name", "last_name", "full_name", "email", "location", "active"]
 	)
@@ -834,10 +764,7 @@ def get_profile():
 
 @frappe.whitelist()
 def change_password(new_password, confirm_password):
-	"""Change the current user's password in App User doctype.
-
-	The App User on_update hook will sync the new password to the linked Frappe User.
-	"""
+	"""Change user password."""
 	if not new_password or not confirm_password:
 		frappe.throw("Both new password and confirm password are required")
 
@@ -866,7 +793,7 @@ def change_password(new_password, confirm_password):
 
 @frappe.whitelist()
 def get_dashboard_stats():
-	"""Return comprehensive dashboard statistics for supervisor overview."""
+	"""Get supervisor dashboard stats."""
 	from frappe.utils import now_datetime, add_days
 
 	now = now_datetime()
@@ -882,7 +809,7 @@ def get_dashboard_stats():
 		loc_asset_names = [a.name for a in frappe.get_all("Asset", filters={"location": user_location}, fields=["name"])]
 		loc_user_emails = [au.user for au in frappe.get_all("App User", filters={"location": user_location}, fields=["user"]) if au.user]
 
-	# ── Complaints ──
+	# complaints
 	complaint_statuses = ["Open", "Scheduled", "In Progress", "Flagged", "Resolved", "Closed"]
 	complaint_counts = {}
 	for s in complaint_statuses:
@@ -901,7 +828,7 @@ def get_dashboard_stats():
 	complaint_solved = complaint_counts["Resolved"] + complaint_counts["Closed"]
 	complaint_resolution_rate = round((complaint_solved / complaint_total * 100), 1) if complaint_total > 0 else 0
 
-	# Complaints in last 7 days (for trend)
+	# complaints in last 7 days for trend
 	complaints_7d_filter = {"complaint_date": [">=", add_days(now, -7)]}
 	if user_location:
 		asset_complaints_7d = [c.name for c in frappe.get_all("Complaints", filters={"related_asset": ["in", loc_asset_names], "complaint_date": [">=", add_days(now, -7)]}, fields=["name"])] if loc_asset_names else []
@@ -913,7 +840,7 @@ def get_dashboard_stats():
 			complaints_7d_filter["name"] = "__nonexistent__"
 	complaints_7d = frappe.db.count("Complaints", complaints_7d_filter)
 
-	# ── Maintenance Tasks ──
+	# maintenance tasks
 	task_statuses = ["Open", "In Progress", "Flagged", "Overdue", "Completed"]
 	task_counts = {}
 	for s in task_statuses:
@@ -928,7 +855,7 @@ def get_dashboard_stats():
 	task_active = task_counts["Open"] + task_counts["In Progress"] + task_counts["Flagged"] + task_counts["Overdue"]
 	task_completion_rate = round((task_completed / task_total * 100), 1) if task_total > 0 else 0
 
-	# Technician workload
+	# technician workload
 	tech_filters = {"staff_type": "Technician", "active": 1}
 	if user_location:
 		tech_filters["location"] = user_location
@@ -955,7 +882,7 @@ def get_dashboard_stats():
 		})
 	tech_workload.sort(key=lambda x: x["active_tasks"], reverse=True)
 
-	# ── Assets ──
+	# assets
 	asset_statuses = ["Available", "Allocated", "Under Maintenance", "Damaged", "Decommissioned"]
 	asset_counts = {}
 	for s in asset_statuses:
@@ -970,7 +897,7 @@ def get_dashboard_stats():
 	asset_under_maintenance = asset_counts["Under Maintenance"]
 	asset_health_rate = round(((asset_total - asset_decommissioned - asset_damaged) / asset_total * 100), 1) if asset_total > 0 else 0
 
-	# ── Members ──
+	# members
 	member_base = loc_filter.copy()
 	member_total = frappe.db.count("Member", member_base)
 	member_active = frappe.db.count("Member", {**member_base, "active": 1})
@@ -979,10 +906,10 @@ def get_dashboard_stats():
 	member_regular = frappe.db.count("Member", {**member_base, "active": 1, "member_type": "Regular"})
 	member_active_rate = round((member_active / member_total * 100), 1) if member_total > 0 else 0
 
-	# New members in last 30 days
+	# new members in last 30 days
 	new_members_30d = frappe.db.count("Member", {**member_base, "join_date": [">=", add_days(now, -30)]})
 
-	# ── Parking Slots ──
+	# parking slots
 	parking_base = {"enabled": 1}
 	if user_location:
 		parking_base.update(loc_filter)
@@ -1002,13 +929,13 @@ def get_dashboard_stats():
 			"occupied": frappe.db.count("Parking Slot", {**parking_base, "slot_type": t, "status": "Occupied"}),
 		}
 
-	# ── Lost & Found ──
+	# lost & found
 	lf_base = loc_filter.copy()
 	lf_open = frappe.db.count("Lost And Found", {**lf_base, "status": "Open"})
 	lf_closed = frappe.db.count("Lost And Found", {**lf_base, "status": "Closed"})
 	lf_total = lf_open + lf_closed
 
-	# ── Events ──
+	# events
 	event_base = {"event_status": "Published", "start_date": [">=", now]}
 	if user_location:
 		event_base.update(loc_filter)
@@ -1031,7 +958,7 @@ def get_dashboard_stats():
 	)
 	latest_event = latest_event[0] if latest_event else None
 
-	# ── Staff ──
+	# staff
 	staff_base = {"active": 1}
 	if user_location:
 		staff_base.update(loc_filter)
@@ -1040,7 +967,7 @@ def get_dashboard_stats():
 	staff_supervisors = frappe.db.count("Staff", {**staff_base, "staff_type": "Supervisor"})
 	staff_security = frappe.db.count("Staff", {**staff_base, "staff_type": "Security"})
 
-	# ── Recent complaints (for scrollable list) ──
+	# recent complaints
 	recent_comp_filter = {"status": ["in", ["Open", "Scheduled", "In Progress", "Flagged"]]}
 	if user_location:
 		asset_comp_names = [c.name for c in frappe.get_all("Complaints", filters={"related_asset": ["in", loc_asset_names], "status": ["in", ["Open", "Scheduled", "In Progress", "Flagged"]]}, fields=["name"])] if loc_asset_names else []
@@ -1060,7 +987,7 @@ def get_dashboard_stats():
 	for c in recent_complaints:
 		c["assigned_to_name"] = frappe.db.get_value("Staff", c.assigned_to, "full_name") if c.assigned_to else None
 
-	# ── Recent tasks (for scrollable list) ──
+	# recent tasks
 	recent_task_filter = {"status": ["in", ["Open", "In Progress", "Flagged", "Overdue"]]}
 	if user_location and loc_staff:
 		recent_task_filter["technician"] = ["in", loc_staff]
@@ -1144,7 +1071,7 @@ def get_dashboard_stats():
 
 @frappe.whitelist()
 def start_task(name):
-	"""Start work on a maintenance task (Open → In Progress)."""
+	"""Start a task."""
 	from smartspace.space_asset.doctype.maintenance_task_allocation.maintenance_task_allocation import start_work
 	start_work(name)
 	return {"success": True, "message": "Work started"}
@@ -1152,7 +1079,7 @@ def start_task(name):
 
 @frappe.whitelist()
 def finish_task(name):
-	"""Finish work on a maintenance task (In Progress → Completed)."""
+	"""Finish a task."""
 	from smartspace.space_asset.doctype.maintenance_task_allocation.maintenance_task_allocation import finish_work
 	finish_work(name)
 	return {"success": True, "message": "Work completed"}
@@ -1160,7 +1087,7 @@ def finish_task(name):
 
 @frappe.whitelist()
 def flag_task(name):
-	"""Flag a task's asset as unusable (In Progress → Flagged)."""
+	"""Flag a task."""
 	from smartspace.space_asset.doctype.maintenance_task_allocation.maintenance_task_allocation import flag_unusable
 	flag_unusable(name)
 	return {"success": True, "message": "Asset flagged as unusable, supervisor notified"}
@@ -1168,7 +1095,7 @@ def flag_task(name):
 
 @frappe.whitelist()
 def approve_decommission(name, closed_reason=None):
-	"""Approve decommission of a flagged task's asset (Flagged → Completed, Asset → Decommissioned)."""
+	"""Approve decommission."""
 	from smartspace.space_asset.doctype.maintenance_task_allocation.maintenance_task_allocation import approve_decommission as do_approve
 	do_approve(name, closed_reason)
 	return {"success": True, "message": "Asset decommissioned"}
@@ -1176,7 +1103,7 @@ def approve_decommission(name, closed_reason=None):
 
 @frappe.whitelist()
 def reject_flag(name):
-	"""Reject a flag and send task back to in progress (Flagged → In Progress)."""
+	"""Reject a flag."""
 	from smartspace.space_asset.doctype.maintenance_task_allocation.maintenance_task_allocation import reject_flag as do_reject
 	do_reject(name)
 	return {"success": True, "message": "Flag rejected, task resumed"}
@@ -1184,12 +1111,7 @@ def reject_flag(name):
 
 @frappe.whitelist()
 def get_assets(status=None, search=None, page=1, page_size=10):
-	"""Return assets with filtering and pagination.
-
-	Filters:
-	- status: Asset status (Available, Allocated, Under Maintenance, Damaged, Decommissioned)
-	- search: text search on name, serial_number, or asset_item
-	"""
+	"""Get assets."""
 	filters = {}
 
 	if status and status != "All Status":
@@ -1250,7 +1172,7 @@ def get_assets(status=None, search=None, page=1, page_size=10):
 
 @frappe.whitelist()
 def get_notifications(page=1, page_size=20, unread_only=False):
-	"""Fetch notifications for the current session user from Notification Log."""
+	"""Get notifications."""
 	user = frappe.session.user
 	filters = {"for_user": user}
 
@@ -1290,7 +1212,7 @@ def get_notifications(page=1, page_size=20, unread_only=False):
 
 @frappe.whitelist()
 def mark_notification_read(name):
-	"""Mark a single notification as read."""
+	"""Mark notification read."""
 	frappe.db.set_value("Notification Log", name, "read", 1)
 	frappe.db.commit()
 	return {"success": True}
@@ -1298,21 +1220,18 @@ def mark_notification_read(name):
 
 @frappe.whitelist()
 def mark_all_notifications_read():
-	"""Mark all notifications as read for the current user."""
+	"""Mark all notifications read."""
 	user = frappe.session.user
 	frappe.db.set_value("Notification Log", {"for_user": user, "read": 0}, "read", 1)
 	frappe.db.commit()
 	return {"success": True}
 
 
-# ─── Reservation Management ──────────────────────────────────────────────────
+# reservation management
 
 @frappe.whitelist()
 def get_reservations(status=None, search=None, page=1, page_size=20):
-	"""Return reservations with optional status/search filtering.
-
-	Filters by supervisor's location if they have one.
-	"""
+	"""Get reservations."""
 	user_location = get_session_user_location()
 
 	filters = {}
@@ -1351,12 +1270,12 @@ def get_reservations(status=None, search=None, page=1, page_size=20):
 
 	total = frappe.db.count("Reservation", filters)
 
-	# Pending count for badge
+	# pending count for badge
 	pending_filters = dict(filters)
 	pending_filters["booking_status"] = "Pending"
 	pending_count = frappe.db.count("Reservation", pending_filters)
 
-	# Enrich with user and space info
+	# enrich with user and space info
 	for r in reservations:
 		if r.app_user:
 			r.user_name = frappe.db.get_value("App User", r.app_user, "full_name") or r.app_user
@@ -1367,7 +1286,7 @@ def get_reservations(status=None, search=None, page=1, page_size=20):
 				r.space_type = space_info.space_type
 				r.location = space_info.location
 				r.seating_capacity = space_info.seating_capacity
-		# Check if member exists
+		# check if member exists
 		r.is_member = bool(frappe.db.exists("Member", {"app_user": r.app_user}))
 
 	return {
@@ -1382,7 +1301,7 @@ def get_reservations(status=None, search=None, page=1, page_size=20):
 
 @frappe.whitelist()
 def confirm_reservation(name):
-	"""Confirm a pending reservation — creates Member + Payment."""
+	"""Confirm a reservation."""
 	from smartspace.space_booking.doctype.reservation.reservation import confirm_reservation as _confirm
 
 	reservation = frappe.db.get_value("Reservation", name, ["booking_status", "app_user"], as_dict=True)
@@ -1393,7 +1312,7 @@ def confirm_reservation(name):
 
 	result = _confirm(name)
 
-	# Notify the user
+	# notify the user
 	app_user_email = frappe.db.get_value("App User", reservation.app_user, "user")
 	if app_user_email:
 		create_notification_log(
@@ -1418,12 +1337,12 @@ def cancel_reservation(name, reason=None):
 
 	frappe.db.set_value("Reservation", name, "booking_status", "Cancelled", update_modified=True)
 
-	# Free up the space if it was occupied
+	# free up the space if it was occupied
 	space = frappe.db.get_value("Reservation", name, "space")
 	if space:
 		frappe.db.set_value("Space", space, "availability_status", "Available")
 
-	# Notify the user
+	# notify the user
 	app_user_email = frappe.db.get_value("App User", reservation.app_user, "user")
 	if app_user_email:
 		msg = f"Your reservation {name} has been cancelled."

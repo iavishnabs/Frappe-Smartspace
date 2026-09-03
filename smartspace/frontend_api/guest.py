@@ -6,14 +6,7 @@ import frappe
 
 @frappe.whitelist(allow_guest=True)
 def get_spaces(space_type=None, location=None, floor=None, search=None):
-	"""Return list of spaces with details for public browsing.
-
-	Optional filters:
-	- space_type: Desk, Cabin, Conference Room, Meeting Room, Private Office, Event Hall
-	- location: Location name
-	- floor: Floor name
-	- search: text search on space name or description
-	"""
+	"""Get available spaces."""
 	filters = {"availability_status": "Available"}
 
 	if space_type and space_type != "All Types":
@@ -45,7 +38,7 @@ def get_spaces(space_type=None, location=None, floor=None, search=None):
 		order_by="name asc",
 	)
 
-	# Enrich with location and floor display names
+	# add location and floor display names
 	for space in spaces:
 		if space.get("location"):
 			space["location_name"] = frappe.db.get_value("Location", space["location"], "location_name")
@@ -57,7 +50,7 @@ def get_spaces(space_type=None, location=None, floor=None, search=None):
 
 @frappe.whitelist(allow_guest=True)
 def get_space(name):
-	"""Return full details of a single space for the detail page."""
+	"""Get space details."""
 	if not name:
 		frappe.throw("Space name is required")
 
@@ -81,13 +74,13 @@ def get_space(name):
 		as_dict=True,
 	)
 
-	# Enrich with display names
+	# add display names
 	if space.get("location"):
 		space["location_name"] = frappe.db.get_value("Location", space["location"], "location_name")
 	if space.get("floor"):
 		space["floor_name"] = frappe.db.get_value("Floor", space["floor"], "floor_name")
 
-	# Derived pricing breakdown
+	# pricing breakdown
 	hourly_rate = float(space.get("hourly_rate") or 0)
 	space["pricing"] = {
 		"hourly": hourly_rate,
@@ -97,7 +90,7 @@ def get_space(name):
 		"yearly": hourly_rate * 1920,
 	}
 
-	# Amenities as list
+	# amenities as list
 	if space.get("amenities"):
 		space["amenities_list"] = [a.strip() for a in space["amenities"].split(",") if a.strip()]
 	else:
@@ -108,7 +101,7 @@ def get_space(name):
 
 @frappe.whitelist(allow_guest=True)
 def get_locations():
-	"""Return all active locations for filter dropdown."""
+	"""Get active locations."""
 	return frappe.get_all(
 		"Location",
 		filters={"status": "Active"},
@@ -119,7 +112,7 @@ def get_locations():
 
 @frappe.whitelist(allow_guest=True)
 def get_floors(location=None):
-	"""Return distinct floor names with their associated locations for filter dropdown."""
+	"""Get floor names."""
 	filters = {"enabled": 1}
 
 	if location and location != "All Locations":
@@ -132,7 +125,7 @@ def get_floors(location=None):
 		order_by="floor_name asc",
 	)
 
-	# Deduplicate by floor_name, collect all locations per floor name
+	# deduplicate by floor name, collect locations per floor
 	seen = {}
 	for flr in floors:
 		fname = flr["floor_name"]
@@ -146,7 +139,7 @@ def get_floors(location=None):
 
 @frappe.whitelist(allow_guest=True)
 def get_space_types():
-	"""Return all space types that have at least one space."""
+	"""Get space types."""
 	return frappe.db.get_all(
 		"Space",
 		filters={"availability_status": "Available"},

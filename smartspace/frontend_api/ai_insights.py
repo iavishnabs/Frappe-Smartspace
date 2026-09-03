@@ -11,15 +11,15 @@ from .analytics import (
 
 
 def _check_admin_role():
-	"""Raise error if current user doesn't have App Admin or Administrator role."""
-	roles = frappe.get_roles(frappe.session.user)
-	if "App Admin" not in roles and "Administrator" not in roles:
-		frappe.throw("You don't have permission to access this resource.", frappe.PermissionError)
+    """Check admin role."""
+    roles = frappe.get_roles(frappe.session.user)
+    if "App Admin" not in roles and "Administrator" not in roles:
+        frappe.throw("You don't have permission to access this resource.", frappe.PermissionError)
 
 
 @frappe.whitelist()
 def get_insights_summary(from_date=None, to_date=None, location=None):
-    """Generate plain-text AI insights from analytics data."""
+    """Generate insights text."""
     _check_admin_role()
     overview = get_analytics_overview(from_date, to_date, location)
     loc_stats = get_location_wise_stats(from_date, to_date)
@@ -30,7 +30,7 @@ def get_insights_summary(from_date=None, to_date=None, location=None):
 
     insights = []
 
-    # ── Revenue insights ──
+    # revenue insights
     rev_values = revenue_trend.get("values", [])
     rev_labels = revenue_trend.get("labels", [])
     if len(rev_values) >= 2:
@@ -58,7 +58,7 @@ def get_insights_summary(from_date=None, to_date=None, location=None):
     elif len(rev_values) == 1:
         insights.append(f"Revenue for {rev_labels[0]} is ₹{rev_values[0]:,.0f}.")
 
-    # ── Booking insights ──
+    # booking insights
     bk_totals = booking_trend.get("totals", [])
     bk_labels = booking_trend.get("labels", [])
     if len(bk_totals) >= 2:
@@ -82,7 +82,7 @@ def get_insights_summary(from_date=None, to_date=None, location=None):
                 f"Bookings in {bk_labels[-1]}: {curr_bk} (previous month had 0 bookings)."
             )
 
-    # ── Space type insights ──
+    # space type insights
     space_labels = space_dist.get("labels", [])
     space_values = space_dist.get("values", [])
     if space_labels and space_values:
@@ -94,7 +94,7 @@ def get_insights_summary(from_date=None, to_date=None, location=None):
             f"accounting for {pct:.0f}% of all spaces ({space_values[top_idx]} out of {total_spaces})."
         )
 
-    # ── Asset insights ──
+    # asset insights
     asset_labels = asset_dist.get("labels", [])
     asset_values = asset_dist.get("values", [])
     if asset_labels and asset_values:
@@ -110,7 +110,7 @@ def get_insights_summary(from_date=None, to_date=None, location=None):
                     f"{pct:.0f}% of assets are available — utilization is low, consider reallocating."
                 )
 
-    # ── Location performance ──
+    # location performance
     locations = loc_stats.get("locations", [])
     if len(locations) > 1:
         top_loc = max(locations, key=lambda x: x.get("revenue", 0))
@@ -121,7 +121,7 @@ def get_insights_summary(from_date=None, to_date=None, location=None):
             f"has the lowest revenue (₹{low_loc['revenue']:,.0f})."
         )
 
-    # ── Event insights ──
+    # event insights
     events = get_events_list(from_date, to_date, location).get("events", [])
     if events:
         completed = [e for e in events if e.get("event_status") == "Completed"]
@@ -134,7 +134,7 @@ def get_insights_summary(from_date=None, to_date=None, location=None):
     else:
         insights.append("No events were organized in this period — consider planning community events.")
 
-    # ── Member insights ──
+    # member insights
     total_members = overview.get("total_members", 0)
     active_members = overview.get("active_members", 0)
     if total_members > 0:
@@ -149,14 +149,14 @@ def get_insights_summary(from_date=None, to_date=None, location=None):
 
 @frappe.whitelist()
 def ask_question(question, from_date=None, to_date=None, location=None):
-    """Natural language Q&A — answer admin questions based on analytics data."""
+    """Answer admin questions."""
     _check_admin_role()
     if not question or not question.strip():
         return {"answer": "Please ask a question."}
 
     q = question.lower().strip()
 
-    # Gather all data once
+    # grab all the data we need
     overview = get_analytics_overview(from_date, to_date, location)
     loc_stats = get_location_wise_stats(from_date, to_date)
     locations = loc_stats.get("locations", [])
@@ -167,7 +167,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
     events = get_events_list(from_date, to_date, location).get("events", [])
     bookings = get_recent_bookings(from_date, to_date, location, limit=200).get("bookings", [])
 
-    # ── Intent scoring: detect which topics the question is about ──
+    # figure out what topics the question is about
     topic_keywords = {
         "profit": ["profit", "loss", "margin", "net", "surplus", "deficit", "bottom line", "earnings after"],
         "revenue": ["revenue", "income", "earning", "money", "financial", "payment", "paid", "rupees", "rs", "top line", "turnover"],
@@ -193,7 +193,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
         if score > 0:
             scores[topic] = score
 
-    # If no topic matched, check for generic question words
+    # if nothing matched, check for generic question words
     generic_words = ["details", "share", "show", "tell", "about", "what", "how", "give", "get", "see", "view", "info", "information", "data"]
     if not scores:
         if any(w in q for w in generic_words):
@@ -216,28 +216,27 @@ def ask_question(question, from_date=None, to_date=None, location=None):
                 )
             }
 
-    # Sort topics by score (highest first)
+    # sort by score, highest first
     sorted_topics = sorted(scores.items(), key=lambda x: x[1], reverse=True)
 
-    # If suggestion intent is detected, combine with ALL other matched topics
-    # Otherwise, include all topics with score > 0
+    # if asking for suggestions, combine with other matched topics
     is_suggestion = "suggestion" in scores
 
     if is_suggestion:
         top_topics = [t[0] for t in sorted_topics if t[0] != "suggestion"]
-        # If no other topic matched alongside suggestion, use suggestion alone
+        # fall back to overview if nothing else matched
         if not top_topics:
             top_topics = ["overview"]
     else:
-        # Include all topics that scored, but filter out "overview" if other specific topics matched
+        # include all matched topics, drop overview if there are more specific ones
         top_topics = [t[0] for t in sorted_topics]
         if len(top_topics) > 1 and "overview" in top_topics:
             top_topics.remove("overview")
 
-    # ── Build answer based on detected topics ──
+    # build answer based on matched topics
     answer_parts = []
 
-    # ── Profit ──
+    # profit
     if "profit" in top_topics:
         total_revenue = overview.get("total_revenue", 0)
         vendor_spend = overview.get("vendor_total_spend", 0)
@@ -283,7 +282,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
                 parts.append(f"\n\nRevenue and expenses break even.")
             answer_parts.append("".join(parts))
 
-    # ── Expense ──
+    # expense
     if "expense" in top_topics:
         vendor_spend = overview.get("vendor_total_spend", 0)
         event_spend = sum(e.get("total_spent", 0) for e in events)
@@ -314,7 +313,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
                 parts.append(f"\n  • Expenses are {total_expenses/total_revenue*100:.0f}% of revenue.")
             answer_parts.append("".join(parts))
 
-    # ── Revenue ──
+    # revenue
     if "revenue" in top_topics:
         total = overview.get("total_revenue", 0)
         rev_values = revenue_trend.get("values", [])
@@ -345,7 +344,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
                     parts.append(f"Lowest: {low['location_name']} (₹0 — no revenue yet).")
             answer_parts.append(" ".join(parts))
 
-    # ── Booking ──
+    # booking
     if "booking" in top_topics:
         total = overview.get("total_bookings", 0)
         pending = overview.get("pending_bookings", 0)
@@ -371,7 +370,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
                     parts.append(f"Previous month had 0 bookings, current month has {curr_bk}.")
             answer_parts.append(" ".join(parts))
 
-    # ── Location ──
+    # location
     if "location" in top_topics:
         if not locations:
             answer_parts.append("No location data available for this period.")
@@ -388,7 +387,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
                 )
             answer_parts.append(" ".join(parts))
 
-    # ── Asset ──
+    # asset
     if "asset" in top_topics:
         total = overview.get("total_assets", 0)
         allocated = overview.get("allocated_assets", 0)
@@ -422,7 +421,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
                 f"Total purchase cost: ₹{cost:,.0f}."
             )
 
-    # ── Event ──
+    # event
     if "event" in top_topics:
         if is_suggestion:
             answer_parts.append(_event_suggestions_text(overview, events, locations, bookings, space_dist))
@@ -442,7 +441,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
                 parts.append(f"Themes used: {theme_str}.")
             answer_parts.append(" ".join(parts))
 
-    # ── Member ──
+    # member
     if "member" in top_topics:
         total = overview.get("total_members", 0)
         active = overview.get("active_members", 0)
@@ -460,7 +459,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
         else:
             answer_parts.append(f"{total} members in this period, {active} active ({pct:.0f}% engagement).")
 
-    # ── Vendor ──
+    # vendor
     if "vendor" in top_topics:
         count = overview.get("vendor_count", 0)
         spend = overview.get("vendor_total_spend", 0)
@@ -476,7 +475,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
         else:
             answer_parts.append(f"{count} vendors with total spend of ₹{spend:,.0f} in this period.")
 
-    # ── Space ──
+    # space
     if "space" in top_topics:
         labels = space_dist.get("labels", [])
         values = space_dist.get("values", [])
@@ -490,7 +489,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
                 parts.append(f"{label}: {values[i]}")
             answer_parts.append(" ".join(parts))
 
-    # ── Growth (can combine with other topics) ──
+    # growth (can combine with other topics)
     if "growth" in top_topics and not is_suggestion:
         parts = []
         rev_values = revenue_trend.get("values", [])
@@ -504,7 +503,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
         if parts:
             answer_parts.append("Growth trends: " + " ".join(parts))
 
-    # ── Overview (only if it's the sole topic or explicitly requested) ──
+    # overview (only if it's the only topic)
     if "overview" in top_topics and len(top_topics) == 1:
         answer_parts.append(
             f"Overview: Revenue ₹{overview.get('total_revenue', 0):,.0f}, "
@@ -519,7 +518,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
 
 
 def _format_change(curr, prev, unit="₹"):
-    """Format a period-over-period change smartly."""
+    """Format change nicely."""
     if prev == 0:
         return f"from {unit}{prev:,.0f} to {unit}{curr:,.0f}"
     diff = curr - prev
@@ -531,7 +530,7 @@ def _format_change(curr, prev, unit="₹"):
 
 
 def _revenue_suggestions(overview, locations, revenue_trend, events, bookings):
-    """Generate revenue improvement suggestions based on data."""
+    """Revenue improvement tips."""
     parts = []
     total_revenue = overview.get("total_revenue", 0)
     total_bookings = overview.get("total_bookings", 0)
@@ -539,25 +538,25 @@ def _revenue_suggestions(overview, locations, revenue_trend, events, bookings):
 
     parts.append(f"Current revenue: ₹{total_revenue:,.0f} from {total_bookings} bookings.")
 
-    # Revenue per booking
+    # revenue per booking
     if total_bookings > 0:
         rev_per_booking = total_revenue / total_bookings
         parts.append(f"Average revenue per booking: ₹{rev_per_booking:,.0f}. Increasing booking volume or pricing can boost revenue.")
 
-    # Location revenue gaps
+    # location revenue gaps
     if len(locations) >= 2:
         top = max(locations, key=lambda x: x.get("revenue", 0))
         low = min(locations, key=lambda x: x.get("revenue", 0))
         if top.get("revenue", 0) > 0 and low.get("revenue", 0) == 0:
             parts.append(f"{low['location_name']} has ₹0 revenue while {top['location_name']} generates ₹{top['revenue']:,.0f}. Focus on promoting {low['location_name']}.")
 
-    # Revenue trend
+    # revenue trend
     rev_values = revenue_trend.get("values", [])
     if len(rev_values) >= 2 and rev_values[-2] > 0:
         if rev_values[-1] < rev_values[-2]:
             parts.append(f"Revenue is declining (₹{rev_values[-2]:,.0f} → ₹{rev_values[-1]:,.0f}). Consider promotional discounts or events to attract more bookings.")
 
-    # Events as revenue source
+    # events as revenue source
     if events:
         avg_collection = sum(e.get("total_collected", 0) for e in events) / len(events)
         if avg_collection == 0:
@@ -565,7 +564,7 @@ def _revenue_suggestions(overview, locations, revenue_trend, events, bookings):
         else:
             parts.append(f"Events generate avg ₹{avg_collection:,.0f} per event — organizing more paid events can supplement booking revenue.")
 
-    # Member to revenue ratio
+    # member to revenue ratio
     if total_members > 0 and total_revenue > 0:
         rev_per_member = total_revenue / total_members
         parts.append(f"Revenue per member: ₹{rev_per_member:,.0f}. Engaging more members can directly increase revenue.")
@@ -577,7 +576,7 @@ def _revenue_suggestions(overview, locations, revenue_trend, events, bookings):
 
 
 def _booking_suggestions(overview, booking_trend, bookings):
-    """Generate booking improvement suggestions based on data."""
+    """Booking improvement tips."""
     parts = []
     total = overview.get("total_bookings", 0)
     pending = overview.get("pending_bookings", 0)
@@ -593,7 +592,7 @@ def _booking_suggestions(overview, booking_trend, bookings):
         cancel_rate = (cancelled / total * 100)
         parts.append(f"Cancellation rate: {cancel_rate:.0f}%. Investigate reasons and improve booking experience.")
 
-    # Day-of-week analysis
+    # day-of-week analysis
     if len(bookings) >= 5:
         day_counts = Counter()
         for b in bookings:
@@ -616,7 +615,7 @@ def _booking_suggestions(overview, booking_trend, bookings):
 
 
 def _location_suggestions(locations):
-    """Generate location improvement suggestions based on data."""
+    """Location improvement tips."""
     parts = []
     if not locations:
         return "No location data available."
@@ -633,7 +632,7 @@ def _location_suggestions(locations):
     if low.get("revenue", 0) == 0 and low["location_name"] != top["location_name"]:
         parts.append(f"{low['location_name']} has ₹0 revenue. Needs marketing push or better space offerings.")
 
-    # Compare metrics
+    # compare metrics
     for loc in sorted_locs:
         if loc.get("total_spaces", 0) > 0 and loc.get("total_bookings", 0) == 0:
             parts.append(f"{loc['location_name']} has {loc['total_spaces']} spaces but 0 bookings — spaces are not being utilized.")
@@ -642,7 +641,7 @@ def _location_suggestions(locations):
 
 
 def _event_suggestions_text(overview, events, locations, bookings, space_dist):
-    """Generate event suggestions as text for Q&A."""
+    """Event suggestions text."""
     parts = []
     total_events = overview.get("total_events", 0)
     total_members = overview.get("total_members", 0)
@@ -663,7 +662,7 @@ def _event_suggestions_text(overview, events, locations, bookings, space_dist):
             if len(themes) == 1 and len(events) >= 3:
                 parts.append(f"All events use the same theme. Diversify with networking, skill development, or wellness themes.")
 
-    # Timing
+    # timing
     if len(bookings) >= 5:
         day_counts = Counter()
         for b in bookings:
@@ -674,13 +673,13 @@ def _event_suggestions_text(overview, events, locations, bookings, space_dist):
             if best_count >= len(bookings) * 0.3:
                 parts.append(f"Schedule events on {best_day}s — {best_count} out of {len(bookings)} bookings happen on this day.")
 
-    # Location gaps
+    # location gaps
     locs_with_events = [l for l in locations if l.get("total_events", 0) > 0]
     locs_without = [l for l in locations if l.get("total_events", 0) == 0 and (l.get("total_members", 0) > 0 or l.get("total_bookings", 0) > 0)]
     if locs_with_events and locs_without:
         parts.append(f"Bring events to {locs_without[0]['location_name']} — it has active members but no events.")
 
-    # Underutilized spaces
+    # underutilized spaces
     space_labels = space_dist.get("labels", [])
     space_values = space_dist.get("values", [])
     if space_labels and len(bookings) >= 3:
@@ -700,7 +699,7 @@ def _event_suggestions_text(overview, events, locations, bookings, space_dist):
 
 
 def _space_suggestions_text(labels, values, bookings):
-    """Generate space utilization suggestions as text."""
+    """Space utilization tips."""
     parts = []
     total_spaces = sum(values)
     parts.append(f"Total spaces: {total_spaces}.")
@@ -727,11 +726,11 @@ def _space_suggestions_text(labels, values, bookings):
 
 @frappe.whitelist()
 def get_event_suggestions(from_date=None, to_date=None, location=None):
-    """Generate data-driven event suggestions. Only recommend when enough data exists."""
+    """Generate event suggestions."""
     _check_admin_role()
     suggestions = []
 
-    # Gather data
+    # grab data
     overview = get_analytics_overview(from_date, to_date, location)
     loc_stats = get_location_wise_stats(from_date, to_date)
     locations = loc_stats.get("locations", [])
@@ -748,14 +747,14 @@ def get_event_suggestions(from_date=None, to_date=None, location=None):
     total_bookings = overview.get("total_bookings", 0)
     total_revenue = overview.get("total_revenue", 0)
 
-    # ── 1. Repeat successful event themes (needs >= 2 completed events with same theme) ──
+    # 1. repeat successful event themes
     completed_events = [e for e in events if e.get("event_status") == "Completed"]
     if len(completed_events) >= 2:
         themes = Counter(e.get("event_theme") for e in completed_events if e.get("event_theme"))
         if themes:
             top_theme, top_count = themes.most_common(1)[0]
             if top_count >= 2:
-                # Calculate actual revenue/collection from these events
+                # calculate actual revenue from these events
                 theme_events = [e for e in completed_events if e.get("event_theme") == top_theme]
                 avg_collected = sum(e.get("total_collected", 0) for e in theme_events) / len(theme_events)
                 avg_spent = sum(e.get("total_spent", 0) for e in theme_events) / len(theme_events)
@@ -771,7 +770,7 @@ def get_event_suggestions(from_date=None, to_date=None, location=None):
                     "data_points": f"{top_count} completed events, avg collected ₹{avg_collected:,.0f}"
                 })
 
-    # ── 2. Optimal timing based on booking day-of-week (needs >= 5 bookings) ──
+    # 2. best day to schedule events
     if len(bookings) >= 5:
         day_counts = Counter()
         for b in bookings:
@@ -784,7 +783,7 @@ def get_event_suggestions(from_date=None, to_date=None, location=None):
             best_day, best_count = sorted_days[0]
             worst_day, worst_count = sorted_days[-1]
 
-            # Only suggest if there's a clear winner (>= 30% of bookings)
+            # only suggest if there's a clear winner
             if best_count >= len(bookings) * 0.3:
                 suggestions.append({
                     "category": "Optimal Timing",
@@ -797,7 +796,7 @@ def get_event_suggestions(from_date=None, to_date=None, location=None):
                     "data_points": f"{best_count}/{len(bookings)} bookings on {best_day}s"
                 })
 
-            # Only suggest avoiding if there's a clear loser (< 15% of bookings)
+            # only suggest avoiding if there's a clear loser
             if worst_count > 0 and worst_count < len(bookings) * 0.15:
                 suggestions.append({
                     "category": "Optimal Timing",
@@ -811,11 +810,11 @@ def get_event_suggestions(from_date=None, to_date=None, location=None):
                     "data_points": f"{worst_count}/{len(bookings)} bookings on {worst_day}s"
                 })
 
-    # ── 3. Growing momentum (needs >= 3 months of booking data with upward trend) ──
+    # 3. growing momentum
     bk_totals = booking_trend.get("totals", [])
     bk_labels = booking_trend.get("labels", [])
     if len(bk_totals) >= 3:
-        # Check if last 3 months show upward trend
+        # check if last 3 months show upward trend
         last_three = bk_totals[-3:]
         if last_three[2] > last_three[0] and last_three[2] > last_three[1]:
             growth_pct = ((last_three[2] - last_three[0]) / last_three[0] * 100) if last_three[0] else 0
@@ -831,10 +830,10 @@ def get_event_suggestions(from_date=None, to_date=None, location=None):
                 "data_points": f"{last_three[0]} → {last_three[1]} → {last_three[2]} bookings"
             })
 
-    # ── 4. Underutilized spaces (needs actual booking + space data) ──
+    # 4. underutilized spaces
     if space_labels and space_values and len(bookings) >= 3:
         total_spaces = sum(space_values)
-        # Count bookings per space type
+        # count bookings per space type
         space_type_bookings = Counter()
         for b in bookings:
             if b.get("space_type"):
@@ -843,7 +842,7 @@ def get_event_suggestions(from_date=None, to_date=None, location=None):
         for i, label in enumerate(space_labels):
             space_count = space_values[i]
             booking_count = space_type_bookings.get(label, 0)
-            # Low utilization = has spaces but very few bookings relative to space count
+            # low utilization = has spaces but few bookings
             if space_count > 0 and booking_count == 0:
                 pct = (space_count / total_spaces * 100) if total_spaces else 0
                 suggestions.append({
@@ -872,7 +871,7 @@ def get_event_suggestions(from_date=None, to_date=None, location=None):
                         "data_points": f"{space_count} spaces, {booking_count} bookings"
                     })
 
-    # ── 5. No events but active members (needs members + bookings data) ──
+    # 5. no events but active members
     if total_events == 0 and total_members >= 3 and total_bookings >= 3:
         suggestions.append({
             "category": "Event Type",
@@ -886,14 +885,14 @@ def get_event_suggestions(from_date=None, to_date=None, location=None):
             "data_points": f"0 events, {total_members} members, {total_bookings} bookings"
         })
 
-    # ── 6. Location gap (needs >= 2 locations with real event data) ──
+    # 6. location gap
     if len(locations) >= 2:
         locs_with_events = [l for l in locations if l.get("total_events", 0) > 0]
         locs_without_events = [l for l in locations if l.get("total_events", 0) == 0]
         if locs_with_events and locs_without_events:
             top_loc = max(locs_with_events, key=lambda x: x.get("total_events", 0))
             for low_loc in locs_without_events:
-                # Only suggest if the location has members or bookings
+                # only suggest if the location has members or bookings
                 if low_loc.get("total_members", 0) > 0 or low_loc.get("total_bookings", 0) > 0:
                     suggestions.append({
                         "category": "Location Strategy",
@@ -913,12 +912,12 @@ def get_event_suggestions(from_date=None, to_date=None, location=None):
                         )
                     })
 
-    # ── 7. Revenue opportunity from events (needs revenue + event data) ──
+    # 7. revenue opportunity from events
     if total_revenue > 0 and total_events > 0:
         rev_values = revenue_trend.get("values", [])
         rev_labels = revenue_trend.get("labels", [])
         if len(rev_values) >= 2:
-            # If revenue is declining, suggest events as revenue boost
+            # if revenue is declining, suggest events as revenue boost
             if rev_values[-1] < rev_values[-2] and rev_values[-2] > 0:
                 decline_pct = ((rev_values[-2] - rev_values[-1]) / rev_values[-2] * 100)
                 suggestions.append({
@@ -937,7 +936,7 @@ def get_event_suggestions(from_date=None, to_date=None, location=None):
                     )
                 })
 
-    # ── 8. Diversify themes (needs >= 3 events all with same theme) ──
+    # 8. diversify themes
     if len(events) >= 3:
         themes = Counter(e.get("event_theme") for e in events if e.get("event_theme"))
         if themes:

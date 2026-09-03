@@ -33,7 +33,7 @@ def assign_technician(
 ):
     complaint_doc = frappe.get_doc("Complaints", complaint)
 
-    # Use selected technician or find least busy
+    # use selected technician or find least busy
     if technician:
         technician = technician
     else:
@@ -45,15 +45,15 @@ def assign_technician(
             "message": "No active technician available for this asset location."
         }
 
-    # Update Complaint
+    # update complaint
     complaint_doc.assigned_to = technician
     complaint_doc.status = "Scheduled"
     complaint_doc.save(ignore_permissions=True)
 
-    # Set asset to Under Maintenance
+    # set asset to Under Maintenance
     frappe.db.set_value("Asset", complaint_doc.related_asset, "status", "Under Maintenance")
 
-    # Create Asset Maintenance
+    # create asset maintenance
     maintenance = frappe.get_doc({
         "doctype": "Asset Maintenance",
         "asset": complaint_doc.related_asset,
@@ -65,7 +65,7 @@ def assign_technician(
 
     maintenance.insert(ignore_permissions=True)
 
-    # Create Maintenance Task Allocation
+    # create maintenance task allocation
     request = frappe.get_doc({
         "doctype": "Maintenance Task Allocation",
         "asset_maintenance_request": maintenance.name,
@@ -138,7 +138,7 @@ def get_least_busy_technician(complaint_doc):
 
 @frappe.whitelist()
 def get_available_technicians(complaint_name):
-    """Return active technicians for the complaint's asset location, sorted by task count (least busy first)."""
+    """Get available technicians."""
     complaint_doc = frappe.get_doc("Complaints", complaint_name)
 
     asset_location = frappe.db.get_value(

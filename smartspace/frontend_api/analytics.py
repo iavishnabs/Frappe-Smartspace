@@ -4,14 +4,14 @@ from frappe.utils import getdate, nowdate, add_days, add_months, get_first_day, 
 
 
 def _check_admin_role():
-	"""Raise error if current user doesn't have App Admin or Administrator role."""
+	"""Check admin role."""
 	roles = frappe.get_roles(frappe.session.user)
 	if "App Admin" not in roles and "Administrator" not in roles:
 		frappe.throw("You don't have permission to access this resource.", frappe.PermissionError)
 
 
 def _get_date_filters(from_date=None, to_date=None):
-	"""Return (from_date, to_date) with defaults if not provided."""
+	"""Get date filters."""
 	if not from_date:
 		from_date = add_months(getdate(nowdate()), -12)
 	if not to_date:
@@ -20,24 +20,24 @@ def _get_date_filters(from_date=None, to_date=None):
 
 
 def _sum(doctype, fieldname, filters=None):
-	"""Sum a field across matching records (fallback for frappe.db.sum)."""
+	"""Sum a field."""
 	records = frappe.get_all(doctype, filters=filters, fields=[fieldname])
 	return sum(r.get(fieldname) or 0 for r in records)
 
 
 @frappe.whitelist()
 def get_analytics_overview(from_date=None, to_date=None, location=None):
-	"""Return high-level overview stats for the admin analytics dashboard."""
+	"""Get overview stats."""
 	_check_admin_role()
 	fd, td = _get_date_filters(from_date, to_date)
 
-	# ── Revenue ──
+	# revenue
 	payment_filters = {
 		"payment_status": "Paid",
 		"payment_date": ["between", [fd, td]],
 	}
 	if location:
-		# Payment has no location field; filter via reservation's space location
+		# Payment has no location field, so filter through reservation
 		space_names = [s.name for s in frappe.get_all("Space", {"location": location}, ["name"])]
 		if space_names:
 			res_names = [r.name for r in frappe.get_all("Reservation", {"space": ["in", space_names]}, ["name"])]
@@ -49,7 +49,7 @@ def get_analytics_overview(from_date=None, to_date=None, location=None):
 			payment_filters["reference_name"] = "__NO_MATCH__"
 	total_revenue = _sum("Payment", "amount", filters=payment_filters)
 
-	# ── Bookings ──
+	# bookings
 	booking_filters = {
 		"booking_date": ["between", [fd, td]],
 	}
@@ -65,7 +65,7 @@ def get_analytics_overview(from_date=None, to_date=None, location=None):
 	completed_bookings = frappe.db.count("Reservation", filters={**booking_filters, "booking_status": "Completed"})
 	cancelled_bookings = frappe.db.count("Reservation", filters={**booking_filters, "booking_status": "Cancelled"})
 
-	# ── Assets ──
+	# assets
 	asset_filters = {}
 	if location:
 		asset_filters["location"] = location
@@ -75,11 +75,11 @@ def get_analytics_overview(from_date=None, to_date=None, location=None):
 	maintenance_assets = frappe.db.count("Asset", filters={**asset_filters, "status": "Under Maintenance"})
 	damaged_assets = frappe.db.count("Asset", filters={**asset_filters, "status": "Damaged"})
 
-	# ── Asset Purchase Cost ──
+	# asset purchase cost
 	purchase_filters = {"purchase_date": ["between", [fd, td]]}
 	asset_purchase_cost = _sum("Asset", "unit_cost", filters=asset_filters)
 
-	# ── Events ──
+	# events
 	event_filters = {
 		"start_date": ["between", [fd, td]],
 	}
@@ -87,7 +87,7 @@ def get_analytics_overview(from_date=None, to_date=None, location=None):
 		event_filters["location"] = location
 	total_events = frappe.db.count("Space Event", filters=event_filters)
 
-	# ── Event Ratings ──
+	# event ratings
 	rating_filters = {}
 	if from_date or to_date:
 		rating_filters["rating_date"] = ["between", [fd, td]]
@@ -99,7 +99,7 @@ def get_analytics_overview(from_date=None, to_date=None, location=None):
 	rated_events = len(set(r.event for r in all_ratings))
 	avg_event_rating = round(sum(r.rating for r in all_ratings) / total_ratings, 1) if total_ratings else 0
 
-	# ── Vendors ──
+	# vendors
 	vendor_purchases = frappe.get_all(
 		"Asset Purchase",
 		filters={"purchase_date": ["between", [fd, td]], "docstatus": ["<=", 1]},
@@ -108,7 +108,7 @@ def get_analytics_overview(from_date=None, to_date=None, location=None):
 	vendor_count = len(set(p.vendor for p in vendor_purchases if p.vendor))
 	vendor_total_spend = sum(p.net_amount or 0 for p in vendor_purchases)
 
-	# ── Members ──
+	# members
 	member_filters = {"join_date": ["between", [fd, td]]}
 	if location:
 		member_filters["location"] = location
@@ -142,7 +142,7 @@ def get_analytics_overview(from_date=None, to_date=None, location=None):
 
 @frappe.whitelist()
 def get_location_wise_stats(from_date=None, to_date=None):
-	"""Return per-location breakdown of spaces, bookings, revenue, assets, events."""
+	"""Get location stats."""
 	_check_admin_role()
 	fd, td = _get_date_filters(from_date, to_date)
 
@@ -152,13 +152,13 @@ def get_location_wise_stats(from_date=None, to_date=None):
 	for loc in locations:
 		loc_name = loc.name
 
-		# Spaces
+		# spaces
 		spaces = frappe.get_all("Space", {"location": loc_name}, ["name", "space_type", "availability_status", "seating_capacity", "hourly_rate"])
 		total_spaces = len(spaces)
 		available_spaces = len([s for s in spaces if s.availability_status == "Available"])
 		occupied_spaces = len([s for s in spaces if s.availability_status == "Occupied"])
 
-		# Bookings
+		# bookings
 		space_names = [s.name for s in spaces] if spaces else []
 		if space_names:
 			booking_count = frappe.db.count("Reservation", {"space": ["in", space_names], "booking_date": ["between", [fd, td]]})
@@ -167,16 +167,16 @@ def get_location_wise_stats(from_date=None, to_date=None):
 			booking_count = 0
 			booking_revenue = 0
 
-		# Assets
+		# assets
 		assets = frappe.get_all("Asset", {"location": loc_name}, ["name", "status", "unit_cost"])
 		total_assets = len(assets)
 		allocated_assets = len([a for a in assets if a.status == "Allocated"])
 		asset_cost = sum(a.unit_cost or 0 for a in assets)
 
-		# Events
+		# events
 		event_count = frappe.db.count("Space Event", {"location": loc_name, "start_date": ["between", [fd, td]]})
 
-		# Payments (revenue) — filter via reservation's space location
+		# revenue — filter through reservation since Payment has no location field
 		if space_names:
 			loc_res_names = [r.name for r in frappe.get_all("Reservation", {"space": ["in", space_names]}, ["name"])]
 			if loc_res_names:
@@ -186,7 +186,7 @@ def get_location_wise_stats(from_date=None, to_date=None):
 		else:
 			revenue = 0
 
-		# Members
+		# members
 		member_count = frappe.db.count("Member", {"location": loc_name, "join_date": ["between", [fd, td]]})
 
 		result.append({
@@ -209,7 +209,7 @@ def get_location_wise_stats(from_date=None, to_date=None):
 
 @frappe.whitelist()
 def get_revenue_trend(from_date=None, to_date=None, location=None, granularity="monthly"):
-	"""Return revenue trend data grouped by month or day."""
+	"""Get revenue trend."""
 	_check_admin_role()
 	fd, td = _get_date_filters(from_date, to_date)
 
@@ -235,7 +235,7 @@ def get_revenue_trend(from_date=None, to_date=None, location=None, granularity="
 		order_by="payment_date asc",
 	)
 
-	# Group by month
+	# group by month or day
 	from collections import OrderedDict
 	if granularity == "daily":
 		grouped = OrderedDict()
@@ -257,7 +257,7 @@ def get_revenue_trend(from_date=None, to_date=None, location=None, granularity="
 
 @frappe.whitelist()
 def get_booking_trend(from_date=None, to_date=None, location=None, granularity="monthly"):
-	"""Return booking count trend grouped by month or day."""
+	"""Get booking trend."""
 	_check_admin_role()
 	fd, td = _get_date_filters(from_date, to_date)
 
@@ -310,7 +310,7 @@ def get_booking_trend(from_date=None, to_date=None, location=None, granularity="
 
 @frappe.whitelist()
 def get_space_type_distribution(location=None):
-	"""Return distribution of spaces by type."""
+	"""Get space type counts."""
 	_check_admin_role()
 	filters = {}
 	if location:
@@ -329,7 +329,7 @@ def get_space_type_distribution(location=None):
 
 @frappe.whitelist()
 def get_asset_status_distribution(location=None):
-	"""Return distribution of assets by status."""
+	"""Get asset status counts."""
 	_check_admin_role()
 	filters = {}
 	if location:
@@ -348,7 +348,7 @@ def get_asset_status_distribution(location=None):
 
 @frappe.whitelist()
 def get_vendor_list(from_date=None, to_date=None):
-	"""Return vendor-wise purchase summary."""
+	"""Get vendor summary."""
 	_check_admin_role()
 	fd, td = _get_date_filters(from_date, to_date)
 
@@ -359,7 +359,7 @@ def get_vendor_list(from_date=None, to_date=None):
 		order_by="purchase_date desc",
 	)
 
-	# Group by vendor
+	# group by vendor
 	from collections import OrderedDict
 	vendor_map = OrderedDict()
 	for p in purchases:
@@ -379,7 +379,7 @@ def get_vendor_list(from_date=None, to_date=None):
 
 @frappe.whitelist()
 def get_recent_bookings(from_date=None, to_date=None, location=None, limit=20):
-	"""Return recent bookings with details."""
+	"""Get recent bookings."""
 	_check_admin_role()
 	fd, td = _get_date_filters(from_date, to_date)
 
@@ -402,7 +402,7 @@ def get_recent_bookings(from_date=None, to_date=None, location=None, limit=20):
 		limit=cint(limit),
 	)
 
-	# Enrich with space and user info
+	# add space and user names
 	for b in bookings:
 		if b.space:
 			space_info = frappe.db.get_value("Space", b.space, ["space_type", "location"], as_dict=True)
@@ -417,7 +417,7 @@ def get_recent_bookings(from_date=None, to_date=None, location=None, limit=20):
 
 @frappe.whitelist()
 def get_events_list(from_date=None, to_date=None, location=None):
-	"""Return events list with details."""
+	"""Get events list."""
 	_check_admin_role()
 	fd, td = _get_date_filters(from_date, to_date)
 
@@ -445,6 +445,6 @@ def get_events_list(from_date=None, to_date=None, location=None):
 
 @frappe.whitelist()
 def get_all_locations():
-	"""Return all active locations for filter dropdowns."""
+	"""Get all locations."""
 	_check_admin_role()
 	return frappe.get_all("Location", filters={"status": "Active"}, fields=["name", "location_name"], order_by="location_name asc")

@@ -9,12 +9,12 @@ from smartspace.frontend_api.auth import (
 )
 
 
-# ─── Profile ──────────────────────────────────────────────────────────────────
+# profile
 
 
 @frappe.whitelist()
 def get_profile():
-	"""Return current member's profile from App User and Member doctypes."""
+	"""Get member profile."""
 	app_user = get_session_app_user_doc(
 		["name", "first_name", "last_name", "full_name", "email", "location", "active"]
 	)
@@ -111,12 +111,12 @@ def change_password(new_password, confirm_password):
 	return {"success": True, "message": "Password changed successfully"}
 
 
-# ─── Dashboard ────────────────────────────────────────────────────────────────
+# dashboard
 
 
 @frappe.whitelist()
 def get_dashboard_stats():
-	"""Return dashboard stats for the logged-in member."""
+	"""Get member dashboard stats."""
 	app_user = get_session_app_user()
 	if not app_user:
 		frappe.throw("No App User found for current session user")
@@ -124,7 +124,7 @@ def get_dashboard_stats():
 	now = now_datetime()
 	member = frappe.db.get_value("Member", {"app_user": app_user}, ["name", "member_type", "active"], as_dict=True)
 
-	# Active bookings
+	# active bookings
 	active_bookings = frappe.db.get_list(
 		"Reservation",
 		filters={"app_user": app_user, "booking_status": ["in", ["Pending", "Booked"]]},
@@ -136,7 +136,7 @@ def get_dashboard_stats():
 		"app_user": app_user, "booking_status": ["in", ["Pending", "Booked"]]
 	})
 
-	# Compute latest expiry from active reservations
+	# figure out latest expiry date
 	latest_booking_to = frappe.db.get_value(
 		"Reservation",
 		filters={"app_user": app_user, "booking_status": ["in", ["Pending", "Booked"]]},
@@ -151,12 +151,12 @@ def get_dashboard_stats():
 		member["expiry_date"] = None
 		member["days_left"] = None
 
-	# Completed bookings
+	# completed bookings
 	completed_count = frappe.db.count("Reservation", {
 		"app_user": app_user, "booking_status": "Completed"
 	})
 
-	# Total spent
+	# total spent
 	payments = frappe.get_all(
 		"Payment",
 		filters={"user": app_user, "payment_status": "Paid"},
@@ -164,14 +164,14 @@ def get_dashboard_stats():
 	)
 	total_spent = sum(flt(a) for a in payments)
 
-	# Parking allocations
+	# parking
 	parking_count = 0
 	if member:
 		parking_count = frappe.db.count("Parking Allocation", {
 			"member": member.name, "allocation_status": "Active"
 		})
 
-	# Complaints
+	# complaints
 	complaint_open = frappe.db.count("Complaints", {
 		"raised_by": frappe.session.user,
 		"status": ["in", ["Open", "Scheduled", "In Progress", "Flagged"]]
@@ -181,7 +181,7 @@ def get_dashboard_stats():
 		"status": ["in", ["Resolved", "Closed"]]
 	})
 
-	# Events
+	# events
 	user_location = get_session_user_location()
 	event_filters = {"event_status": "Published", "start_date": [">=", now]}
 	if user_location:
@@ -196,7 +196,7 @@ def get_dashboard_stats():
 	)
 	latest_event = latest_event[0] if latest_event else None
 
-	# Lost & Found
+	# lost & found
 	lf_open = frappe.db.count("Lost And Found", {"reported_by": app_user, "status": "Open"})
 
 	return {
@@ -218,13 +218,12 @@ def get_dashboard_stats():
 	}
 
 
-# ─── Spaces ───────────────────────────────────────────────────────────────────
+# spaces
 
 
 @frappe.whitelist()
 def get_spaces(search=None, space_type=None, page=1, page_size=12):
-	"""Return available spaces for member booking.
-	Excludes Conference Room and Event Hall (those are booked via chatbot)."""
+	"""Get available spaces."""
 	filters = {"availability_status": "Available"}
 
 	filters["space_type"] = ["not in", ["Conference Room", "Event Hall"]]
@@ -272,7 +271,7 @@ def get_spaces(search=None, space_type=None, page=1, page_size=12):
 
 @frappe.whitelist()
 def get_space_detail(space_name):
-	"""Return details for a single space."""
+	"""Get space details."""
 	space = frappe.db.get_value(
 		"Space", space_name,
 		["name", "space_type", "availability_status", "location", "floor",
@@ -303,19 +302,14 @@ def get_space_detail(space_name):
 	return space
 
 
-# ─── Reservations / Bookings ──────────────────────────────────────────────────
+# reservations / bookings
 
 
 @frappe.whitelist()
 def create_reservation(space, booking_type, booking_from, count, parking_details=None,
 		phone=None, gender=None, date_of_birth=None,
 		address_line_1=None, city=None, state=None, country=None, pincode=None):
-	"""Create a new reservation with optional parking details and member profile data.
-
-	Member details (phone, gender, DOB, address, vehicle) are saved to the Member
-	doctype if/when it is created during confirmation. If a Member already exists,
-	the details are updated.
-	"""
+	"""Create a reservation."""
 	app_user = get_session_app_user()
 	if not app_user:
 		frappe.throw("No App User found for current session user")
@@ -343,7 +337,7 @@ def create_reservation(space, booking_type, booking_from, count, parking_details
 
 	doc.insert(ignore_permissions=True)
 
-	# Save member details to existing Member (if any) for immediate use
+	# save member details to existing Member if there is one
 	member_name = frappe.db.exists("Member", {"app_user": app_user})
 	if member_name:
 		member_updates = {}
@@ -362,7 +356,7 @@ def create_reservation(space, booking_type, booking_from, count, parking_details
 		if member_updates:
 			frappe.db.set_value("Member", member_name, member_updates)
 
-	# Store member details in frappe.flags so confirm_reservation can pick them up
+	# stash member details in flags for confirm_reservation to use later
 	vehicle_numbers = ""
 	if parking_details:
 		vehicle_numbers = ", ".join([r.get("vehicle_number", "") for r in parking_details if r.get("vehicle_number")])
@@ -384,11 +378,7 @@ def create_reservation(space, booking_type, booking_from, count, parking_details
 
 @frappe.whitelist()
 def renew_reservation(reservation_name, booking_type, booking_from, count, parking_details=None):
-	"""Renew an expired reservation by creating a new one for the same space.
-
-	Only booking details and parking are collected; member profile is reused.
-	The space must be available (not occupied) to renew.
-	"""
+	"""Renew a reservation."""
 	app_user = get_session_app_user()
 	if not app_user:
 		frappe.throw("No App User found for current session user")
@@ -403,7 +393,7 @@ def renew_reservation(reservation_name, booking_type, booking_from, count, parki
 	if old.app_user != app_user:
 		frappe.throw("You can only renew your own bookings")
 
-	# Check space availability
+	# check if space is available
 	space_status = frappe.db.get_value("Space", old.space, "availability_status")
 	if space_status == "Occupied":
 		frappe.throw("This space is currently occupied and cannot be renewed")
@@ -442,7 +432,7 @@ def renew_reservation(reservation_name, booking_type, booking_from, count, parki
 
 @frappe.whitelist()
 def get_my_bookings(status=None, page=1, page_size=10):
-	"""Return the current member's reservations."""
+	"""Get member bookings."""
 	app_user = get_session_app_user()
 	if not app_user:
 		frappe.throw("No App User found for current session user")
@@ -484,7 +474,7 @@ def get_my_bookings(status=None, page=1, page_size=10):
 
 @frappe.whitelist()
 def get_booking_detail(reservation_name):
-	"""Return full details for a reservation including space, assets, parking."""
+	"""Get booking details."""
 	app_user = get_session_app_user()
 	if not app_user:
 		frappe.throw("No App User found for current session user")
@@ -499,12 +489,12 @@ def get_booking_detail(reservation_name):
 	if not reservation:
 		frappe.throw("Reservation not found")
 
-	# Verify ownership
+	# make sure it belongs to the current user
 	reservation_app_user = frappe.db.get_value("Reservation", reservation_name, "app_user")
 	if reservation_app_user != app_user:
 		frappe.throw("You can only view your own bookings")
 
-	# Space details
+	# space details
 	if reservation.space:
 		space = frappe.db.get_value(
 			"Space", reservation.space,
@@ -523,7 +513,7 @@ def get_booking_detail(reservation_name):
 				space["amenities_list"] = []
 		reservation["space_detail"] = space
 
-		# Assets allocated to this space
+		# assets allocated to this space
 		asset_allocations = frappe.get_all(
 			"Asset Allocation",
 			filters={"space": reservation.space, "allocation_status": "Active", "docstatus": 1},
@@ -548,7 +538,7 @@ def get_booking_detail(reservation_name):
 					assets.append(asset)
 		reservation["assets"] = assets
 
-	# Parking details
+	# parking details
 	parking_rows = frappe.db.get_all(
 		"Reservation Parking",
 		filters={"parent": reservation_name},
@@ -563,7 +553,7 @@ def get_booking_detail(reservation_name):
 			row["allocated_from"] = frappe.db.get_value("Parking Allocation", row.parking_allocation, "allocated_from")
 	reservation["parking_details"] = parking_rows
 
-	# Payment details
+	# payment details
 	if reservation.payment:
 		payment = frappe.db.get_value(
 			"Payment", reservation.payment,
@@ -577,16 +567,12 @@ def get_booking_detail(reservation_name):
 	return reservation
 
 
-# ─── Payments ─────────────────────────────────────────────────────────────────
+# payments
 
 
 @frappe.whitelist()
 def pay_for_booking(reservation_name, payment_method="Card"):
-	"""Create a payment record for a reservation and mark it as paid (dummy online payment).
-
-	After payment, auto-confirms the reservation: creates Member, sets booking to 'Booked',
-	occupies the space, and auto-assigns parking.
-	"""
+	"""Pay for booking."""
 	app_user = get_session_app_user()
 	if not app_user:
 		frappe.throw("No App User found for current session user")
@@ -631,7 +617,7 @@ def pay_for_booking(reservation_name, payment_method="Card"):
 		"payment_status": "Paid",
 	})
 
-	# Auto-confirm: create Member, set Booked, occupy space, auto-assign parking
+	# auto-confirm: creates member, sets booked, occupies space, assigns parking
 	if reservation.booking_status == "Pending":
 		from smartspace.space_booking.doctype.reservation.reservation import confirm_reservation
 		confirm_reservation(reservation_name)
@@ -646,7 +632,7 @@ def pay_for_booking(reservation_name, payment_method="Card"):
 
 @frappe.whitelist()
 def get_transactions(page=1, page_size=20):
-	"""Return all payment transactions for the current member (space + event funds)."""
+	"""Get member transactions."""
 	app_user = get_session_app_user()
 	if not app_user:
 		frappe.throw("No App User found for current session user")
@@ -688,12 +674,12 @@ def get_transactions(page=1, page_size=20):
 	}
 
 
-# ─── Parking ──────────────────────────────────────────────────────────────────
+# parking
 
 
 @frappe.whitelist()
 def get_my_parking():
-	"""Return active parking allocations for the current member."""
+	"""Get member parking."""
 	app_user = get_session_app_user()
 	if not app_user:
 		frappe.throw("No App User found for current session user")
@@ -720,12 +706,12 @@ def get_my_parking():
 	return {"allocations": allocations}
 
 
-# ─── Events & Funding ─────────────────────────────────────────────────────────
+# events & funding
 
 
 @frappe.whitelist()
 def get_events(page=1, page_size=10):
-	"""Return upcoming published events for the member."""
+	"""Get upcoming events."""
 	filters = {"event_status": "Published", "start_date": [">=", now_datetime()]}
 
 	page = int(page)
@@ -762,7 +748,7 @@ def get_events(page=1, page_size=10):
 
 @frappe.whitelist()
 def fund_event(event_name, amount, payment_method="Card"):
-	"""Contribute funds to an event. Creates Member Event Fund + Payment."""
+	"""Fund an event."""
 	app_user = get_session_app_user()
 	if not app_user:
 		frappe.throw("No App User found for current session user")
@@ -783,7 +769,7 @@ def fund_event(event_name, amount, payment_method="Card"):
 	if amount <= 0:
 		frappe.throw("Amount must be greater than zero")
 
-	# Create payment
+	# create payment
 	payment = frappe.get_doc({
 		"doctype": "Payment",
 		"payment_type": "Receive",
@@ -797,7 +783,7 @@ def fund_event(event_name, amount, payment_method="Card"):
 	})
 	payment.insert(ignore_permissions=True)
 
-	# Create member event fund
+	# create member event fund
 	mef = frappe.get_doc({
 		"doctype": "Member Event Fund",
 		"event": event_name,
@@ -809,16 +795,16 @@ def fund_event(event_name, amount, payment_method="Card"):
 	})
 	mef.insert(ignore_permissions=True)
 
-	# Update payment reference_name
+	# link payment to the fund record
 	frappe.db.set_value("Payment", payment.name, "reference_name", mef.name)
 
-	# Update event fund totals
+	# update event fund totals
 	fund_doc = frappe.get_doc("Event Fund", event_fund)
 	fund_doc.total_collection = flt(fund_doc.total_collection) + amount
 	fund_doc.fund_balance = flt(fund_doc.total_collection) - flt(fund_doc.total_expense)
 	fund_doc.save(ignore_permissions=True)
 
-	# Update Space Event fund fields
+	# update space event fund fields
 	space_event = frappe.get_doc("Space Event", event_name)
 	space_event.total_collected = flt(space_event.total_collected) + amount
 	space_event.fund_balance = flt(space_event.total_collected) - flt(space_event.total_spent)
@@ -832,7 +818,7 @@ def fund_event(event_name, amount, payment_method="Card"):
 	}
 
 
-# ─── Complaints ───────────────────────────────────────────────────────────────
+# complaints
 
 
 @frappe.whitelist()
@@ -939,7 +925,7 @@ def delete_complaint(name):
 	return {"deleted": True, "name": name}
 
 
-# ─── Lost & Found ─────────────────────────────────────────────────────────────
+# lost & found
 
 
 @frappe.whitelist()
@@ -1058,7 +1044,7 @@ def close_lost_found(name):
 	return {"success": True, "status": "Closed"}
 
 
-# ─── Notifications ────────────────────────────────────────────────────────────
+# notifications
 
 
 @frappe.whitelist()
@@ -1113,12 +1099,12 @@ def mark_all_notifications_read():
 	return {"success": True}
 
 
-# ─── Chatbot Booking (Conference Room & Event Hall) ──────────────────────────
+# chatbot booking (Conference Room & Event Hall)
 
 
 @frappe.whitelist()
 def check_space_availability(space, booking_from, booking_type, count):
-	"""Check if a space is available for the requested time slot."""
+	"""Check space availability."""
 	from frappe.utils import getdate, add_to_date, flt
 
 	try:
@@ -1130,7 +1116,7 @@ def check_space_availability(space, booking_from, booking_type, count):
 	if c <= 0:
 		frappe.throw("Count must be at least 1")
 
-	# Calculate end datetime based on booking type
+	# figure out end datetime based on booking type
 	type_hours = {
 		"Hourly": 1, "Daily": 24, "Weekly": 24 * 7,
 		"Monthly": 24 * 30, "Yearly": 24 * 365
@@ -1138,8 +1124,8 @@ def check_space_availability(space, booking_from, booking_type, count):
 	hours = type_hours.get(booking_type, 1) * c
 	end_dt = add_to_date(start_dt, hours=hours)
 
-	# Check for overlapping bookings (not cancelled)
-	# First: check bookings that have both booking_from and booking_to
+	# check for overlapping bookings
+	# first: bookings with both booking_from and booking_to set
 	overlapping = frappe.db.get_all(
 		"Reservation",
 		filters={
@@ -1153,7 +1139,7 @@ def check_space_availability(space, booking_from, booking_type, count):
 		limit=5,
 	)
 
-	# Also check bookings without booking_to — compute their end from type+count
+	# also check bookings without booking_to — compute end from type+count
 	if not overlapping:
 		other_bookings = frappe.db.get_all(
 			"Reservation",
@@ -1203,7 +1189,7 @@ def check_space_availability(space, booking_from, booking_type, count):
 
 @frappe.whitelist()
 def chatbot_create_booking(space, booking_type, booking_from, count, purpose=None, attendees=None):
-	"""Create a reservation via chatbot for Conference Room or Event Hall."""
+	"""Chatbot booking creation."""
 	app_user = get_session_app_user()
 	if not app_user:
 		frappe.throw("No App User found for current session user")
@@ -1212,7 +1198,7 @@ def chatbot_create_booking(space, booking_type, booking_from, count, purpose=Non
 	if space_type not in ("Conference Room", "Event Hall"):
 		frappe.throw("Chatbot booking is only available for Conference Room and Event Hall")
 
-	# Check availability before creating booking
+	# check availability first
 	avail = check_space_availability(space, booking_from, booking_type, count)
 	if not avail.get("available"):
 		conflict_details = "; ".join(avail.get("conflicts", []))
@@ -1247,7 +1233,7 @@ def chatbot_create_booking(space, booking_type, booking_from, count, purpose=Non
 
 @frappe.whitelist()
 def get_chatbot_spaces(space_type=None):
-	"""Return Conference Room and Event Hall spaces available for chatbot booking."""
+	"""Get chatbot spaces."""
 	filters = {"availability_status": "Available"}
 
 	if space_type and space_type in ("Conference Room", "Event Hall"):
@@ -1272,12 +1258,12 @@ def get_chatbot_spaces(space_type=None):
 	return {"spaces": spaces}
 
 
-# ─── Member AI Chatbot Q&A ──────────────────────────────────────────────────
+# member AI chatbot Q&A
 
 
 @frappe.whitelist()
 def member_ask_question(question):
-	"""Natural language Q&A for members — answers about their bookings, spending, events, etc."""
+	"""Answer member questions."""
 	app_user = get_session_app_user()
 	if not app_user:
 		frappe.throw("No App User found for current session user")
@@ -1286,10 +1272,10 @@ def member_ask_question(question):
 
 	q = question.lower().strip()
 
-	# Gather member data
+	# grab member data
 	member = frappe.db.get_value("Member", {"app_user": app_user}, ["name", "member_type", "active"], as_dict=True)
 
-	# Bookings
+	# bookings
 	all_bookings = frappe.db.get_all(
 		"Reservation",
 		filters={"app_user": app_user},
@@ -1302,7 +1288,7 @@ def member_ask_question(question):
 	completed_bookings = [b for b in all_bookings if b.get("booking_status") == "Completed"]
 	cancelled_bookings = [b for b in all_bookings if b.get("booking_status") == "Cancelled"]
 
-	# Payments
+	# payments
 	payments = frappe.get_all(
 		"Payment",
 		filters={"user": app_user, "payment_status": "Paid"},
@@ -1312,14 +1298,14 @@ def member_ask_question(question):
 	)
 	total_spent = sum(flt(p.amount) for p in payments)
 
-	# Parking
+	# parking
 	parking_count = 0
 	if member:
 		parking_count = frappe.db.count("Parking Allocation", {
 			"member": member.name, "allocation_status": "Active"
 		})
 
-	# Events
+	# events
 	user_location = get_session_user_location()
 	event_filters = {"event_status": "Published"}
 	if user_location:
@@ -1332,7 +1318,7 @@ def member_ask_question(question):
 		limit=5,
 	)
 
-	# Complaints
+	# complaints
 	complaint_open = frappe.db.count("Complaints", {
 		"raised_by": frappe.session.user, "status": ["in", ["Open", "Scheduled", "In Progress", "Flagged"]]
 	})
@@ -1340,7 +1326,7 @@ def member_ask_question(question):
 		"raised_by": frappe.session.user, "status": ["in", ["Resolved", "Closed"]]
 	})
 
-	# ── Topic detection ──
+	# figure out what topic the question is about
 	topic_keywords = {
 		"booking": ["booking", "reservation", "book", "reserve", "slot", "space", "room", "cabin", "conference"],
 		"payment": ["payment", "paid", "spend", "spent", "transaction", "cost", "amount", "bill", "invoice", "money", "rupees", "rs"],
@@ -1384,7 +1370,7 @@ def member_ask_question(question):
 
 	answer_parts = []
 
-	# ── Booking ──
+	# booking
 	if "booking" in top_topics:
 		parts = []
 		parts.append(f"You have {len(all_bookings)} total bookings ({len(active_bookings)} active, {len(completed_bookings)} completed, {len(cancelled_bookings)} cancelled).")
@@ -1399,7 +1385,7 @@ def member_ask_question(question):
 			parts.append(f"Last completed: {frappe.db.get_value('Space', completed_bookings[0].space, 'name') or 'N/A'} on {completed_bookings[0].booking_from}")
 		answer_parts.append("\n".join(parts))
 
-	# ── Payment ──
+	# payment
 	if "payment" in top_topics:
 		parts = [f"You've spent a total of ₹{total_spent:,.0f} across {len(payments)} payments."]
 		if payments:
@@ -1410,7 +1396,7 @@ def member_ask_question(question):
 			parts.append("No payment history found.")
 		answer_parts.append("\n".join(parts))
 
-	# ── Event ──
+	# event
 	if "event" in top_topics:
 		parts = []
 		if upcoming_events:
@@ -1422,21 +1408,21 @@ def member_ask_question(question):
 			parts.append("No upcoming events at your location right now.")
 		answer_parts.append("\n".join(parts))
 
-	# ── Parking ──
+	# parking
 	if "parking" in top_topics:
 		if parking_count > 0:
 			answer_parts.append(f"You have {parking_count} active parking allocation(s).")
 		else:
 			answer_parts.append("You have no active parking allocations. Parking is auto-assigned when you confirm a booking.")
 
-	# ── Complaint ──
+	# complaint
 	if "complaint" in top_topics:
 		parts = [f"You have {complaint_open} open complaint(s) and {complaint_resolved} resolved complaint(s)."]
 		if complaint_open == 0:
 			parts.append("No open complaints — everything looks good!")
 		answer_parts.append("\n".join(parts))
 
-	# ── Profile ──
+	# profile
 	if "profile" in top_topics:
 		app_user_doc = frappe.db.get_value("App User", app_user, ["full_name", "email", "active"], as_dict=True)
 		parts = [f"Name: {app_user_doc.full_name or 'N/A'}"]
@@ -1448,7 +1434,7 @@ def member_ask_question(question):
 		parts.append(f"Total spent: ₹{total_spent:,.0f}")
 		answer_parts.append("\n".join(parts))
 
-	# ── Overview ──
+	# overview
 	if "overview" in top_topics and len(top_topics) == 1:
 		parts = [
 			f"Here's your overview:",

@@ -28,18 +28,18 @@ class AppUser(Document):
 		self.handle_user_deletion()
 
 	def set_full_name(self):
-		"""Generate full_name from first_name and last_name"""
+		"""Set full name."""
 		self.full_name = " ".join(filter(None, [cstr(self.first_name).strip(), cstr(self.last_name).strip()]))
 
 	def validate_email(self):
-		"""Validate email format"""
+		"""Validate email format."""
 		if self.email:
 			self.email = self.email.strip().lower()
 			if not frappe.utils.validate_email_address(self.email):
 				frappe.throw(_("Invalid email address: {0}").format(self.email))
 	
 	def create_frappe_user(self):
-		"""Create a corresponding Frappe User when App User is created"""
+		"""Create Frappe user."""
 		if self.user:
 			return
 
@@ -74,7 +74,7 @@ class AppUser(Document):
 			frappe.throw(_("Error creating user: {0}").format(str(e)))
 
 	def sync_frappe_user(self):
-		"""Sync App User changes to linked Frappe User"""
+		"""Sync Frappe user."""
 		if not self.user:
 			return
 
@@ -145,7 +145,7 @@ class AppUser(Document):
 			)
 
 	def share_with_user(self):
-		"""Share this App User document with the linked Frappe User"""
+		"""Share doc with user."""
 		if not self.user:
 			return
 		if not frappe.db.exists("DocShare", {"share_doctype": self.doctype, "share_name": self.name, "user": self.user}):

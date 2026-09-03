@@ -9,7 +9,7 @@ from smartspace.frontend_api.auth import (
 )
 from smartspace.notification import create_notification_log
 
-# Reuse technician functions for shared functionality
+# reuse technician functions for shared stuff
 from smartspace.frontend_api.technician import (
 	get_profile as _technician_get_profile,
 	change_password as _technician_change_password,
@@ -26,7 +26,7 @@ from smartspace.frontend_api.technician import (
 )
 
 
-# ─── Profile ─────────────────────────────────────────────────────────────────
+# profile
 
 
 @frappe.whitelist()
@@ -39,7 +39,7 @@ def change_password(new_password, confirm_password):
 	return _technician_change_password(new_password, confirm_password)
 
 
-# ─── Events ──────────────────────────────────────────────────────────────────
+# events
 
 
 @frappe.whitelist()
@@ -47,7 +47,7 @@ def get_events(page=1, page_size=10):
 	return _technician_get_events(page, page_size)
 
 
-# ─── Lost & Found ─────────────────────────────────────────────────────────────
+# lost & found
 
 
 @frappe.whitelist()
@@ -75,7 +75,7 @@ def close_lost_found(name):
 	return _technician_close_lost_found(name)
 
 
-# ─── Complaints ───────────────────────────────────────────────────────────────
+# complaints
 
 
 @frappe.whitelist()
@@ -98,12 +98,12 @@ def delete_complaint(name):
 	return _technician_delete_complaint(name)
 
 
-# ─── Members ──────────────────────────────────────────────────────────────────
+# members
 
 
 @frappe.whitelist()
 def get_members(search=None, member_type=None, page=1, page_size=10):
-	"""Return active members filtered by the current security user's location."""
+	"""Get location members."""
 	filters = {"active": 1}
 
 	user_location = get_session_user_location()
@@ -151,12 +151,12 @@ def get_members(search=None, member_type=None, page=1, page_size=10):
 	}
 
 
-# ─── Parking Slots ────────────────────────────────────────────────────────────
+# parking slots
 
 
 @frappe.whitelist()
 def get_parking_slots(status=None, slot_type=None, search=None, vehicle_search=None, page=1, page_size=10):
-	"""Return parking slots filtered by the current security user's location."""
+	"""Get parking slots."""
 	filters = {"enabled": 1}
 
 	user_location = get_session_user_location()
@@ -172,7 +172,7 @@ def get_parking_slots(status=None, slot_type=None, search=None, vehicle_search=N
 	if search:
 		filters["slot_name"] = ["like", f"%{search}%"]
 
-	# If vehicle_search is provided, find matching parking slots via active allocations
+	# if vehicle_search is given, find matching slots via active allocations
 	if vehicle_search:
 		matching_slots = frappe.get_all(
 			"Parking Allocation",
@@ -234,7 +234,7 @@ def get_parking_slots(status=None, slot_type=None, search=None, vehicle_search=N
 
 @frappe.whitelist()
 def assign_parking(parking_slot, vehicle_number, member=None, visitor_name=None, allocation_type=None):
-	"""Assign a member or visitor to an available parking slot."""
+	"""Assign parking slot."""
 	slot = frappe.get_doc("Parking Slot", parking_slot)
 
 	if slot.status != "Available":
@@ -267,24 +267,24 @@ def assign_parking(parking_slot, vehicle_number, member=None, visitor_name=None,
 
 @frappe.whitelist()
 def release_parking(allocation_name):
-	"""Release an active parking allocation."""
+	"""Release parking slot."""
 	from smartspace.space_parking.doctype.parking_allocation.parking_allocation import release_parking as _release
 	result = _release(allocation_name)
 	return {"success": True, "message": "Parking slot released successfully"}
 
 
-# ─── Dashboard ────────────────────────────────────────────────────────────────
+# dashboard
 
 
 @frappe.whitelist()
 def get_dashboard_stats():
-	"""Return dashboard statistics for the logged-in security user."""
+	"""Get security dashboard stats."""
 	now = now_datetime()
 	user_location = get_session_user_location()
 
 	loc_filter = {"location": user_location} if user_location else {}
 
-	# ── Parking Stats ──
+	# parking stats
 	parking_base = {"enabled": 1}
 	if user_location:
 		parking_base.update(loc_filter)
@@ -304,13 +304,13 @@ def get_dashboard_stats():
 			"occupied": frappe.db.count("Parking Slot", {**parking_base, "slot_type": t, "status": "Occupied"}),
 		}
 
-	# ── Member Stats ──
+	# member stats
 	member_active = frappe.db.count("Member", {**loc_filter, "active": 1})
 	member_flex = frappe.db.count("Member", {**loc_filter, "active": 1, "member_type": "Flex"})
 	member_regular = frappe.db.count("Member", {**loc_filter, "active": 1, "member_type": "Regular"})
 	new_members_30d = frappe.db.count("Member", {**loc_filter, "active": 1, "join_date": [">=", add_days(today(), -30)]})
 
-	# ── Complaints ──
+	# complaints
 	complaint_statuses = ["Open", "Scheduled", "In Progress", "Flagged", "Resolved", "Closed"]
 	complaint_counts = {}
 	for s in complaint_statuses:
@@ -326,11 +326,11 @@ def get_dashboard_stats():
 		limit=5,
 	)
 
-	# ── Lost & Found ──
+	# lost & found
 	lf_open = frappe.db.count("Lost And Found", {**loc_filter, "status": "Open"})
 	lf_closed = frappe.db.count("Lost And Found", {**loc_filter, "status": "Closed"})
 
-	# ── Events ──
+	# events
 	event_base = {"event_status": "Published", "start_date": [">=", now]}
 	if user_location:
 		event_base.update(loc_filter)
@@ -375,7 +375,7 @@ def get_dashboard_stats():
 	}
 
 
-# ─── Notifications ────────────────────────────────────────────────────────────
+# notifications
 
 
 @frappe.whitelist()

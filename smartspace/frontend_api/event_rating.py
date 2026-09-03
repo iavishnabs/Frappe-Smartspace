@@ -6,11 +6,7 @@ from smartspace.frontend_api.auth import get_session_app_user, get_session_user_
 
 @frappe.whitelist()
 def get_completed_events(page=1, page_size=10):
-	"""Return completed/past events that the current user can rate.
-
-	Returns events whose end_date has passed, sorted by end_date desc.
-	Includes whether the current user has already rated each event.
-	"""
+	"""Get completed events."""
 	app_user = get_session_app_user()
 	if not app_user:
 		frappe.throw("No App User found for current session user")
@@ -79,7 +75,7 @@ def get_completed_events(page=1, page_size=10):
 
 @frappe.whitelist()
 def submit_event_rating(event, rating, review=None):
-	"""Submit or update an event rating for the current user."""
+	"""Submit event rating."""
 	app_user = get_session_app_user()
 	if not app_user:
 		frappe.throw("No App User found for current session user")
@@ -131,11 +127,7 @@ def submit_event_rating(event, rating, review=None):
 
 @frappe.whitelist()
 def get_event_ratings_summary(event=None, from_date=None, to_date=None, location=None):
-	"""Return event rating summaries for admin analytics.
-
-	If event is provided, returns detailed ratings for that event.
-	Otherwise returns aggregate stats across all rated events.
-	"""
+	"""Get rating summaries."""
 	from smartspace.frontend_api.analytics import _check_admin_role
 	_check_admin_role()
 

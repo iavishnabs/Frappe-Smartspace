@@ -5,13 +5,13 @@ from smartspace.frontend_api.auth import get_session_app_user, is_session_user_a
 
 
 def _get_admin_app_user():
-	"""Return the first App Admin App User name (shared admin inbox)."""
+	"""Get admin app user."""
 	return frappe.db.get_value("App User", {"role": "App Admin"}, "name")
 
 
 @frappe.whitelist()
 def send_message(message, related_doctype=None, related_name=None):
-	"""Send a chat message from the current user to the admin inbox."""
+	"""Send a message."""
 	app_user = get_session_app_user()
 	if not app_user:
 		frappe.throw("No App User found for current session user")
@@ -47,7 +47,7 @@ def send_message(message, related_doctype=None, related_name=None):
 
 @frappe.whitelist()
 def get_chat_history(limit=50):
-	"""Get chat history between the current user and admin."""
+	"""Get chat history."""
 	app_user = get_session_app_user()
 	if not app_user:
 		frappe.throw("No App User found for current session user")
@@ -77,7 +77,7 @@ def get_chat_history(limit=50):
 
 @frappe.whitelist()
 def admin_send_message(receiver, message):
-	"""Admin replies to a specific user."""
+	"""Admin send message."""
 	if not is_session_user_admin():
 		frappe.throw("Only admins can send admin replies")
 
@@ -111,7 +111,7 @@ def admin_send_message(receiver, message):
 
 @frappe.whitelist()
 def get_admin_chat_list():
-	"""Get list of App Users who have at least one chat, with name and email."""
+	"""Get admin chat list."""
 	if not is_session_user_admin():
 		frappe.throw("Only admins can view chat list")
 
@@ -130,7 +130,7 @@ def get_admin_chat_list():
 
 @frappe.whitelist()
 def get_admin_conversation(user_app):
-	"""Get full conversation between admin and a specific user."""
+	"""Get admin conversation."""
 	if not is_session_user_admin():
 		frappe.throw("Only admins can view conversations")
 

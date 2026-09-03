@@ -3,12 +3,7 @@ import re
 
 
 def get_session_user_location():
-	"""Return the location of the current session user's App User record.
-
-	frappe.session.user is the User doctype ID, which matches the `user` Link field on App User.
-	Falls back to `email` field if needed.
-	Returns None if no App User or location is found.
-	"""
+	"""Get user location."""
 	user_id = frappe.session.user
 	loc = frappe.db.get_value("App User", {"user": user_id}, "location")
 	if not loc:
@@ -17,11 +12,7 @@ def get_session_user_location():
 
 
 def get_session_app_user():
-	"""Return the App User name for the current session user.
-
-	Looks up by `user` Link field first, then `email` field.
-	Returns None if no App User is found.
-	"""
+	"""Get app user name."""
 	user_id = frappe.session.user
 	app_user = frappe.db.get_value("App User", {"user": user_id}, "name")
 	if not app_user:
@@ -30,10 +21,7 @@ def get_session_app_user():
 
 
 def get_session_user_role():
-	"""Return the role of the current session user's App User record.
-
-	Returns None if no App User or role is found.
-	"""
+	"""Get user role."""
 	user_id = frappe.session.user
 	role = frappe.db.get_value("App User", {"user": user_id}, "role")
 	if not role:
@@ -42,7 +30,7 @@ def get_session_user_role():
 
 
 def is_session_user_admin():
-	"""Check if the current session user is Administrator or has App Admin role."""
+	"""Check admin role."""
 	user_id = frappe.session.user
 	if user_id == "Administrator":
 		return True
@@ -51,11 +39,7 @@ def is_session_user_admin():
 
 
 def get_session_app_user_doc(fields=None):
-	"""Return the App User document for the current session user as a dict.
-
-	Looks up by `user` Link field first, then `email` field.
-	Returns None if no App User is found.
-	"""
+	"""Get app user doc."""
 	user_id = frappe.session.user
 	if fields is None:
 		fields = ["name", "first_name", "last_name", "full_name", "email", "location", "active", "role"]
@@ -67,16 +51,13 @@ def get_session_app_user_doc(fields=None):
 
 @frappe.whitelist(allow_guest=True)
 def get_current_user():
-	"""Return current logged-in user's info, or None if guest."""
+	"""Get current user info."""
 	if frappe.session.user == "Guest":
 		return None
 
 	user_email = frappe.session.user
 
-	# Get full_name from Frappe User
 	full_name = frappe.db.get_value("User", user_email, "full_name") or user_email
-
-	# Get role and other info from App User
 	app_user = get_session_app_user_doc(["name", "full_name", "role", "email"])
 
 	if not app_user:
@@ -89,7 +70,7 @@ def get_current_user():
 
 	role = app_user.get("role")
 
-	# Map role to dashboard URL
+	# send each role to their dashboard
 	role_redirects = {
 		"Member": "/member/dashboard",
 		"Security": "/security/dashboard",
@@ -110,21 +91,15 @@ def get_current_user():
 
 @frappe.whitelist()
 def logout():
-	"""Log out the current user."""
+	"""Logout current user."""
 	frappe.local.login_manager.logout()
 	return {"message": "Logged out", "redirect_url": "/signin"}
 
 
 @frappe.whitelist(allow_guest=True)
 def signup(first_name, last_name, email, password, location=None):
-	"""Create a new App User with role Member.
-
-	This is the guest self-signup endpoint. It creates an App User record,
-	which triggers the after_insert hook to create a linked Frappe User.
-	The Member doctype is NOT created here — it is created when an
-	admin/supervisor confirms the user's first reservation.
-	"""
-	# Validate required fields
+	"""Guest signup handler."""
+	# basic validation
 	if not first_name or not first_name.strip():
 		frappe.throw("First name is required")
 	if not email or not email.strip():
@@ -134,27 +109,25 @@ def signup(first_name, last_name, email, password, location=None):
 
 	email = email.strip().lower()
 
-	# Validate email format
+	# check email format
 	if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
 		frappe.throw("Please enter a valid email address")
 
-	# Check if email already exists as App User
+	# make sure email isn't already registered
 	if frappe.db.exists("App User", {"email": email}):
 		frappe.throw("An account with this email already exists. Please login instead.")
 
-	# Check if email already exists as Frappe User
 	if frappe.db.exists("User", email):
 		frappe.throw("An account with this email already exists. Please login instead.")
 
-	# Validate location if provided
+	# check location is valid if given
 	if location:
 		if not frappe.db.exists("Location", location):
 			frappe.throw("Invalid location selected")
 
-	# Get the Member role
 	member_role = frappe.db.get_value("Role", {"role_name": "Member"})
 	if not member_role:
-		# Create the Member role if it doesn't exist
+		# create Member role if it doesn't exist yet
 		role = frappe.get_doc({
 			"doctype": "Role",
 			"role_name": "Member",
@@ -184,12 +157,7 @@ def signup(first_name, last_name, email, password, location=None):
 
 
 def require_role(required_role):
-	"""Check if current user has the required role. Redirect if not.
-
-	Usage in a page's get_context:
-		from smartspace.frontend_api.auth import require_role
-		require_role("Member")
-	"""
+	"""Role check decorator."""
 	user = get_current_user()
 
 	if not user:
