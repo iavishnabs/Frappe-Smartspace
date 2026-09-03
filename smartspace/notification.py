@@ -5,6 +5,8 @@ def create_notification_log(subject, for_user, document_type=None, document_name
     """Create notification log."""
     if not for_user:
         return
+    if not frappe.db.get_single_value("App Settings", "enable_notifications"):
+        return
 
     existing = frappe.db.exists(
         "Notification Log",

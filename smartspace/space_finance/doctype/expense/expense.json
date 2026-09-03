@@ -71,7 +71,8 @@
    "fieldname": "event",
    "fieldtype": "Link",
    "label": "Event",
-   "options": "Space Event"
+   "options": "Space Event",
+   "read_only": 1
   },
   {
    "fieldname": "net_amount",
@@ -88,7 +89,7 @@
    "link_fieldname": "reference_name"
   }
  ],
- "modified": "2026-06-17 16:29:47.926881",
+ "modified": "2026-09-03 11:29:30.086895",
  "modified_by": "Administrator",
  "module": "Space Finance",
  "name": "Expense",
