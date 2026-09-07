@@ -37,7 +37,7 @@ def get_analytics_overview(from_date=None, to_date=None, location=None):
 		"payment_date": ["between", [fd, td]],
 	}
 	if location:
-		# Payment has no location field, so filter through reservation
+		# filter through reservation (no location on Payment)
 		space_names = [s.name for s in frappe.get_all("Space", {"location": location}, ["name"])]
 		if space_names:
 			res_names = [r.name for r in frappe.get_all("Reservation", {"space": ["in", space_names]}, ["name"])]
@@ -176,7 +176,7 @@ def get_location_wise_stats(from_date=None, to_date=None):
 		# events
 		event_count = frappe.db.count("Space Event", {"location": loc_name, "start_date": ["between", [fd, td]]})
 
-		# revenue — filter through reservation since Payment has no location field
+		# revenue via reservation (no location on Payment)
 		if space_names:
 			loc_res_names = [r.name for r in frappe.get_all("Reservation", {"space": ["in", space_names]}, ["name"])]
 			if loc_res_names:

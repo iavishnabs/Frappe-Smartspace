@@ -148,14 +148,14 @@ def get_insights_summary(from_date=None, to_date=None, location=None):
 
 
 def _extract_location_from_question(q):
-	"""Extract a location name from the question text."""
+	"""Extract location from question."""
 	all_locations = frappe.get_all("Location", filters={"status": "Active"}, fields=["name", "location_name"])
 	for loc in all_locations:
 		if loc.location_name and loc.location_name.lower() in q:
 			return loc.name
 		if loc.name and loc.name.lower() in q:
 			return loc.name
-	# try matching individual significant words from location_name
+	    # match words from location_name
 	common_words = {"smart", "space", "the", "branch", "office", "center", "centre"}
 	for loc in all_locations:
 		ln = (loc.location_name or loc.name or "").lower()
@@ -191,7 +191,7 @@ def _extract_date_range_from_question(q):
 
 
 def _match_specific_patterns(q, extracted_location, from_date, to_date, location):
-	"""Match specific question patterns for precise answers."""
+	"""Match question patterns."""
 	if not extracted_location:
 		return None
 	loc_name = frappe.db.get_value("Location", extracted_location, "location_name") or extracted_location
@@ -243,7 +243,7 @@ def _match_specific_patterns(q, extracted_location, from_date, to_date, location
 
 @frappe.whitelist()
 def ask_question(question, from_date=None, to_date=None, location=None):
-    """Answer admin questions with entity extraction and cross-referencing."""
+    """Answer admin questions."""
     _check_admin_role()
     if not question or not question.strip():
         return {"answer": "Please ask a question."}
@@ -276,7 +276,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
     events = get_events_list(from_date, to_date, location).get("events", [])
     bookings = get_recent_bookings(from_date, to_date, location, limit=200).get("bookings", [])
 
-    # if a specific location was extracted, filter events and loc_stats for that location
+    # filter by extracted location
     if extracted_location:
         events = [e for e in events if e.get("location") == extracted_location]
         locations = [l for l in locations if l.get("location") == extracted_location]
@@ -339,7 +339,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
     # sort by score, highest first
     sorted_topics = sorted(scores.items(), key=lambda x: x[1], reverse=True)
 
-    # if asking for suggestions, combine with other matched topics
+    # combine suggestions with matched topics
     is_suggestion = "suggestion" in scores
 
     if is_suggestion:
@@ -348,7 +348,7 @@ def ask_question(question, from_date=None, to_date=None, location=None):
         if not top_topics:
             top_topics = ["overview"]
     else:
-        # include all matched topics, drop overview if there are more specific ones
+        # drop overview if specific topics match
         top_topics = [t[0] for t in sorted_topics]
         if len(top_topics) > 1 and "overview" in top_topics:
             top_topics.remove("overview")
@@ -1057,7 +1057,7 @@ def get_event_suggestions(from_date=None, to_date=None, location=None):
         rev_values = revenue_trend.get("values", [])
         rev_labels = revenue_trend.get("labels", [])
         if len(rev_values) >= 2:
-            # if revenue is declining, suggest events as revenue boost
+            # if revenue declining, suggest events
             if rev_values[-1] < rev_values[-2] and rev_values[-2] > 0:
                 decline_pct = ((rev_values[-2] - rev_values[-1]) / rev_values[-2] * 100)
                 suggestions.append({

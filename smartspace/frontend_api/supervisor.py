@@ -35,7 +35,7 @@ def get_technicians(search=None, location=None, page=1, page_size=10):
 	technicians = frappe.db.get_list(
 		"Staff",
 		filters=filters,
-		fields=["name", "full_name", "email", "phone", "location", "active", "staff_type"],
+		fields=["name", "full_name", "email", "phone", "location", "active", "staff_type", "date_of_join", "date_of_birth"],
 		order_by="full_name asc",
 		start=start,
 		limit=page_size,
@@ -564,7 +564,7 @@ def get_lost_found(
 				"App User", item.reported_by, "full_name"
 			) or item.reported_by
 
-			# lookup phone and ID from Member or Staff linked to this App User
+			# lookup phone and ID from Member/Staff
 			item["reported_by_phone"] = None
 			item["reported_by_id"] = None
 			item["reported_by_id_type"] = None
@@ -1235,6 +1235,51 @@ def get_assets(status=None, search=None, page=1, page_size=10):
 
 
 @frappe.whitelist()
+def set_asset_damaged(name):
+	"""Set asset to Damaged and cancel active allocations."""
+	asset = frappe.db.get_value("Asset", name, ["name", "status", "enabled"], as_dict=True)
+	if not asset:
+		frappe.throw("Asset not found")
+
+	if asset.status in ("Damaged", "Decommissioned"):
+		frappe.throw(f"Asset is already {asset.status}")
+
+	frappe.db.set_value("Asset", name, "status", "Damaged", update_modified=True)
+	frappe.db.set_value("Asset", name, "enabled", 0, update_modified=True)
+
+	cancelled_allocations = []
+	allocation_names = frappe.db.get_all(
+		"Asset Allocation Item",
+		filters={"asset": name},
+		pluck="parent",
+	)
+
+	active_allocations = frappe.db.get_all(
+		"Asset Allocation",
+		filters={
+			"name": ["in", allocation_names] if allocation_names else [""],
+			"allocation_status": "Active",
+			"docstatus": 1,
+		},
+		pluck="name",
+	)
+
+	for alloc_name in active_allocations:
+		alloc = frappe.get_doc("Asset Allocation", alloc_name)
+		alloc.db_set("allocation_status", "Cancelled")
+		alloc.db_set("docstatus", 2)
+		cancelled_allocations.append(alloc_name)
+
+	frappe.db.commit()
+
+	return {
+		"success": True,
+		"message": f"Asset {name} set to Damaged",
+		"cancelled_allocations": cancelled_allocations,
+	}
+
+
+@frappe.whitelist()
 def get_notifications(page=1, page_size=20, unread_only=False):
 	"""Get notifications."""
 	user = frappe.session.user
@@ -1380,11 +1425,10 @@ def confirm_reservation(name):
 	app_user_email = frappe.db.get_value("App User", reservation.app_user, "user")
 	if app_user_email:
 		create_notification_log(
-			app_user_email,
-			"Reservation Confirmed",
-			f"Your reservation {name} has been confirmed. Please proceed with payment.",
-			"Reservation",
-			name,
+			subject="Reservation Confirmed",
+			for_user=app_user_email,
+			document_type="Reservation",
+			document_name=name,
 		)
 
 	return {"success": True, "message": result}
@@ -1413,11 +1457,10 @@ def cancel_reservation(name, reason=None):
 		if reason:
 			msg += f" Reason: {reason}"
 		create_notification_log(
-			app_user_email,
-			"Reservation Cancelled",
-			msg,
-			"Reservation",
-			name,
+			subject="Reservation Cancelled",
+			for_user=app_user_email,
+			document_type="Reservation",
+			document_name=name,
 		)
 
 	return {"success": True, "message": "Reservation cancelled"}

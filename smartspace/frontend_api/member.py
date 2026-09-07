@@ -378,7 +378,7 @@ def create_reservation(space, booking_type, booking_from, count, parking_details
 		if member_updates:
 			frappe.db.set_value("Member", member_name, member_updates)
 
-	# stash member details in flags for confirm_reservation to use later
+	# stash member details for confirm_reservation
 	vehicle_numbers = ""
 	if parking_details:
 		vehicle_numbers = ", ".join([r.get("vehicle_number", "") for r in parking_details if r.get("vehicle_number")])
@@ -649,7 +649,7 @@ def pay_for_booking(reservation_name, payment_method="Card"):
 		"payment_status": "Paid",
 	})
 
-	# auto-confirm: creates member, sets booked, occupies space, assigns parking
+	# auto-confirm reservation
 	if reservation.booking_status == "Pending":
 		from smartspace.space_booking.doctype.reservation.reservation import confirm_reservation
 		confirm_reservation(reservation_name)
@@ -770,7 +770,7 @@ def get_my_parking(location=None):
 
 
 def _get_member_locations():
-	"""Get all distinct locations from member's booked reservations."""
+	"""Get member's booked locations."""
 	app_user = get_session_app_user()
 	if not app_user:
 		return []
@@ -796,7 +796,7 @@ def _get_member_locations():
 
 @frappe.whitelist()
 def get_member_locations():
-	"""Get all locations the member has booked at, with names."""
+	"""Get member locations with names."""
 	loc_ids = _get_member_locations()
 	result = []
 	for loc in loc_ids:
@@ -1247,7 +1247,7 @@ def check_space_availability(space, booking_from, booking_type, count):
 	end_dt = add_to_date(start_dt, hours=hours)
 
 	# check for overlapping bookings
-	# first: bookings with both booking_from and booking_to set
+	# first: bookings with booking_from and booking_to
 	overlapping = frappe.db.get_all(
 		"Reservation",
 		filters={
@@ -1261,7 +1261,7 @@ def check_space_availability(space, booking_from, booking_type, count):
 		limit=5,
 	)
 
-	# also check bookings without booking_to — compute end from type+count
+	# check bookings without booking_to
 	if not overlapping:
 		other_bookings = frappe.db.get_all(
 			"Reservation",

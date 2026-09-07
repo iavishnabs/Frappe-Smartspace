@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assets | SmartSpace</title>
+
+    <link rel="manifest" href="/assets/smartspace/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/assets/smartspace/favicon.svg">
+    <meta name="theme-color" content="#f97316">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="SmartSpace">
+    <link rel="apple-touch-icon" href="/assets/smartspace/icon-192.svg">
+
+    <script src="/assets/smartspace/js/tailwind.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    boxShadow: {
+                        card: "0 10px 30px rgba(0,0,0,.08)"
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-gray-800 min-h-screen">
+{% include "www/nav_footer/portal_header.html" %}
+{% include "www/supervisor/sidebar.html" %}
+
+<div class="sidebar-content transition-all duration-300">
+    <!-- Page Header -->
+    <div class="bg-black text-white px-6 py-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold">Assets</h1>
+                <p class="text-orange-200 text-sm mt-1">View and manage all assets at your location</p>
+            </div>
+            <a href="/supervisor/asset-allocations" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                Back to Allocations
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters Bar -->
+    <div class="bg-white shadow-sm border-b px-6 py-4 sticky top-20 z-30">
+        <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+            <!-- Search -->
+            <div class="relative flex-1">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input id="searchInput" type="text" placeholder="Search by serial number..."
+                    class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm">
+            </div>
+            <!-- Status Filter -->
+            <select id="statusFilter" class="px-4 py-2.5 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm bg-white">
+                <option value="All Status">All Status</option>
+                <option value="Available">Available</option>
+                <option value="Allocated">Allocated</option>
+                <option value="Under Maintenance">Under Maintenance</option>
+                <option value="Damaged">Damaged</option>
+                <option value="Decommissioned">Decommissioned</option>
+            </select>
+            <!-- Per Page -->
+            <select id="pageSizeSelect" class="px-4 py-2.5 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm bg-white">
+                <option value="10">10 / page</option>
+                <option value="20">20 / page</option>
+                <option value="50">50 / page</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Assets List -->
+    <div class="px-6 py-6">
+        <div id="loadingState" class="text-center py-12 text-gray-400">
+            <svg class="animate-spin mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+            </svg>
+            Loading assets...
+        </div>
+
+        <div id="emptyState" class="hidden text-center py-16">
+            <svg class="mx-auto mb-4 text-gray-300" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+            <p class="text-gray-500 font-medium">No assets found</p>
+            <p class="text-gray-400 text-sm mt-1">Try adjusting your search or filters</p>
+        </div>
+
+        <!-- Desktop Table -->
+        <div id="tableContainer" class="bg-white rounded-xl shadow-card overflow-hidden" style="display:none">
+            <table class="w-full">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Asset ID</th>
+                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Serial No</th>
+                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Item</th>
+                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="assetTableBody" class="divide-y divide-gray-100"></tbody>
+            </table>
+        </div>
+
+        <!-- Mobile Cards -->
+        <div id="cardContainer" class="space-y-3" style="display:none"></div>
+
+        <!-- Pagination -->
+        <div id="paginationBar" class="hidden mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div id="paginationInfo" class="text-sm text-gray-500"></div>
+            <div id="paginationControls" class="flex items-center gap-2"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Damage Confirm Modal -->
+<div id="damageModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
+        <div class="px-5 py-4 border-b bg-gray-50 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-500"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <h3 class="font-bold text-gray-800 text-sm">Set Asset to Damaged</h3>
+        </div>
+        <div class="p-5">
+            <p class="text-sm text-gray-600 mb-3">Are you sure you want to mark this asset as damaged? All active allocations for this asset will be cancelled. This action cannot be undone.</p>
+            <div id="damageAssetInfo" class="bg-gray-50 rounded-lg px-4 py-3 mb-3 text-sm text-gray-700"></div>
+            <p id="modalError" class="hidden mt-2 text-xs text-red-500 font-medium"></p>
+            <div class="mt-4 flex justify-end gap-2">
+                <button onclick="closeDamageModal()" class="px-4 py-2.5 rounded-lg border border-gray-200 text-gray-600 font-medium text-sm hover:bg-gray-50 transition">Cancel</button>
+                <button id="confirmDamageBtn" onclick="confirmSetDamage()" class="px-4 py-2.5 rounded-lg bg-red-500 text-white font-medium text-sm hover:bg-red-600 transition">Set to Damage</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-6 right-6 z-[70] hidden">
+    <div id="toastInner" class="px-5 py-3 rounded-lg shadow-lg text-sm font-medium text-white"></div>
+</div>
+
+<script>
+var currentPage = 1;
+var currentPageSize = 10;
+var currentSearch = '';
+var currentStatus = 'All Status';
+var debounceTimer;
+var pendingDamageAsset = null;
+
+function fetchAssets() {
+    var loadingState = document.getElementById('loadingState');
+    var tableContainer = document.getElementById('tableContainer');
+    var cardContainer = document.getElementById('cardContainer');
+    var emptyState = document.getElementById('emptyState');
+    var paginationBar = document.getElementById('paginationBar');
+
+    loadingState.classList.remove('hidden');
+    tableContainer.style.display = 'none';
+    cardContainer.style.display = 'none';
+    emptyState.classList.add('hidden');
+    paginationBar.classList.add('hidden');
+
+    var params = new URLSearchParams({
+        status: currentStatus,
+        search: currentSearch,
+        page: currentPage,
+        page_size: currentPageSize
+    });
+
+    fetch('/api/method/smartspace.frontend_api.supervisor.get_assets?' + params.toString())
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var result = data.message || data;
+            loadingState.classList.add('hidden');
+
+            if (!result.assets || result.assets.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            renderTable(result.assets);
+            renderCards(result.assets);
+            renderPagination(result);
+            paginationBar.classList.remove('hidden');
+        })
+        .catch(function() {
+            loadingState.classList.add('hidden');
+            emptyState.classList.remove('hidden');
+        });
+}
+
+function statusColor(status) {
+    var colors = {
+        'Available': '#10b981',
+        'Allocated': '#3b82f6',
+        'Under Maintenance': '#f59e0b',
+        'Damaged': '#ef4444',
+        'Decommissioned': '#9ca3af'
+    };
+    return colors[status] || '#6b7280';
+}
+
+function renderTable(assets) {
+    var tbody = document.getElementById('assetTableBody');
+    tbody.innerHTML = assets.map(function(a) {
+        var color = statusColor(a.status);
+        var canDamage = a.status !== 'Damaged' && a.status !== 'Decommissioned';
+        return '<tr class="hover:bg-gray-50 transition">' +
+            '<td class="px-6 py-4 text-sm font-medium text-gray-800">' + a.name + '</td>' +
+            '<td class="px-6 py-4 text-sm text-gray-600">' + (a.serial_number || '-') + '</td>' +
+            '<td class="px-6 py-4 text-sm text-gray-600">' + (a.asset_item_name || '-') + '</td>' +
+            '<td class="px-6 py-4"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium" style="background:' + color + '20;color:' + color + '">' + a.status + '</span></td>' +
+            '<td class="px-6 py-4 text-right">' + (canDamage ? '<button onclick="openDamageModal(\'' + a.name + '\', \'' + (a.serial_number || '') + '\', \'' + (a.asset_item_name || '') + '\')" class="px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 transition">Set to Damage</button>' : '<span class="text-gray-400 text-xs">No Actions</span>') + '</td>' +
+        '</tr>';
+    }).join('');
+    document.getElementById('tableContainer').style.display = window.innerWidth >= 768 ? 'block' : 'none';
+}
+
+function renderCards(assets) {
+    var container = document.getElementById('cardContainer');
+    container.innerHTML = assets.map(function(a) {
+        var color = statusColor(a.status);
+        var canDamage = a.status !== 'Damaged' && a.status !== 'Decommissioned';
+        return '<div class="bg-white rounded-xl shadow-card p-4">' +
+            '<div class="flex items-center justify-between mb-3">' +
+                '<span class="font-medium text-gray-800">' + a.name + '</span>' +
+                '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium" style="background:' + color + '20;color:' + color + '">' + a.status + '</span>' +
+            '</div>' +
+            '<div class="space-y-1.5 text-sm mb-3">' +
+                '<div><span class="text-gray-400">Serial No:</span> <span class="text-gray-700">' + (a.serial_number || '-') + '</span></div>' +
+                '<div><span class="text-gray-400">Item:</span> <span class="text-gray-700">' + (a.asset_item_name || '-') + '</span></div>' +
+            '</div>' +
+            (canDamage ? '<button onclick="openDamageModal(\'' + a.name + '\', \'' + (a.serial_number || '') + '\', \'' + (a.asset_item_name || '') + '\')" class="w-full px-3 py-2 rounded-lg text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 transition">Set to Damage</button>' : '') +
+        '</div>';
+    }).join('');
+    cardContainer.style.display = window.innerWidth < 768 ? 'block' : 'none';
+}
+
+function openDamageModal(name, serial, item) {
+    pendingDamageAsset = name;
+    document.getElementById('damageAssetInfo').innerHTML =
+        '<div class="space-y-1">' +
+        '<div><span class="text-gray-500">Asset ID:</span> <span class="font-medium">' + name + '</span></div>' +
+        '<div><span class="text-gray-500">Serial No:</span> <span class="font-medium">' + (serial || '-') + '</span></div>' +
+        '<div><span class="text-gray-500">Item:</span> <span class="font-medium">' + (item || '-') + '</span></div>' +
+        '</div>';
+    document.getElementById('modalError').classList.add('hidden');
+    var modal = document.getElementById('damageModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeDamageModal() {
+    pendingDamageAsset = null;
+    var modal = document.getElementById('damageModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+function confirmSetDamage() {
+    if (!pendingDamageAsset) return;
+    var btn = document.getElementById('confirmDamageBtn');
+    btn.disabled = true;
+    btn.textContent = 'Processing...';
+
+    fetch('/api/method/smartspace.frontend_api.supervisor.set_asset_damaged', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrfToken },
+        body: JSON.stringify({ name: pendingDamageAsset })
+    })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var res = data.message || data;
+            btn.disabled = false;
+            btn.textContent = 'Set to Damage';
+            if (res.success) {
+                closeDamageModal();
+                showToast(res.message, 'success');
+                fetchAssets();
+            } else {
+                showToast('Action failed', 'error');
+            }
+        })
+        .catch(function() {
+            btn.disabled = false;
+            btn.textContent = 'Set to Damage';
+            showToast('Action failed', 'error');
+        });
+}
+
+function showToast(message, type) {
+    var toast = document.getElementById('toast');
+    var inner = document.getElementById('toastInner');
+    inner.textContent = message;
+    inner.className = 'px-5 py-3 rounded-lg shadow-lg text-sm font-medium text-white ' + (type === 'error' ? 'bg-red-500' : 'bg-green-500');
+    toast.classList.remove('hidden');
+    setTimeout(function() { toast.classList.add('hidden'); }, 3000);
+}
+
+function renderPagination(data) {
+    var info = document.getElementById('paginationInfo');
+    var controls = document.getElementById('paginationControls');
+    var start = (data.page - 1) * data.page_size + 1;
+    var end = Math.min(data.page * data.page_size, data.total);
+    info.textContent = 'Showing ' + start + '-' + end + ' of ' + data.total + ' assets';
+
+    var html = '';
+    html += '<button onclick="goToPage(' + (data.page - 1) + ')" ' + (data.page <= 1 ? 'disabled' : '') + ' class="px-3 py-2 rounded-lg border text-sm font-medium transition ' + (data.page <= 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50 border-gray-200') + '">Prev</button>';
+
+    var maxVisible = 5;
+    var startPage = Math.max(1, data.page - Math.floor(maxVisible / 2));
+    var endPage = Math.min(data.total_pages, startPage + maxVisible - 1);
+    if (endPage - startPage < maxVisible - 1) { startPage = Math.max(1, endPage - maxVisible + 1); }
+
+    if (startPage > 1) {
+        html += '<button onclick="goToPage(1)" class="px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">1</button>';
+        if (startPage > 2) { html += '<span class="px-1 text-gray-400">...</span>'; }
+    }
+
+    for (var i = startPage; i <= endPage; i++) {
+        html += '<button onclick="goToPage(' + i + ')" class="px-3 py-2 rounded-lg border text-sm font-medium transition ' + (i === data.page ? 'bg-orange-500 text-white border-orange-500' : 'text-gray-700 hover:bg-gray-50 border-gray-200') + '">' + i + '</button>';
+    }
+
+    if (endPage < data.total_pages) {
+        if (endPage < data.total_pages - 1) { html += '<span class="px-1 text-gray-400">...</span>'; }
+        html += '<button onclick="goToPage(' + data.total_pages + ')" class="px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">' + data.total_pages + '</button>';
+    }
+
+    html += '<button onclick="goToPage(' + (data.page + 1) + ')" ' + (data.page >= data.total_pages ? 'disabled' : '') + ' class="px-3 py-2 rounded-lg border text-sm font-medium transition ' + (data.page >= data.total_pages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50 border-gray-200') + '">Next</button>';
+
+    controls.innerHTML = html;
+}
+
+function goToPage(page) {
+    if (page < 1) return;
+    currentPage = page;
+    fetchAssets();
+}
+
+document.getElementById('searchInput').addEventListener('input', function() {
+    clearTimeout(debounceTimer);
+    var val = this.value;
+    debounceTimer = setTimeout(function() {
+        currentSearch = val;
+        currentPage = 1;
+        fetchAssets();
+    }, 300);
+});
+
+document.getElementById('statusFilter').addEventListener('change', function() {
+    currentStatus = this.value;
+    currentPage = 1;
+    fetchAssets();
+});
+
+document.getElementById('pageSizeSelect').addEventListener('change', function() {
+    currentPageSize = parseInt(this.value);
+    currentPage = 1;
+    fetchAssets();
+});
+
+fetchAssets();
+
+window.addEventListener('resize', function() {
+    var table = document.getElementById('tableContainer');
+    var cards = document.getElementById('cardContainer');
+    if (table.style.display !== 'none' || cards.style.display !== 'none') {
+        table.style.display = window.innerWidth >= 768 ? 'block' : 'none';
+        cards.style.display = window.innerWidth < 768 ? 'block' : 'none';
+    }
+});
+</script>
+{% include "www/includes/chat-widget.html" %}
+</body>
+</html>

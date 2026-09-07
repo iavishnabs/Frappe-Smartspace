@@ -83,10 +83,10 @@
             <table class="w-full">
                 <thead class="bg-gray-50 border-b">
                     <tr>
-                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
-                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
-                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Location</th>
+                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Full Name</th>
+                        <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Technician ID</th>
                         <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
                     </tr>
                 </thead>
                 <tbody id="technicianTableBody" class="divide-y divide-gray-100"></tbody>
@@ -104,6 +104,20 @@
     </div>
 </div>
 
+<!-- Technician Detail Modal -->
+<div id="technicianModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50" onclick="closeTechnicianModal()"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between px-6 py-4 border-b">
+            <h2 class="text-lg font-bold text-gray-800">Technician Details</h2>
+            <button onclick="closeTechnicianModal()" class="text-gray-400 hover:text-gray-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div id="technicianModalBody" class="px-6 py-4"></div>
+    </div>
+</div>
+
 <script>
 var currentPage = 1;
 var currentPageSize = 10;
@@ -111,6 +125,7 @@ var currentSearch = '';
 var currentLocation = 'All Locations';
 var locations = [];
 var debounceTimer;
+var techniciansCache = {};
 
 function fetchTechnicians() {
     var loadingState = document.getElementById('loadingState');
@@ -158,6 +173,7 @@ function fetchTechnicians() {
                 return;
             }
 
+            result.technicians.forEach(function(t) { techniciansCache[t.name] = t; });
             renderTable(result.technicians);
             renderCards(result.technicians);
             renderPagination(result);
@@ -186,9 +202,11 @@ function renderTable(technicians) {
                     '<span class="font-medium text-gray-800">' + (t.full_name || 'N/A') + '</span>' +
                 '</div>' +
             '</td>' +
-            '<td class="px-6 py-4 text-sm text-gray-600">' + (t.email || '-') + '</td>' +
-            '<td class="px-6 py-4 text-sm text-gray-600">' + (t.location || '-') + '</td>' +
+            '<td class="px-6 py-4 text-sm text-gray-600 font-mono">' + (t.name || '-') + '</td>' +
             '<td class="px-6 py-4"><span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-600"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Active</span></td>' +
+            '<td class="px-6 py-4 text-right"><button onclick="showTechnicianDetail(\'' + t.name + '\')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 transition">' +
+                '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>' +
+                'View</button></td>' +
         '</tr>';
     }).join('');
     document.getElementById('tableContainer').style.display = window.innerWidth >= 768 ? 'block' : 'none';
@@ -201,12 +219,12 @@ function renderCards(technicians) {
             '<div class="flex items-center gap-3 mb-3">' +
                 '<div class="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-sm">' + getInitials(t.full_name) + '</div>' +
                 '<div><div class="font-medium text-gray-800">' + (t.full_name || 'N/A') + '</div>' +
-                '<div class="text-xs text-gray-500">' + (t.email || '-') + '</div></div>' +
+                '<div class="text-xs text-gray-400 font-mono mt-0.5">' + (t.name || '-') + '</div>' +
+                '<div class="text-xs text-green-600 mt-0.5"><span class="inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Active</span></div></div>' +
             '</div>' +
-            '<div class="flex items-center justify-between text-sm">' +
-                '<span class="text-gray-600">Location: <span class="font-medium">' + (t.location || '-') + '</span></span>' +
-                '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-600"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Active</span>' +
-            '</div>' +
+            '<button onclick="showTechnicianDetail(\'' + t.name + '\')" class="w-full mt-2 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 transition">' +
+                '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>' +
+                'View Details</button>' +
         '</div>';
     }).join('');
     cardContainer.style.display = window.innerWidth < 768 ? 'block' : 'none';
@@ -244,6 +262,40 @@ function renderPagination(data) {
     html += '<button onclick="goToPage(' + (data.page + 1) + ')" ' + (data.page >= data.total_pages ? 'disabled' : '') + ' class="px-3 py-2 rounded-lg border text-sm font-medium transition ' + (data.page >= data.total_pages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50 border-gray-200') + '">Next</button>';
 
     controls.innerHTML = html;
+}
+
+function showTechnicianDetail(name) {
+    var t = techniciansCache[name];
+    if (!t) return;
+    var body = document.getElementById('technicianModalBody');
+    var rows = [
+        { label: 'Full Name', value: t.full_name },
+        { label: 'Email', value: t.email },
+        { label: 'Phone', value: t.phone },
+        { label: 'Location', value: t.location },
+        { label: 'Staff Type', value: t.staff_type },
+        { label: 'Date of Join', value: t.date_of_join ? new Date(t.date_of_join).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : null },
+        { label: 'Date of Birth', value: t.date_of_birth ? new Date(t.date_of_birth).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : null }
+    ];
+    var html = '<div class="flex items-center gap-4 mb-6">' +
+        '<div class="w-16 h-16 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-xl">' + getInitials(t.full_name) + '</div>' +
+        '<div><div class="text-xl font-bold text-gray-800">' + (t.full_name || 'N/A') + '</div>' +
+        '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 mt-1 rounded-full text-xs font-medium bg-green-50 text-green-600"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Active</span></div>' +
+    '</div>';
+    html += '<div class="space-y-3">';
+    rows.forEach(function(row) {
+        html += '<div class="flex items-start justify-between py-2 border-b border-gray-100 last:border-0">' +
+            '<span class="text-sm text-gray-500 font-medium">' + row.label + '</span>' +
+            '<span class="text-sm text-gray-800 text-right max-w-[60%] break-words">' + (row.value || '-') + '</span>' +
+        '</div>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+    document.getElementById('technicianModal').classList.remove('hidden');
+}
+
+function closeTechnicianModal() {
+    document.getElementById('technicianModal').classList.add('hidden');
 }
 
 function goToPage(page) {

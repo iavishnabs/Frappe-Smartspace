@@ -13,7 +13,7 @@ class ParkingAllocation(Document):
 		if not self.allocated_from and self.allocation_status == "Active":
 			self.allocated_from = now_datetime()
 
-		# sync parking slot status when allocation_status changes
+		# sync slot status on allocation_status change
 		previous = self.get_doc_before_save()
 		prev_status = previous.allocation_status if previous else None
 

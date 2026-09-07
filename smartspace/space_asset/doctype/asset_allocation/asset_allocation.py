@@ -31,7 +31,7 @@ class AssetAllocation(Document):
 
 
 def update_asset_locations():
-	"""to update asset locations from allocations based on current date"""
+	"""Update asset locations from allocations."""
 	allocations = frappe.get_all(
 		"Asset Allocation",
 		filters={

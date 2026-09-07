@@ -68,7 +68,7 @@ def on_lost_found_insert(doc, method=None):
         )
         notified_users.add(au.user)
 
-    # notify members who have booked reservations at this location (multi-location support)
+    # notify members with bookings at this location
     members_with_bookings = frappe.db.sql("""
         SELECT DISTINCT au.user
         FROM `tabReservation` r

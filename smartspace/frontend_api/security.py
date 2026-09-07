@@ -172,7 +172,7 @@ def get_parking_slots(status=None, slot_type=None, search=None, vehicle_search=N
 	if search:
 		filters["slot_name"] = ["like", f"%{search}%"]
 
-	# if vehicle_search is given, find matching slots via active allocations
+	# find slots by vehicle search
 	if vehicle_search:
 		matching_slots = frappe.get_all(
 			"Parking Allocation",

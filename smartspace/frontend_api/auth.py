@@ -51,7 +51,7 @@ def require_active_member():
 
 
 def require_regular_member():
-	"""Check if current member is active and Regular type, throw if not."""
+	"""Check active Regular member."""
 	app_user = get_session_app_user()
 	if not app_user:
 		frappe.throw("No App User found for current session user")

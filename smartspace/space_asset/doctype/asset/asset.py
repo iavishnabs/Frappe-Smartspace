@@ -13,7 +13,7 @@ class Asset(Document):
 
 @frappe.whitelist()
 def get_asset_movements(asset):
-	"""Get asset movement history from submitted asset allocations."""
+	"""Get asset movements."""
 	allocations = frappe.db.sql("""
 		SELECT aa.name, aa.location, aa.allocated_from, aa.allocated_to
 		FROM `tabAsset Allocation` aa
