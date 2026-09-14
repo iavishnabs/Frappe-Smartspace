@@ -93,6 +93,15 @@ Password : winner
 3. Database - MariaDB
 4. Framework - Frappe (ERPNext ecosystem)
 
+Run Site NGROK : 
+```bash
+
+ ngrok http 8001
+
+ https://calamari-willfully-jokester.ngrok-free.dev
+
+```
+
 ## License
 
 MIT
