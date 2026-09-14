@@ -18,10 +18,54 @@ Smart Co-working Management System built on Frappe Framework.
 
 1. Install Frappe Bench (refer to https://frappeframework.com/docs/user/en/install)
 2. Create a bench: bench init smartspace-bench
-3. Get the app: bench get-app smartspace (from this repo)
-4. Install the app: bench install-app smartspace
-5. Start the server: bench start
-6. Open browser at http://localhost:8000
+3. Go to Bench : cd smartspace-bench
+4. Get the app: bench get-app smartspace (from this repo)
+
+5. bench new-site local
+6. mysql password:root
+7. administration password: winner
+8. bench use local
+9. Install the app: bench --site local install-app smartspace
+10. Restore Database: bench --site local restore /path/to/database.sql
+11. Start the server: bench start
+12. Bench Migrate : bench --site local migrate
+13. Open browser at http://localhost:8000
+
+## For Detail Installation Steps, refer to INSTALLATION.md
+
+## CREDENTIALS : 
+ 
+
+* App Admin:
+Username : appadmin@abc.com
+Password : user@123
+
+
+* Supervisor:
+Username : sup@abc.com
+Password : smart@123
+
+
+* Security:
+Username : sec@abc.com
+Password : smart@123
+
+
+* Technician:
+Username : tech1@abc.com
+Password : smart@123
+
+
+* Member:
+Username : hp@gmail.com
+Password : user@123
+
+
+* Administration:
+Username : administrator
+Password : winner
+
+
 
 ## Doctypes
 

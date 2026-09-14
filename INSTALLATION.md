@@ -160,6 +160,9 @@ bench new-site smartspace.local
 
 # Install the SmartSpace app on the site
 bench --site smartspace.local install-app smartspace
+
+# Restore backup
+bench --site smartspace.local restore /path/to/database.sql
 ```
 
 ---
