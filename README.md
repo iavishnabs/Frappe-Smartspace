@@ -26,7 +26,7 @@ Smart Co-working Management System built on Frappe Framework.
 7. administration password: winner
 8. bench use local
 9. Install the app: bench --site local install-app smartspace
-10. Restore Database: bench --site local restore /path/to/database.sql
+10. Restore Database: bench --site local restore /path/to/20260908_163359-nitta_localhost-database.sql.gz
 11. Start the server: bench start
 12. Bench Migrate : bench --site local migrate
 13. Open browser at http://localhost:8000

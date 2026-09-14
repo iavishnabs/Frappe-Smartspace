@@ -162,7 +162,8 @@ bench new-site smartspace.local
 bench --site smartspace.local install-app smartspace
 
 # Restore backup
-bench --site smartspace.local restore /path/to/database.sql
+bench --site smartspace.local restore /path/to/20260908_163359-nitta_localhost-database.sql.gz
+
 ```
 
 ---
